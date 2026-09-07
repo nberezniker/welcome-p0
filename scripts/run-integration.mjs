@@ -39,11 +39,15 @@ const env = {
   HASH_PEPPER: 'integration-test-pepper-0123456789abcdef',
   ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
   APP_BASE_URL: 'http://localhost:3000',
+  TELEGRAM_WEBHOOK_SECRET: 'integration-telegram-webhook-secret',
+  TELEGRAM_BOT_USERNAME: 'WELCOME_test_bot',
 };
 
 const result = spawnSync(
   process.execPath,
-  ['--import', 'tsx', '--test', 'tests/integration/*.test.ts'],
+  // Sequential files: integration tests share one DB and the phase-3 worker
+  // ticks must not steal each other's outbox jobs mid-assertion.
+  ['--import', 'tsx', '--test', '--test-concurrency=1', 'tests/integration/*.test.ts'],
   { stdio: 'inherit', env, cwd: ROOT },
 );
 process.exit(result.status ?? 1);

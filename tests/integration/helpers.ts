@@ -14,12 +14,13 @@ export interface RouteResponseLike {
 /** Builds a NextRequest like the Next.js server would for a route handler. */
 export function makeRequest(
   url: string,
-  init?: { method?: string; body?: unknown; cookie?: string },
+  init?: { method?: string; body?: unknown; cookie?: string; headers?: Record<string, string> },
 ): NextRequest {
   const method = init?.method ?? (init?.body !== undefined ? 'POST' : 'GET');
   const headers: Record<string, string> = {};
   if (init?.body !== undefined) headers['content-type'] = 'application/json';
   if (init?.cookie) headers['cookie'] = init.cookie;
+  for (const [k, v] of Object.entries(init?.headers ?? {})) headers[k.toLowerCase()] = v;
   return new NextRequest(`http://localhost:3000${url}`, {
     method,
     headers,

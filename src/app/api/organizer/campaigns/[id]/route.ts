@@ -31,9 +31,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const sql = getSql();
     const loaded = await loadCampaignWithRole(sql, auth.accountId, id);
     if (!loaded) return jsonError(404, 'not_found', 'Campaign not found');
+    if (loaded.role === null) return jsonError(404, 'not_found', 'Campaign not found');
     if (loaded.role !== 'owner' && loaded.role !== 'admin') {
-      // Cross-organizer members are 404 upstream (role null); in-organizer
-      // staff is 403 — visible in audit, allowed to know they lack rights.
       return jsonError(403, 'forbidden', 'Only the organizer owner or admin can edit campaigns');
     }
     const { campaign } = loaded;
@@ -58,7 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             approved_revision = ${transition.nextApprovedRevision},
             state = ${transition.nextState}
         WHERE id = ${campaign.id} AND content_revision = ${campaign.content_revision}
-        RETURNING id, state, content_revision, approved_revision
+        RETURNING id, state, content_revision::int AS content_revision, approved_revision::int AS approved_revision
       `;
       if (!updated[0]) return null;
       await recordAudit(tx, auth.accountId, 'campaign.edit', 'campaign', campaign.id, {

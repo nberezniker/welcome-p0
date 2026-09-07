@@ -78,18 +78,28 @@ type JsonParam = Parameters<Sql['json']>[0];
  * Enqueues one outbox job inside the caller's transaction. dedupe_key is
  * UNIQUE: a duplicate enqueue returns the EXISTING job id and reports
  * created=false — the caller must not repeat the business action (AC-32/37).
+ * due_at defaults to the DB clock (now()) so freshly enqueued jobs are
+ * immediately claimable regardless of app/DB clock skew.
  */
 export async function enqueueOutbox(
   tx: SqlLike,
   input: OutboxJobInput,
 ): Promise<{ id: string; created: boolean }> {
-  const inserted = await tx<{ id: string }[]>`
-    INSERT INTO outbox_jobs (dedupe_key, kind, subject_id, channel, purpose, payload, due_at)
-    VALUES (${input.dedupeKey}, ${input.kind}, ${input.subjectId}, ${input.channel}, ${input.purpose},
-            ${tx.json(input.payload as JsonParam)}, ${input.dueAt ?? new Date()})
-    ON CONFLICT (dedupe_key) DO NOTHING
-    RETURNING id
-  `;
+  const inserted = input.dueAt
+    ? await tx<{ id: string }[]>`
+        INSERT INTO outbox_jobs (dedupe_key, kind, subject_id, channel, purpose, payload, due_at)
+        VALUES (${input.dedupeKey}, ${input.kind}, ${input.subjectId}, ${input.channel}, ${input.purpose},
+                ${tx.json(input.payload as JsonParam)}, ${input.dueAt})
+        ON CONFLICT (dedupe_key) DO NOTHING
+        RETURNING id
+      `
+    : await tx<{ id: string }[]>`
+        INSERT INTO outbox_jobs (dedupe_key, kind, subject_id, channel, purpose, payload)
+        VALUES (${input.dedupeKey}, ${input.kind}, ${input.subjectId}, ${input.channel}, ${input.purpose},
+                ${tx.json(input.payload as JsonParam)})
+        ON CONFLICT (dedupe_key) DO NOTHING
+        RETURNING id
+      `;
   if (inserted[0]) return { id: inserted[0].id, created: true };
   const existing = await tx<{ id: string }[]>`
     SELECT id FROM outbox_jobs WHERE dedupe_key = ${input.dedupeKey} LIMIT 1

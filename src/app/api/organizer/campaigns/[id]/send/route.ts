@@ -24,6 +24,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const sql = getSql();
     const loaded = await loadCampaignWithRole(sql, auth.accountId, id);
     if (!loaded) return jsonError(404, 'not_found', 'Campaign not found');
+    if (loaded.role === null) return jsonError(404, 'not_found', 'Campaign not found');
     if (loaded.role !== 'owner' && loaded.role !== 'admin') {
       return jsonError(403, 'forbidden', 'Only the organizer owner or admin can send campaigns');
     }

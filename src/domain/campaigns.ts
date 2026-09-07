@@ -30,7 +30,8 @@ export async function loadCampaignWithRole(
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(campaignId)) return null;
   const rows = await sql<CampaignRow[]>`
     SELECT c.id, c.event_id, c.organizer_id, c.purpose, c.body_text, c.audience_filter,
-           c.content_revision, c.approved_revision, c.state, c.queued_count, c.sent_count, c.created_at
+           c.content_revision::int AS content_revision, c.approved_revision::int AS approved_revision,
+           c.state, c.queued_count, c.sent_count, c.created_at
     FROM campaigns c
     WHERE c.id = ${campaignId}
     LIMIT 1

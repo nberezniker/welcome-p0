@@ -21,6 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const sql = getSql();
     const loaded = await loadCampaignWithRole(sql, auth.accountId, id);
     if (!loaded) return jsonError(404, 'not_found', 'Campaign not found');
+    if (loaded.role === null) return jsonError(404, 'not_found', 'Campaign not found');
     // Explicit owner gate: admin is deliberately NOT enough for approval.
     if (loaded.role !== 'owner') {
       return jsonError(403, 'forbidden', 'Only the organizer owner can approve campaigns');
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         WHERE id = ${campaign.id}
           AND state IN ('draft', 'approved')
           AND content_revision = ${campaign.content_revision}
-        RETURNING id, state, content_revision, approved_revision
+        RETURNING id, state, content_revision::int AS content_revision, approved_revision::int AS approved_revision
       `;
       if (!updated[0]) return null;
       await recordAudit(tx, auth.accountId, 'campaign.approve', 'campaign', campaign.id, {
