@@ -371,6 +371,8 @@ export const en = {
   'events.directoryVisible': 'Show me in the member directory',
   'events.directoryVisibleHint':
     'When off, other members cannot see your card in the directory and you cannot appear in their suggestions.',
+  'events.matchingEnabled': 'Receive intro suggestions in this event',
+  'events.matchingEnabledHint': 'When off, you are excluded from suggestions — both as viewer and as candidate.',
   'events.savedToast': 'Event settings saved.',
   'events.joinState': 'Membership: active',
   'events.attendanceOn': 'I\'m here',

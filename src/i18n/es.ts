@@ -359,6 +359,8 @@ export const es: Partial<Dictionary> = {
   'events.directoryVisible': 'Mostrarme en el directorio de miembros',
   'events.directoryVisibleHint':
     'Cuando está desactivado, otros miembros no pueden verte en el directorio ni aparecerás en sus sugerencias.',
+  'events.matchingEnabled': 'Recibir sugerencias de presentación en este evento',
+  'events.matchingEnabledHint': 'Cuando está desactivado, quedas excluido de las sugerencias, como espectador y como candidato.',
   'events.savedToast': 'Ajustes del evento guardados.',
   'events.joinState': 'Membresía: activa',
   'events.attendanceOn': 'Estoy aquí',

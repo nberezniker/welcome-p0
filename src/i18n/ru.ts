@@ -359,6 +359,8 @@ export const ru: Partial<Dictionary> = {
   'events.directoryVisible': 'Показывать меня в каталоге участников',
   'events.directoryVisibleHint':
     'Когда выключено, другие участники не видят вас в каталоге, и вы не попадаете в их подборки.',
+  'events.matchingEnabled': 'Получать подборки знакомств в этом событии',
+  'events.matchingEnabledHint': 'Когда выключено, вы исключены из подборок — и как зритель, и как кандидат.',
   'events.savedToast': 'Настройки события сохранены.',
   'events.joinState': 'Участие: активно',
   'events.attendanceOn': 'Я здесь',
