@@ -46,6 +46,14 @@ export function timingSafeHexEqual(a: string, b: string): boolean {
   return timingSafeEqual(ba, bb);
 }
 
+/**
+ * Constant-time comparison of two secrets (webhook tokens). Both sides are
+ * SHA-256 hashed first so the comparison never leaks length or prefix bytes.
+ */
+export function secureSecretEqual(provided: string, expected: string): boolean {
+  return timingSafeHexEqual(hashSessionToken(provided), hashSessionToken(expected));
+}
+
 /** Decodes the base64 ENCRYPTION_KEY env value; must be exactly 32 bytes (AES-256). */
 export function decodeEncryptionKey(keyBase64: string): Buffer {
   const key = Buffer.from(keyBase64, 'base64');
