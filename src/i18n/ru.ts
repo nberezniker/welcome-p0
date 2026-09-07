@@ -535,6 +535,7 @@ export const ru: Partial<Dictionary> = {
   'camp.sent': 'В очереди сообщений: {queued}.',
   'camp.statsTitle': 'Статистика доставки',
   'camp.stats.pending': 'В очереди',
+  'camp.stats.leased': 'В обработке',
   'camp.stats.sent': 'Отправлено',
   'camp.stats.delivered': 'Доставлено',
   'camp.stats.failed': 'Ошибки',

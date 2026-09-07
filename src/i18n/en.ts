@@ -547,6 +547,7 @@ export const en = {
   'camp.sent': 'Queued messages: {queued}.',
   'camp.statsTitle': 'Delivery stats',
   'camp.stats.pending': 'Pending',
+  'camp.stats.leased': 'Leased',
   'camp.stats.sent': 'Sent',
   'camp.stats.delivered': 'Delivered',
   'camp.stats.failed': 'Failed',

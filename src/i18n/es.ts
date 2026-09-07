@@ -535,6 +535,7 @@ export const es: Partial<Dictionary> = {
   'camp.sent': 'Mensajes en cola: {queued}.',
   'camp.statsTitle': 'Estadísticas de entrega',
   'camp.stats.pending': 'En cola',
+  'camp.stats.leased': 'En proceso',
   'camp.stats.sent': 'Enviados',
   'camp.stats.delivered': 'Entregados',
   'camp.stats.failed': 'Fallidos',
