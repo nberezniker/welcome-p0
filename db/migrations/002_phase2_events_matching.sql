@@ -13,6 +13,9 @@ ALTER TABLE events
 -- Join codes are per-event secrets; uniqueness prevents collisions when set.
 CREATE UNIQUE INDEX events_join_code_uq ON events(join_code) WHERE join_code IS NOT NULL;
 
+-- An account owns at most one organizer (role=owner); staff/admin may serve many.
+CREATE UNIQUE INDEX organizer_members_owner_uq ON organizer_members(account_id) WHERE role = 'owner';
+
 ALTER TABLE event_memberships
   ADD COLUMN matching_enabled boolean NOT NULL DEFAULT true,
   ADD COLUMN attendance_source text NOT NULL DEFAULT 'none'

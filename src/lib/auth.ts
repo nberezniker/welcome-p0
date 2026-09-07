@@ -78,6 +78,24 @@ export async function requireAccount(req: NextRequest): Promise<AuthContext | nu
   return { accountId: row.account_id, accountStatus: row.account_status, sessionId: row.session_id };
 }
 
+/** Resolves an active account id from a raw session token (server components —
+ * page context has no Request object for requireAccount). */
+export async function getAccountIdByToken(token: string | null | undefined): Promise<string | null> {
+  if (!token) return null;
+  const tokenHash = hashSessionToken(token);
+  const sql = getSql();
+  const rows = await sql<{ account_id: string; account_status: string }[]>`
+    SELECT s.account_id, a.status AS account_status
+    FROM sessions s
+    JOIN accounts a ON a.id = s.account_id
+    WHERE s.token_hash = ${tokenHash} AND s.expires_at > now()
+    LIMIT 1
+  `;
+  const row = rows[0];
+  if (!row || row.account_status !== 'active') return null;
+  return row.account_id;
+}
+
 /** Sets the HttpOnly session cookie. secure=true in production; SameSite=Lax. */
 export function setSessionCookie(res: NextResponse, token: string, expiresAt: Date): void {
   res.cookies.set({

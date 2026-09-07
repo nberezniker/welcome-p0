@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { randomUUID } from 'node:crypto';
 import { extractSessionCookie } from '../../src/lib/auth';
+import { hashSessionToken } from '../../src/lib/crypto';
+import { getSql } from '../../src/lib/db';
 
 export interface RouteResponseLike {
   status: number;
@@ -51,4 +53,15 @@ export function assertStatus(res: Response, expected: number): void {
   if (res.status !== expected) {
     throw new Error(`expected status ${expected}, got ${res.status}`);
   }
+}
+
+/** Resolves the account id that owns a `welcome_session=<token>` cookie. */
+export async function accountIdFromCookie(cookie: string): Promise<string> {
+  const token = cookie.split('=')[1] ?? '';
+  const sql = getSql();
+  const rows = await sql<{ account_id: string }[]>`
+    SELECT account_id FROM sessions WHERE token_hash = ${hashSessionToken(token)} LIMIT 1
+  `;
+  if (!rows[0]) throw new Error('no session for cookie');
+  return rows[0].account_id;
 }
