@@ -5,6 +5,7 @@
 export const CHALLENGE_TTL_MINUTES: Record<string, number> = {
   registration_claim: 7 * 24 * 60,
   channel_binding: 10,
+  telegram_link: 10,
 };
 
 const DEFAULT_TTL_MINUTES = 10;
