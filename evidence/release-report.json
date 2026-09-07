@@ -1,0 +1,116 @@
+{
+  "status": "PASS_LOCAL",
+  "commit_sha": "7605b005bc90f77b90d82a561a0b6e6bdcbe1f34",
+  "build_digest": "sha256:d924fb92ba4b0ae76862130d29ad0bd6b18eebd1dfd7ac56d8308eabd1a",
+  "migration_version": "004",
+  "staging_url": null,
+  "production_url": null,
+  "tests": [
+    { "name": "typecheck", "command": "pnpm typecheck", "exit_code": 0, "counts": { "errors": 0 } },
+    { "name": "lint", "command": "pnpm lint", "exit_code": 0, "counts": { "errors": 0, "warnings": 2 } },
+    { "name": "unit", "command": "pnpm test:unit", "exit_code": 0, "counts": { "tests": 163, "pass": 163, "fail": 0 } },
+    { "name": "integration", "command": "pnpm test:integration", "exit_code": 0, "counts": { "tests": 166, "pass": 166, "fail": 0 } },
+    { "name": "e2e", "command": "pnpm test:e2e", "exit_code": 0, "counts": { "tests": 1, "pass": 1, "fail": 0 } },
+    { "name": "build", "command": "pnpm build", "exit_code": 0, "counts": { "routes": 62, "static_pages": 26 } },
+    { "name": "scan_secrets", "command": "pnpm scan:secrets", "exit_code": 0, "counts": { "findings": 0 } },
+    { "name": "audit_deps", "command": "pnpm audit:deps", "exit_code": 0, "counts": { "vulnerabilities_high_or_above": 0 } },
+    { "name": "defect_drill", "command": "pnpm drill:defect", "exit_code": 0, "counts": { "fail_expected_exit_code": 1, "pass_after_revert_exit_code": 0 } },
+    { "name": "spec_core", "command": "node --test spec/tests/core.test.mjs", "exit_code": 0, "counts": { "tests": 24, "pass": 24, "fail": 0 } }
+  ],
+  "integrations": {
+    "telegram": {
+      "status": "PASS_LOCAL",
+      "detail": "Webhook secret validation, deep-link one-time challenge binding, update_id dedupe/replay hardening, and /stop/block/unlink suppression are tested with the mock transport and disabled transports (unit + integration). No real Bot API message was ever sent or received.",
+      "live_round_trip": "BLOCKED_EXTERNAL",
+      "evidence": ["evidence/final-gates.log", "tests/unit/telegram-transport-matrix.test.ts", "tests/unit/telegram-transport-send.test.ts", "tests/integration/telegram-webhook.test.ts"]
+    },
+    "whatsapp_business": {
+      "status": "BLOCKED_EXTERNAL",
+      "detail": "Disabled by design: no WHATSAPP_* credentials exist in this environment and no WhatsApp UI/API surface exists at all. wa.me personal links are not counted as API integration. No policy/template/webhook evidence exists.",
+      "evidence": [".env.example"]
+    },
+    "linkedin_oidc": {
+      "status": "BLOCKED_EXTERNAL",
+      "detail": "Disabled: no LINKEDIN_* credentials. No scraping fallback exists anywhere in src/ (verified by code inspection during security review).",
+      "evidence": [".env.example"]
+    },
+    "luma": {
+      "status": "BLOCKED_EXTERNAL",
+      "detail": "Live Luma API disabled (no LUMA_API_KEY). CSV import P0 works fully (unit + integration, spec contract fields). Webhook dedupe/quarantine logic tested against the contract fixtures.",
+      "evidence": ["evidence/final-gates.log", "tests/integration/import-claim.test.ts"]
+    },
+    "staging": {
+      "status": "BLOCKED_EXTERNAL",
+      "detail": "No public HTTPS host and no managed PostgreSQL credentials exist in this environment. release_permission.staging exists in the spec release process (spec/WELCOME_TZ_v3.md) but its preflight requires exactly those external inputs, which are absent here.",
+      "evidence": ["evidence/runtime/environment.md", "spec/WELCOME_TZ_v3.md"]
+    },
+    "production": {
+      "status": "BLOCKED",
+      "detail": "release_permission.production=false per the production preflight (spec/WELCOME_TZ_v3.md §4). Nothing was deployed; no production rebuild drift occurred because no promotion was attempted.",
+      "evidence": ["spec/WELCOME_TZ_v3.md"]
+    }
+  },
+  "blockers": [
+    "TELEGRAM_BOT_TOKEN and a public HTTPS webhook URL are absent — real Telegram round trip (AC-38) is BLOCKED_EXTERNAL; no real message was ever sent.",
+    "No staging HTTPS host / managed PostgreSQL credentials — staging deploy BLOCKED_EXTERNAL; backup restore (AC-54) and rollback (AC-57) rehearsals NOT RUN.",
+    "release_permission.production=false (production preflight, spec/WELCOME_TZ_v3.md §4) — production BLOCKED; nothing was deployed.",
+    "Contest official rules/form URLs unresolved per spec/docs/08_CONTEST.md — contest claims BLOCKED_CONTEST_RULES (AC-61); no contest submission was made.",
+    "Physical phone required — QR scan on a real device (AC-55) BLOCKED_EXTERNAL; QR payload correctness verified locally (SVG encodes the exact public HTTPS URL)."
+  ],
+  "spend_eur": 0,
+  "generated_at": "2026-09-07T22:05:00Z",
+  "branch": "main",
+  "build": {
+    "build_id": "V3stXnonSN2R1Kyv2bvmt6d9b",
+    "build_id_sha256": "d924fb92ba4b0ae76862130d29ad0bd6b18eebd1dfd7ac56d8308eabd1a",
+    "routes": 62,
+    "static_pages": "26/26",
+    "note": "From `pnpm build` of the final gate run (evidence/final-gates.log, gate 06). Route count = route table lines in the build output."
+  },
+  "migration": {
+    "database": "welcome_dev (local PostgreSQL 16.13)",
+    "highest_applied": "004",
+    "applied": ["001_init.sql", "002_phase2_events_matching.sql", "003_link_challenges_claim.sql", "004_outbox_campaigns.sql"]
+  },
+  "scope_areas": {
+    "identity_profile_qr": { "status": "PASS_LOCAL", "note": "OTP auth (enumeration-safe), opaque 22-char slug, public projection only, vCard escaping, QR payload, rotate/revoke — unit + integration + e2e." },
+    "events_import_claim": { "status": "PASS_LOCAL", "note": "CSV preview/commit safety, idempotent re-import, no implicit account creation, claim binding anti-abuse (AC-07/08/09/17/18/19), quarantine." },
+    "matching_intros": { "status": "PASS_LOCAL", "note": "Deterministic matching core (spec/tests/core.test.mjs 24/24), consent-gated reveal, idempotent intros, withdrawal suppression, private notes owner-only." },
+    "organizer_campaigns": { "status": "PASS_LOCAL", "note": "Cross-tenant 404/403 anti-enumeration, purpose registry, approval-reset-on-edit, audience revalidation, test-send, unsubscribe suppression." },
+    "telegram": { "status": "PASS_LOCAL", "note": "Mock + disabled transports only: webhook secret 401 fail-closed, update_id dedupe, binding requires web confirm + /start, /stop and blocks suppress sends. Live round trip BLOCKED_EXTERNAL." },
+    "security_privacy": { "status": "PASS_LOCAL", "note": "CSRF origin guard, rate limits, IDOR negative suite, XSS/CSV-formula/webhook-replay tests, secret scan, dependency audit, 1 review finding fixed." },
+    "quality_ops": { "status": "PASS_LOCAL", "note": "EN/RU/ES dictionaries, 360/1440 overflow check + screenshots, e2e smoke, controlled defect drill, load smoke (local-only indicative)." }
+  },
+  "security": {
+    "findings_found": 1,
+    "findings_fixed": 1,
+    "finding": "Blocks did not freeze introductions — a blocked party could still create/receive intro requests. Fixed in ad518f4 'fix(intro): blocks freeze introductions (SECURITY_TESTS #11)'; regression tests assert 403 blocked and symmetric freeze.",
+    "defect_drill": {
+      "command": "pnpm drill:defect",
+      "result": "Injected public-projection leak FAILs the gate (exit 1); revert PASSes (exit 0); no tracked residue outside the drill's own evidence outputs.",
+      "evidence": ["evidence/DEFECT_DRILL.md", "evidence/defect-drill-fail.log", "evidence/defect-drill-pass.log"]
+    }
+  },
+  "unverified_items": [
+    "Real Telegram inbound/outbound delivery — no real message was ever sent or received (AC-38).",
+    "Any public HTTPS deployment — staging_url and production_url are null.",
+    "Backup restore rehearsal (AC-54) — requires staging; NOT RUN.",
+    "Rollback rehearsal (AC-57) — requires staging; NOT RUN.",
+    "QR scan on a physical phone (AC-55) — BLOCKED_EXTERNAL.",
+    "Luma API live verification, LinkedIn OIDC live verification, WhatsApp Business live verification.",
+    "Keyboard/dialog/focus accessibility behaviors (AC-45) — no automated test; semantic markup and static safety only.",
+    "Offline device behavior (AC-47) — needs a real unloaded phone.",
+    "GitHub Actions CI execution — workflow defined (.github/workflows/ci.yml), never observed running on GitHub.",
+    "Pending-job cancellation on account deletion — no automated test (deactivation → public 404 IS tested; export IS tested).",
+    "Deep health-gated staging release (AC-56) — /api/health exists (DB read/write, migrations, worker heartbeat) but staging release gating was never exercised."
+  ],
+  "statements": {
+    "mock_in_production": "The Telegram mock transport is gated by APP_ENV and unit-tested to never select mock in production ('selectTransport: production with TELEGRAM_MOCK=1 → STILL disabled'; 'production without token → disabled, never silent drop'). In production the disabled-transport fallback suppresses jobs (no_channel / transport_disabled) instead of dropping them silently. Demo seed data is flagged is_demo=true and excluded from analytics/directory; db:seed and db:reset refuse to run when APP_ENV=production.",
+    "spend_and_limits": "spend_eur = 0. No paid resources were created: no domains, no hosting, no managed databases, no paid API plans, no contest submissions. All verification ran on a local workstation (local PostgreSQL 16.13, local Playwright chromium)."
+  },
+  "notes": {
+    "commit_sha_scope": "commit_sha = 7605b005bc90f77b90d82a561a0b6e6bdcbe1f34, the tree that passed the final full gate run (drill:defect enforces a clean tree). The final Phase-6 commit adds only these evidence/report files on top; see evidence/final-gates.json head_sha_at_gate_run and evidence/runtime/environment.md.",
+    "status_discipline": "No PASS_STAGING or PASS_PRODUCTION value appears anywhere: nothing was deployed. No claim of real Telegram delivery is made. No contest claims are made.",
+    "self_reference": "A file cannot contain the SHA of the commit that first contains it; the final commit SHA is stated in the repository history and in the delivery summary."
+  }
+}

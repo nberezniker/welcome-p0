@@ -1,70 +1,102 @@
-# WELCOME P0 — Phase 1
+# WELCOME
 
-Persistent personal networking profile + reusable QR product. This phase covers the
-foundation: identity (email OTP), profile with public card, vCard, QR, and health.
+Persistent personal networking profile + reusable QR: one profile you control,
+a public card you can print on a QR badge, event matching and consent-gated
+contact exchange, with Telegram as the P0 messaging channel.
 
-Protected baselines (do not modify): `spec/` — requirements; `reference-landing/` — design reference only.
+**Status:** `PASS_LOCAL` (Phase 6 of 6, 2026-09-07). Nothing was ever deployed —
+no staging, no production, no real Telegram traffic. See
+[RELEASE_REPORT.md](RELEASE_REPORT.md) and [evidence/](evidence/).
 
-## Stack
+## Architecture
 
-- Next.js (App Router) + TypeScript strict, Tailwind CSS v4
-- PostgreSQL 16 via `postgres` (postgres.js) — **no ORM**
-- SQL migrations in `db/migrations/`, runner in `scripts/migrate.mjs` (`schema_migrations`)
+```
+Next.js App Router (EN/RU/ES) ── /me, /p/:slug, /e/:slug, /login, /claim, /organizer
+        │ withApi: CSRF origin guard + rate limits + error envelope
+        ▼
+Route handlers /api/* ─── src/domain (pure logic: matching, intros, consent,
+        │                  csv/import, campaigns, vcard)
+        ▼
+postgres.js (no ORM) ── PostgreSQL 16, RLS-ready schema, db/migrations/*.sql
+        ▲
+src/infra: outbox (transactional jobs, backoff/lease) + worker (pnpm worker)
+        ▼
+Transports: telegram (real | mock[dev-only] | disabled) · Luma/WhatsApp/LinkedIn: disabled-by-default
+```
 
-## Setup
+Key invariants: public projection is explicit (`public_enabled`), contacts are
+AES-256-GCM encrypted at rest, consent is purpose-scoped, outbox jobs are
+suppressed (never silently dropped) when consent/transport/blocking says no.
+
+## Run locally
+
+Requirements: Node ≥20.9 (built on 22.x), pnpm 10.x, PostgreSQL 16.
 
 ```bash
 pnpm install
-cp .env.example .env.local            # fill values; never commit .env.local
-pnpm db:migrate                       # apply migrations (welcome_dev by default)
-pnpm db:seed                          # optional: 2 demo profiles (is_demo=true)
-pnpm dev                              # http://localhost:3000
+cp .env.example .env.local        # fill values; never commit .env.local
+pnpm db:migrate                   # apply db/migrations (welcome_dev)
+pnpm db:seed                      # optional: demo data (is_demo=true)
+pnpm dev                          # http://localhost:3000
+pnpm worker                       # outbox worker (separate terminal)
 ```
 
-Required env: `DATABASE_URL`, `HASH_PEPPER`, `ENCRYPTION_KEY` (base64 of 32 bytes),
-`APP_BASE_URL`, `APP_ENV`. Dev-only: `AUTH_DEV_EXPOSE_OTP=true` exposes the OTP in
-the verify response when `APP_ENV=development`; otherwise codes land in
-`.runtime/otp.log` (gitignored).
+Env vars (`cp .env.example .env.local`, names only in git):
 
-## Gates
+- Core: `APP_ENV` (`development`|`production`), `APP_BASE_URL`, `DATABASE_URL`,
+  `AUTH_BASE_URL`, `ENCRYPTION_KEY` (base64 of 32 bytes), `HASH_PEPPER`, `LOG_LEVEL`
+- Dev-only: `AUTH_DEV_EXPOSE_OTP=true` returns the OTP in the verify response
+  when `APP_ENV=development`; otherwise codes go to `.runtime/otp.log` (gitignored)
+- Channels (all optional; absent = disabled, never mocked in production):
+  `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME`,
+  `LUMA_API_KEY`, `LUMA_WEBHOOK_SECRET`, `WHATSAPP_*`, `LINKEDIN_*`
+
+## Gates (all green at release; evidence/final-gates.log)
 
 ```bash
-pnpm typecheck          # tsc --noEmit
-pnpm lint               # eslint flat config
-pnpm test:unit          # node --test (tsx loader), tests/unit/
-pnpm test:integration   # resets + migrates welcome_test, runs tests/integration/
-pnpm build
-pnpm scan:secrets       # fails on obvious secrets in tracked files (spec/ excluded)
-pnpm audit:deps         # pnpm audit --prod --audit-level high
-pnpm db:reset           # DEV ONLY: drop schema + re-apply migrations (refuses production)
-pnpm drill:defect       # controlled defect drill: inject leak -> gate FAIL -> revert -> PASS (needs clean tree)
-pnpm load:smoke         # AC-53 load smoke, LOCAL-ONLY indicative numbers -> evidence/load-smoke.json
+pnpm typecheck && pnpm lint        # tsc --noEmit, eslint (flat config)
+pnpm test:unit                     # 163 tests (node --test + tsx)
+pnpm test:integration              # 166 tests, resets welcome_test DB
+pnpm test:e2e                      # Playwright chromium smoke on welcome_e2e DB (port 3111)
+pnpm build                         # next build (62 routes)
+pnpm scan:secrets                  # fails on secrets in tracked files (spec/ excluded)
+pnpm audit:deps                    # pnpm audit --prod --audit-level high
+pnpm drill:defect                  # injects a leak → gate must FAIL → revert → PASS (needs clean tree)
+pnpm load:smoke                    # AC-53 local-only load numbers → evidence/load-smoke.json
+node --test spec/tests/core.test.mjs   # archive's 24 core contract tests
 ```
 
-## Security hardening (Phase 5)
+## Repo map
 
-- CSRF: every mutating handler is exported through `withApi` (src/lib/http.ts) —
-  cross-origin POST/PATCH/PUT/DELETE → `403 csrf_origin`; no-Origin requests
-  pass unless `Sec-Fetch-Site: cross-site` (curl/webhooks keep working).
-- Rate limits: in-memory per-IP token buckets (ADR 0005) — OTP 10/min,
-  registration-claims/reports/blocks 30/min; `X-RateLimit-*` headers; 429
-  `retryable:true`. DB-level per-subject throttles remain in force.
-- `GET /api/organizer/events/:eventId/export` — event-scoped CSV, owner/admin,
-  formula-neutralized cells, no emails/hashes/pair identities.
-
-## API (Phase 1)
-
-| Endpoint | Notes |
+| Path | Contents |
 |---|---|
-| `POST /api/auth/otp/request` | `{email}` → always `{ok:true}` (enumeration-safe); 3 codes / 15 min |
-| `POST /api/auth/otp/verify` | `{email, code}` → session cookie `welcome_session`; 5 attempts per OTP |
-| `POST /api/auth/logout` | destroys session server-side |
-| `GET/POST /api/me/profile` | own profile; updates require `revision`, stale → `409` |
-| `GET/PUT /api/me/contacts` | kind+value, AES-256-GCM encrypted at rest, `public_enabled` |
-| `GET /api/public/profiles/:slug` | public projection only |
-| `GET /api/public/profiles/:slug/vcard` | vCard 3.0, public fields only |
-| `GET /api/public/profiles/:slug/qr.svg` | QR of `APP_BASE_URL/p/:slug` |
-| `GET /api/health` | DB read+write, migrations, worker heartbeat freshness |
-| `GET /api/organizer/events/:eventId/export` | owner/admin event CSV export (Phase 5): registrations + directory members + intro aggregates, formula-neutralized |
+| `src/app/` | Routes: `/me` (dashboard, contacts, events, intros, notes, privacy, telegram), `/p/:slug` public card, `/e/:slug` event, `/login`, `/claim/:token`, `/organizer`, `/api/*` |
+| `src/domain/` | Pure business logic: matching, introductions, consent, campaigns, csv/import, events, vcard, profile |
+| `src/infra/` | Outbox jobs, worker loop, Telegram handlers |
+| `src/integrations/telegram/` | Transport selection (real/mock[dev]/disabled), webhook parsing |
+| `src/lib/` | http (CSRF/errors), auth, crypto, db, env, ratelimit, public-profile |
+| `src/i18n/` | en/ru/es dictionaries (fallback: en) |
+| `db/migrations/` | SQL migrations 001–004, runner `scripts/migrate.mjs` (`schema_migrations`) |
+| `scripts/` | Migrate, seed, worker, scan-secrets, defect-drill, load-smoke, validate-release-report |
+| `tests/` | `unit/`, `integration/` (DB), `e2e/` (Playwright) |
+| `evidence/` | Gates, drill, load smoke, screenshots, release report + index |
+| `spec/` | **Protected baseline** — requirements, contracts, test plans. Do not modify |
+| `reference-landing/` | **Protected** design reference only |
+| `docs-internal/adr/` | Decision log (ADR-0001…0006) |
 
-Errors: `{code, message, correlation_id, retryable}` — never SQL/stacks/secrets.
+## Handoff
+
+- Release report (verdicts, blockers, honest acceptance mapping):
+  [RELEASE_REPORT.md](RELEASE_REPORT.md) · machine: [evidence/release-report.json](evidence/release-report.json)
+- Acceptance matrix (62 ACs): [evidence/ACCEPTANCE_STATUS.md](evidence/ACCEPTANCE_STATUS.md)
+- Evidence index: [evidence/EVIDENCE_INDEX.md](evidence/EVIDENCE_INDEX.md)
+- Environment record (executor, tools, honest limitations):
+  [evidence/runtime/environment.md](evidence/runtime/environment.md)
+- Decisions: [docs-internal/adr/](docs-internal/adr/) · CI definition: [.github/workflows/ci.yml](.github/workflows/ci.yml) (unverified on GitHub)
+
+## What is deliberately NOT done
+
+No staging/production deploy (no host/credentials; production permission false),
+no real Telegram round trip (no bot token/public webhook URL), no contest
+submission (rules unresolved), no real-device QR / backup / rollback rehearsals.
+Exact blockers: [RELEASE_REPORT.md §6](RELEASE_REPORT.md).

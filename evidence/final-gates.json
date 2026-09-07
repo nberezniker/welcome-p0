@@ -1,0 +1,146 @@
+{
+  "generated_at": "2026-09-07T21:46:59.561Z",
+  "head_sha_at_gate_run": "7605b005bc90f77b90d82a561a0b6e6bdcbe1f34",
+  "note": "All gates run fresh and sequentially on a clean worktree. Gate logs were staged in /tmp during the run because drill:defect refuses a dirty worktree; the combined log was copied into evidence/ after the run.",
+  "gates": [
+    {
+      "command": "pnpm typecheck",
+      "exit_code": 0,
+      "duration_s": 6,
+      "summary_lines": [
+        "> welcome-p0@0.1.0 typecheck /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
+        "> tsc --noEmit"
+      ]
+    },
+    {
+      "command": "pnpm lint",
+      "exit_code": 0,
+      "duration_s": 8,
+      "summary_lines": [
+        "✖ 2 problems (0 errors, 2 warnings)"
+      ]
+    },
+    {
+      "command": "pnpm test:unit",
+      "exit_code": 0,
+      "duration_s": 2,
+      "summary_lines": [
+        "# tests 163",
+        "# pass 163",
+        "# fail 0",
+        "# cancelled 0",
+        "# skipped 0",
+        "# todo 0"
+      ]
+    },
+    {
+      "command": "pnpm test:integration",
+      "exit_code": 0,
+      "duration_s": 75,
+      "summary_lines": [
+        "applied 001 001_init.sql",
+        "applied 002 002_phase2_events_matching.sql",
+        "applied 003 003_link_challenges_claim.sql",
+        "applied 004 004_outbox_campaigns.sql",
+        "# tests 166",
+        "# pass 166",
+        "# fail 0",
+        "# cancelled 0",
+        "# skipped 0",
+        "# todo 0"
+      ]
+    },
+    {
+      "command": "pnpm test:e2e",
+      "exit_code": 0,
+      "duration_s": 127,
+      "summary_lines": [
+        "applied 001 001_init.sql",
+        "applied 002 002_phase2_events_matching.sql",
+        "applied 003 003_link_challenges_claim.sql",
+        "applied 004 004_outbox_campaigns.sql",
+        "  1 passed (2.1m)"
+      ]
+    },
+    {
+      "command": "pnpm build",
+      "exit_code": 0,
+      "duration_s": 29,
+      "summary_lines": [
+        " ✓ Compiled successfully in 3.9s",
+        "   Generating static pages (0/26) ...",
+        "   Generating static pages (6/26)",
+        "   Generating static pages (12/26)",
+        "   Generating static pages (19/26)",
+        " ✓ Generating static pages (26/26)",
+        "Route (app)                                                                   Size  First Load JS"
+      ]
+    },
+    {
+      "command": "pnpm scan:secrets",
+      "exit_code": 0,
+      "duration_s": 9,
+      "summary_lines": [
+        "scan:secrets ok — no secrets found in tracked files"
+      ]
+    },
+    {
+      "command": "pnpm audit:deps",
+      "exit_code": 0,
+      "duration_s": 1,
+      "summary_lines": [
+        "No known vulnerabilities found"
+      ]
+    },
+    {
+      "command": "pnpm drill:defect",
+      "exit_code": 0,
+      "duration_s": 11,
+      "summary_lines": [
+        "applied 001 001_init.sql",
+        "applied 002 002_phase2_events_matching.sql",
+        "applied 003 003_link_challenges_claim.sql",
+        "applied 004 004_outbox_campaigns.sql",
+        "step 1: defect injected into src/lib/public-profile.ts",
+        "step 1: gate run exit code = 1 (expected non-zero)",
+        "step 2: defect reverted from git",
+        "step 2: gate run exit code = 0 (expected 0)",
+        "step 3: no tracked residue outside the drill's own evidence outputs",
+        "DRILL-OK"
+      ]
+    },
+    {
+      "command": "node --test spec/tests/core.test.mjs",
+      "exit_code": 0,
+      "duration_s": 0,
+      "summary_lines": [
+        "# tests 24",
+        "# pass 24",
+        "# fail 0",
+        "# cancelled 0",
+        "# skipped 0",
+        "# todo 0"
+      ]
+    }
+  ],
+  "totals": {
+    "gates_total": 10,
+    "gates_exit_zero": 10,
+    "unit": {
+      "pass": 163,
+      "fail": 0
+    },
+    "integration": {
+      "pass": 166,
+      "fail": 0
+    },
+    "e2e": {
+      "pass": 1,
+      "fail": 0
+    },
+    "spec_core": {
+      "pass": 24,
+      "fail": 0
+    }
+  }
+}

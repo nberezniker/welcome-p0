@@ -1,0 +1,7 @@
+# release-report validation
+# command: node scripts/validate-release-report.mjs
+# date: 2026-09-07T22:00:35Z
+# exit code: 0
+
+OK: evidence/release-report.json conforms to spec/contracts/release-report.schema.json
+    status=PASS_LOCAL commit_sha=7605b005bc90f77b90d82a561a0b6e6bdcbe1f34 spend_eur=0 tests=10 gates
