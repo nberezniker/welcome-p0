@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { en, type Dictionary } from '../../src/i18n/en';
 import { ru } from '../../src/i18n/ru';
 import { es } from '../../src/i18n/es';
-import { DEFAULT_LOCALE, LOCALES, getDictionary, interpolate, isLocale, resolveLocale, t } from '../../src/i18n';
+import { DEFAULT_LOCALE, LOCALES, getDictionary, isLocale, resolveLocale, t } from '../../src/i18n';
 
 /** Keys deliberately present only in `en` — documented fallbacks (see src/i18n/README.md). */
 const ALLOWED_EN_FALLBACK: readonly (keyof Dictionary)[] = [];

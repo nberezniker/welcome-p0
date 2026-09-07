@@ -344,6 +344,7 @@ export const en = {
   'intros.revealNone': 'No contact kinds overlap — nothing will be revealed. Add contacts or enable kinds on both sides.',
   'intros.responded': 'Response recorded.',
   'intros.report': 'Report',
+  'intros.reportDetails': 'Details (optional)',
   'intros.block': 'Block',
   'intros.reportDone': 'Report sent.',
   'intros.blockDone': 'Account blocked.',

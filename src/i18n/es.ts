@@ -332,6 +332,7 @@ export const es: Partial<Dictionary> = {
   'intros.revealNone': 'Los tipos de contacto no coinciden: no se revelará nada. Añade contactos o activa tipos en ambos lados.',
   'intros.responded': 'Respuesta registrada.',
   'intros.report': 'Denunciar',
+  'intros.reportDetails': 'Detalles (opcional)',
   'intros.block': 'Bloquear',
   'intros.reportDone': 'Denuncia enviada.',
   'intros.blockDone': 'Cuenta bloqueada.',

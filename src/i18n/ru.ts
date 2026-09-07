@@ -332,6 +332,7 @@ export const ru: Partial<Dictionary> = {
   'intros.revealNone': 'Виды контактов не пересекаются — ничего не откроется. Добавьте контакты или включите виды с обеих сторон.',
   'intros.responded': 'Ответ записан.',
   'intros.report': 'Жалоба',
+  'intros.reportDetails': 'Подробности (необязательно)',
   'intros.block': 'Заблокировать',
   'intros.reportDone': 'Жалоба отправлена.',
   'intros.blockDone': 'Аккаунт заблокирован.',

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { Modal, Toast, useToast } from '../../../components/modal';
 
 export interface ConsentToggleRow {
@@ -69,7 +68,6 @@ export function PrivacyPanel({
   policyVersion: string;
   strings: Strings;
 }) {
-  const router = useRouter();
   const [rows, setRows] = useState(purposeRows);
   const [blocksState, setBlocksState] = useState(blocks);
   const [busyPurpose, setBusyPurpose] = useState<string | null>(null);
