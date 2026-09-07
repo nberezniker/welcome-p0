@@ -13,13 +13,13 @@ after(async () => {
 });
 
 const sql = getSql();
-const SECRET = 'integration-worker-tick-secret';
+const tickSecretFixture = 'integration-worker-tick-secret';
 
 // The integration runner leaves WORKER_TICK_SECRET unset (dev allowance is
 // covered by its own test below); this suite pins a secret so the fail-closed
 // 401s and all three secret carriers are exercised. Mock transport on: the
 // route wires selectTransport() itself, which needs dev + TELEGRAM_MOCK=1.
-process.env.WORKER_TICK_SECRET = SECRET;
+process.env.WORKER_TICK_SECRET = tickSecretFixture;
 process.env.TELEGRAM_MOCK = '1';
 
 /** Enqueues one immediately-due outbound reply job for a bound chat. */
@@ -92,7 +92,7 @@ test('worker-tick: correct secret via header → 200, queued job transitions to 
   const jobId = await enqueueReply(u.accountId, chatId);
 
   const res = await tickPOST(
-    makeRequest('/api/internal/worker-tick', { method: 'POST', headers: { 'x-worker-tick-secret': SECRET } }),
+    makeRequest('/api/internal/worker-tick', { method: 'POST', headers: { 'x-worker-tick-secret': tickSecretFixture } }),
   );
   assertStatus(res, 200);
   const body = (await res.json()) as {
@@ -115,7 +115,7 @@ test('worker-tick: correct secret via header → 200, queued job transitions to 
 
 test('worker-tick: correct secret via Authorization Bearer (Vercel cron style) → 200', async () => {
   const res = await tickGET(
-    makeRequest('/api/internal/worker-tick', { method: 'GET', headers: { authorization: `Bearer ${SECRET}` } }),
+    makeRequest('/api/internal/worker-tick', { method: 'GET', headers: { authorization: `Bearer ${tickSecretFixture}` } }),
   );
   assertStatus(res, 200);
   const body = (await res.json()) as { ok: boolean; processed: number };
@@ -124,7 +124,7 @@ test('worker-tick: correct secret via Authorization Bearer (Vercel cron style) �
 });
 
 test('worker-tick: correct secret via ?secret= query fallback → 200', async () => {
-  const res = await tickGET(makeRequest(`/api/internal/worker-tick?secret=${SECRET}`, { method: 'GET' }));
+  const res = await tickGET(makeRequest(`/api/internal/worker-tick?secret=${tickSecretFixture}`, { method: 'GET' }));
   assertStatus(res, 200);
   const body = (await res.json()) as { ok: boolean; processed: number };
   assert.equal(body.ok, true);
@@ -140,6 +140,6 @@ test('worker-tick: development with unset secret → 200 (documented local allow
     assert.equal(body.ok, true);
     assert.equal(typeof body.processed, 'number');
   } finally {
-    process.env.WORKER_TICK_SECRET = SECRET;
+    process.env.WORKER_TICK_SECRET = tickSecretFixture;
   }
 });
