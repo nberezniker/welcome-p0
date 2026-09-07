@@ -95,5 +95,23 @@ for (const demo of demos) {
   console.log(`seeded ${demo.display_name}: /p/${slug}`);
 }
 
+// DEV ONLY: when TELEGRAM_MOCK=1, bind the first demo account to a fake
+// Telegram chat so the worker + mock transport deliver demo notifications.
+// Never runs in production (guarded above) and never without the explicit flag.
+if (process.env.TELEGRAM_MOCK === '1') {
+  const first = await sql<{ id: string }>`
+    SELECT a.id FROM accounts a JOIN profiles p ON p.account_id = a.id
+    WHERE a.is_demo = true ORDER BY a.created_at LIMIT 1
+  `;
+  if (first[0]) {
+    await sql`
+      INSERT INTO channel_bindings (account_id, provider, external_id, state)
+      VALUES (${first[0].id}, 'telegram', '7000000001', 'active')
+      ON CONFLICT (provider, external_id) DO UPDATE SET state = 'active'
+    `;
+    console.log('mock telegram binding created for demo account (chat_id 7000000001)');
+  }
+}
+
 console.log(`seed-demo done: ${created} created, ${skipped} skipped`);
 await sql.end({ timeout: 5 });
