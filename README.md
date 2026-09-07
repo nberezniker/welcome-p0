@@ -37,7 +37,20 @@ pnpm build
 pnpm scan:secrets       # fails on obvious secrets in tracked files (spec/ excluded)
 pnpm audit:deps         # pnpm audit --prod --audit-level high
 pnpm db:reset           # DEV ONLY: drop schema + re-apply migrations (refuses production)
+pnpm drill:defect       # controlled defect drill: inject leak -> gate FAIL -> revert -> PASS (needs clean tree)
+pnpm load:smoke         # AC-53 load smoke, LOCAL-ONLY indicative numbers -> evidence/load-smoke.json
 ```
+
+## Security hardening (Phase 5)
+
+- CSRF: every mutating handler is exported through `withApi` (src/lib/http.ts) —
+  cross-origin POST/PATCH/PUT/DELETE → `403 csrf_origin`; no-Origin requests
+  pass unless `Sec-Fetch-Site: cross-site` (curl/webhooks keep working).
+- Rate limits: in-memory per-IP token buckets (ADR 0005) — OTP 10/min,
+  registration-claims/reports/blocks 30/min; `X-RateLimit-*` headers; 429
+  `retryable:true`. DB-level per-subject throttles remain in force.
+- `GET /api/organizer/events/:eventId/export` — event-scoped CSV, owner/admin,
+  formula-neutralized cells, no emails/hashes/pair identities.
 
 ## API (Phase 1)
 
@@ -52,5 +65,6 @@ pnpm db:reset           # DEV ONLY: drop schema + re-apply migrations (refuses p
 | `GET /api/public/profiles/:slug/vcard` | vCard 3.0, public fields only |
 | `GET /api/public/profiles/:slug/qr.svg` | QR of `APP_BASE_URL/p/:slug` |
 | `GET /api/health` | DB read+write, migrations, worker heartbeat freshness |
+| `GET /api/organizer/events/:eventId/export` | owner/admin event CSV export (Phase 5): registrations + directory members + intro aggregates, formula-neutralized |
 
 Errors: `{code, message, correlation_id, retryable}` — never SQL/stacks/secrets.
