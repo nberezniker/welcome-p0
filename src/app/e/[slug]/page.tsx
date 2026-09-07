@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getSql } from '../../../lib/db';
-import { getT, POLICY_VERSION, type Locale } from '../../../i18n';
+import { getT, type Locale } from '../../../i18n';
 import { loadEventView } from '../../../lib/event-view';
 import { getOptionalAccountId } from '../../../lib/session-page';
 import JoinEventButton from './join-button';

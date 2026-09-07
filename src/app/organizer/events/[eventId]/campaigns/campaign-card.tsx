@@ -64,12 +64,10 @@ type AudienceData = { count: number; channel_ready: number; sample: { display_na
 /** One campaign card: edit (resets approval), audience preview, approve (owner), send with confirm, live stats. */
 export function CampaignCard({
   campaign,
-  eventId,
   isOwner,
   strings,
 }: {
   campaign: CampaignItem;
-  eventId: string;
   isOwner: boolean;
   strings: Strings;
 }) {

@@ -21,12 +21,10 @@ type Strings = {
 export function InviteButton({
   eventId,
   registrationId,
-  regName,
   strings,
 }: {
   eventId: string;
   registrationId: string;
-  regName: string;
   strings: Strings;
 }) {
   const [claimUrl, setClaimUrl] = useState<string | null>(null);

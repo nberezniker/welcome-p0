@@ -75,7 +75,6 @@ export default async function CampaignsPage({ params }: { params: Promise<{ even
             <CampaignCard
               key={c.id}
               campaign={c}
-              eventId={event.id}
               isOwner={isOwner}
               strings={{
                 purposeLabels: {

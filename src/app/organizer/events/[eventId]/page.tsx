@@ -142,7 +142,6 @@ export default async function OrganizerEventPage({ params }: { params: Promise<{
                         <InviteButton
                           eventId={event.id}
                           registrationId={r.id}
-                          regName={r.imported_name ?? ''}
                           strings={{
                             invite: t('org.invite'),
                             invited: t('org.invited'),

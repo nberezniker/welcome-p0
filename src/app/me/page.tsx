@@ -125,6 +125,9 @@ export default async function DashboardPage() {
             </div>
             <div className="flex items-center gap-3">
               {/* QR image endpoint: /api/public/profiles/[slug]/qr.svg */}
+              {/* Plain <img> is intentional: the QR is an SVG served by our own
+                  API endpoint; next/image cannot optimize SVG without allowing
+                  dangerous SVG optimization. eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrUrl}
                 alt={t('me.dashboard.qrAlt', { name: profile.display_name })}
