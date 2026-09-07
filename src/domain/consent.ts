@@ -1,5 +1,6 @@
 import type { Sql, TransactionSql } from 'postgres';
 import { recordAudit } from '../lib/audit';
+import { suppressJobsForAccountPurpose } from '../infra/outbox';
 import type { Validated } from '../domain/profile';
 
 /** Consent registry: purpose-scoped, append-only. A language choice, page view,
@@ -139,9 +140,12 @@ export async function hasGrant(
 }
 
 /**
- * Phase-2 STUB of consent-withdrawal suppression for queued jobs.
- * Full outbox cancellation ships with the Phase 3 worker; here we only record
- * the suppress request in the audit trail so the withdrawal is observable.
+ * Consent-withdrawal hook (AC-25): every outbox job for this account+purpose
+ * that has NOT yet been handed to a transport is suppressed inside the
+ * withdrawal transaction. Jobs already sent stay untouched — delivered
+ * messages are never retroactively "unsent". The suppression itself is
+ * audited; jobs suppressed at send time additionally carry their own
+ * delivery_attempts row with the reason code.
  */
 export async function suppressJobsForConsent(
   sql: Sql | TransactionSql,
@@ -150,11 +154,12 @@ export async function suppressJobsForConsent(
   scope: ConsentScopeRef,
   actorNote: Record<string, unknown> = {},
 ): Promise<void> {
+  const suppressedIds = await suppressJobsForAccountPurpose(sql, accountId, purpose);
   await recordAudit(sql, accountId, 'consent.suppress_requested', 'account', accountId, {
     purpose,
     scope_type: scope.scopeType,
     scope_id: scope.scopeId ?? null,
-    suppression_worker: 'deferred_to_phase3_outbox',
+    suppressed_job_count: suppressedIds.length,
     ...actorNote,
   });
 }
