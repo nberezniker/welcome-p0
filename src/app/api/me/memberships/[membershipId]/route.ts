@@ -25,14 +25,15 @@ export async function PATCH(
     const input = validateMembershipPatch(body);
     if (!input.ok) return jsonError(400, input.code, input.message);
 
-    const rows = await sql<{ id: string; event_id: string; state: string; directory_visible: boolean; offer_tags: string[]; need_tags: string[] }[]>`
+    const rows = await sql<{ id: string; event_id: string; state: string; directory_visible: boolean; matching_enabled: boolean; offer_tags: string[]; need_tags: string[] }[]>`
       UPDATE event_memberships SET
         directory_visible = ${input.value.directoryVisible ?? membership.directory_visible},
+        matching_enabled = ${input.value.matchingEnabled ?? membership.matching_enabled},
         offer_tags = ${input.value.offerTags ?? membership.offer_tags},
         need_tags = ${input.value.needTags ?? membership.need_tags},
         state = ${input.value.leave ? 'left' : membership.state}
       WHERE id = ${membership.id}
-      RETURNING id, event_id, state, directory_visible, offer_tags, need_tags
+      RETURNING id, event_id, state, directory_visible, matching_enabled, offer_tags, need_tags
     `;
     const row = rows[0]!;
 

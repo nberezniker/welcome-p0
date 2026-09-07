@@ -10,6 +10,7 @@ export interface OwnMembership {
   state: string;
   directory_visible: boolean;
   attendance_source: string;
+  matching_enabled: boolean;
   offer_tags: string[];
   need_tags: string[];
 }
@@ -23,7 +24,7 @@ export async function requireOwnMembership(
   if (!uuidRe.test(membershipId) || !uuidRe.test(accountId)) return null;
   const rows = await sql<OwnMembership[]>`
     SELECT m.id, m.event_id, m.profile_id, m.state, m.directory_visible, m.attendance_source,
-           m.offer_tags, m.need_tags
+           m.matching_enabled, m.offer_tags, m.need_tags
     FROM event_memberships m
     JOIN profiles p ON p.id = m.profile_id
     WHERE m.id = ${membershipId} AND p.account_id = ${accountId}
@@ -34,6 +35,7 @@ export async function requireOwnMembership(
 
 export interface MembershipPatchInput {
   directoryVisible?: boolean;
+  matchingEnabled?: boolean;
   offerTags?: string[];
   needTags?: string[];
   leave?: boolean;
@@ -59,6 +61,13 @@ export function validateMembershipPatch(body: unknown): MembershipPatchValidatio
     value.directoryVisible = b.directory_visible;
   }
 
+  if ('matching_enabled' in b) {
+    if (typeof b.matching_enabled !== 'boolean') {
+      return { ok: false, code: 'invalid_matching_enabled', message: 'matching_enabled must be a boolean' };
+    }
+    value.matchingEnabled = b.matching_enabled;
+  }
+
   for (const [key, target] of [['offer_tags', 'offerTags'], ['need_tags', 'needTags']] as const) {
     if (key in b) {
       const raw = b[key];
@@ -76,8 +85,11 @@ export function validateMembershipPatch(body: unknown): MembershipPatchValidatio
     value.leave = true;
   }
 
-  if (value.directoryVisible === undefined && value.offerTags === undefined && value.needTags === undefined && !value.leave) {
-    return { ok: false, code: 'nothing_to_update', message: 'Provide directory_visible, offer_tags, need_tags and/or state' };
+  if (
+    value.directoryVisible === undefined && value.matchingEnabled === undefined &&
+    value.offerTags === undefined && value.needTags === undefined && !value.leave
+  ) {
+    return { ok: false, code: 'nothing_to_update', message: 'Provide directory_visible, matching_enabled, offer_tags, need_tags and/or state' };
   }
 
   return { ok: true, value };
