@@ -1,0 +1,41 @@
+{
+  "note": "LOCAL-ONLY INDICATIVE NUMBERS — not production capacity claims",
+  "generated_at": "2026-09-07T21:07:42.516Z",
+  "commit": "3c3a91b0a60aa2966c69e09b568033dcab17418e",
+  "environment": {
+    "mode": "next build + next start (production mode)",
+    "db": "postgres://localhost:5432/welcome_test"
+  },
+  "scenario": {
+    "event_id": "296dce02-6a32-4fc4-8b85-dc772a081dbd",
+    "members": 200,
+    "joiners": 50
+  },
+  "mutation_join": {
+    "endpoint": "/api/events/296dce02-6a32-4fc4-8b85-dc772a081dbd/join",
+    "method": "POST",
+    "concurrent": 50,
+    "wall_ms": 149,
+    "p50_ms": 127.3,
+    "p95_ms": 142,
+    "max_ms": 142.4,
+    "error_rate": 0,
+    "statuses": {
+      "200": 50
+    }
+  },
+  "read_recommendations": {
+    "endpoint": "/api/events/296dce02-6a32-4fc4-8b85-dc772a081dbd/recommendations",
+    "method": "GET",
+    "requests": 200,
+    "concurrency": 50,
+    "wall_ms": 341,
+    "p50_ms": 77.8,
+    "p95_ms": 110.7,
+    "max_ms": 132.8,
+    "error_rate": 0,
+    "statuses": {
+      "200": 200
+    }
+  }
+}

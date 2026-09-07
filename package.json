@@ -21,7 +21,8 @@
     "scan:secrets": "node --env-file-if-exists=.env.local scripts/scan-secrets.mjs",
     "audit:deps": "pnpm audit --prod --audit-level high",
     "test:e2e": "playwright test",
-    "drill:defect": "node --env-file-if-exists=.env.local scripts/defect-drill.mjs"
+    "drill:defect": "node --env-file-if-exists=.env.local scripts/defect-drill.mjs",
+    "load:smoke": "node --env-file-if-exists=.env.local scripts/load-smoke.mjs"
   },
   "dependencies": {
     "next": "^15.5.4",
