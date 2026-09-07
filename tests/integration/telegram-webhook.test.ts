@@ -341,3 +341,91 @@ test('replayed /start update cannot double-bind or double-consume', async () => 
   await drainWorker(new MockTelegramTransport());
   assert.equal(await bindingState(String(otherChat)), null, 'second binding attempt must fail');
 });
+
+// ---------------------------------------------------------------------------
+// Phase 5 replay hardening: staleness window + no false dedupe
+// ---------------------------------------------------------------------------
+
+/** Sends a raw update body through the webhook route. */
+function sendRaw(body: unknown): Promise<Response> {
+  return webhookRoute(
+    makeRequest('/api/webhooks/telegram', {
+      body,
+      headers: { 'x-telegram-bot-api-secret-token': WEBHOOK_HEADER },
+    }),
+  );
+}
+
+test('replay hardening: same update_id replays once (accepted:false) — UNIQUE dedupe', async () => {
+  const updateId = nextUpdateId();
+  const first = await sendRaw({
+    update_id: updateId,
+    message: { message_id: updateId, from: { id: 777001 }, chat: { id: 777001 }, text: '/start' },
+  });
+  assert.equal(first.status, 200);
+  assert.equal(((await first.json()) as { accepted: boolean }).accepted, true);
+
+  const second = await sendRaw({
+    update_id: updateId,
+    message: { message_id: updateId, from: { id: 777001 }, chat: { id: 777001 }, text: '/start' },
+  });
+  assert.equal(second.status, 200); // provider must not retry on dedupe
+  assert.equal(((await second.json()) as { accepted: boolean }).accepted, false);
+
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM inbox_events WHERE external_event_id = ${String(updateId)}
+  `;
+  assert.equal(rows[0]!.count, 1);
+});
+
+test('replay hardening: DIFFERENT update_id with identical payload still processes (no false dedupe)', async () => {
+  const payload = { message: { message_id: 424242, from: { id: 777002 }, chat: { id: 777002 }, text: '/start' } };
+  const id1 = nextUpdateId();
+  const id2 = nextUpdateId();
+
+  const first = await sendRaw({ update_id: id1, ...payload });
+  const second = await sendRaw({ update_id: id2, ...payload });
+
+  assert.equal(first.status, 200);
+  assert.equal(second.status, 200);
+  assert.equal(((await first.json()) as { accepted: boolean }).accepted, true);
+  assert.equal(((await second.json()) as { accepted: boolean }).accepted, true);
+
+  const rows = await sql<{ id: number; received_at: Date }[]>`
+    SELECT id, received_at FROM inbox_events WHERE external_event_id IN (${String(id1)}, ${String(id2)})
+  `;
+  assert.equal(rows.length, 2, 'both updates must be durably stored');
+  for (const row of rows) {
+    const age = Date.now() - new Date(row.received_at).getTime();
+    assert.ok(age >= 0 && age < 60_000, 'received_at must be recorded at accept time');
+  }
+});
+
+test('replay hardening: stale update (older than the window) → 400 stale_update, nothing stored', async () => {
+  const updateId = nextUpdateId();
+  const staleDate = Math.floor(Date.now() / 1000) - 25 * 3600;
+  const res = await sendRaw({
+    update_id: updateId,
+    message: { message_id: updateId, from: { id: 777003 }, chat: { id: 777003 }, text: '/start', date: staleDate },
+  });
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, 'stale_update');
+
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM inbox_events WHERE external_event_id = ${String(updateId)}
+  `;
+  assert.equal(rows[0]!.count, 0);
+});
+
+test('replay hardening: fresh update with valid date is accepted', async () => {
+  const updateId = nextUpdateId();
+  const res = await sendRaw({
+    update_id: updateId,
+    message: {
+      message_id: updateId, from: { id: 777004 }, chat: { id: 777004 }, text: '/start',
+      date: Math.floor(Date.now() / 1000) - 60,
+    },
+  });
+  assert.equal(res.status, 200);
+  assert.equal(((await res.json()) as { accepted: boolean }).accepted, true);
+});

@@ -24,6 +24,10 @@ import { enqueueOutbox } from '../../../../infra/outbox';
 
 const SECRET_HEADER = 'x-telegram-bot-api-secret-token';
 
+/** Replay-hardening window: updates older than this are rejected even with a
+ * valid secret and a fresh update_id (bulk replay of captured updates). */
+const MAX_UPDATE_AGE_SECONDS = 24 * 3600;
+
 async function postRoute(req: NextRequest) {
   try {
     // 1. Secret gate BEFORE anything else (AC-36).
@@ -37,6 +41,16 @@ async function postRoute(req: NextRequest) {
     const body = await readJsonBody(req);
     const parsed = validateTelegramUpdate(body);
     if (!parsed.ok) return jsonError(400, parsed.code, parsed.message);
+
+    // 2b. Staleness window: a message timestamp older than the window is
+    // rejected before any DB write (dedupe by UNIQUE covers exact replays;
+    // this bounds how far back a replay can carry business effect).
+    if (parsed.value.messageDate !== undefined) {
+      const ageSeconds = Math.floor(Date.now() / 1000) - parsed.value.messageDate;
+      if (ageSeconds > MAX_UPDATE_AGE_SECONDS) {
+        return jsonError(400, 'stale_update', 'Update is older than the accepted window');
+      }
+    }
 
     // 3+4. Durable accept + outbox enqueue, deduped by update_id.
     const sql: Sql = getSql();

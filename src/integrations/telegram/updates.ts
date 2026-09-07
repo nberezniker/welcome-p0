@@ -8,6 +8,9 @@
 export interface ParsedTelegramUpdate {
   updateId: number;
   eventType: 'message' | 'non_message';
+  /** Telegram message.date (unix seconds) when a message is present — used for
+   * the staleness window check at accept time (Phase 5 replay hardening). */
+  messageDate?: number;
   /** Minimal redacted payload persisted in inbox_events. */
   minimalPayload: {
     update_id: number;
@@ -63,6 +66,14 @@ export function validateTelegramUpdate(body: unknown): Parsed {
   }
   const chatId: number = (chat as { id: number })['id'];
 
+  let messageDate: number | undefined;
+  if (m['date'] !== undefined) {
+    if (!isInt(m['date'])) {
+      return { ok: false, code: 'invalid_message_date', message: 'message.date must be a unix timestamp integer when present' };
+    }
+    messageDate = m['date'];
+  }
+
   let fromId: number | undefined;
   const from = m['from'];
   if (from !== undefined) {
@@ -85,6 +96,7 @@ export function validateTelegramUpdate(body: unknown): Parsed {
     value: {
       updateId,
       eventType: 'message',
+      ...(messageDate !== undefined ? { messageDate } : {}),
       minimalPayload: {
         update_id: updateId,
         chat_id: chatId,
