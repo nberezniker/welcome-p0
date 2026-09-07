@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://welcome.example/schemas/consent-purpose.schema.json",
+  "title": "ConsentEvent",
+  "type": "object",
+  "required": [
+    "account_id",
+    "purpose",
+    "scope_type",
+    "policy_version",
+    "action",
+    "created_at"
+  ],
+  "properties": {
+    "account_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "purpose": {
+      "enum": [
+        "PUBLIC_CARD_FIELD",
+        "EVENT_DIRECTORY",
+        "INTRO_FIELD_REVEAL",
+        "SERVICE_CHANNEL_TELEGRAM",
+        "ORGANIZER_MARKETING",
+        "PRODUCT_MARKETING"
+      ]
+    },
+    "scope_type": {
+      "enum": [
+        "profile",
+        "event",
+        "introduction",
+        "channel",
+        "organizer",
+        "product"
+      ]
+    },
+    "scope_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "field_set": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "action": {
+      "enum": [
+        "grant",
+        "withdraw"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

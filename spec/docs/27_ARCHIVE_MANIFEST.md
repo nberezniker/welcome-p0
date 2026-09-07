@@ -1,0 +1,17 @@
+# Archive map
+- `README_START_HERE_V3.md` — operator entry.
+- `autoclaw/` — one-shot AutoClaw prompt, Cluster responsibilities, preflight.
+- `docs/` — product/architecture/market/reuse + V3 gap/privacy/security/ops research.
+- `research/` — current source index and GitHub reuse manifest.
+- `implementation/` — stack/bootstrap/env/schema contract.
+- `contracts/` — API/matching + consent/webhook/release/Luma machine contracts.
+- `landing/` — verified local interactive v2 prototype; use as design/reference, not backend.
+- `openspec/` — approved-style task queue from v2; implementation agent may refine tasks but not weaken acceptance.
+- `security/` — RLS/privacy requirements.
+- `tests/` — unit/browser legacy evidence + production/security/integration/competition scenarios.
+- `operations/` — release and incident runbooks.
+- `contest/` — submission checklist and judging story.
+- `templates/` — CSV, X post, release report, privacy placeholders.
+- `evidence/` — previous test evidence + V3 SHA manifest after running checks.
+- `legacy/` — all previous standalone v2 deliverables including the entire v2 ZIP.
+- `input/original-spec.md` — original user source preserved unchanged.

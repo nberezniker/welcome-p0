@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "canonical_fields": {
+    "external_guest_id": [
+      "api.guest_id",
+      "csv.guest_id",
+      "csv.id"
+    ],
+    "email": [
+      "api.email",
+      "csv.email"
+    ],
+    "name": [
+      "api.name",
+      "csv.name"
+    ],
+    "approval_status": [
+      "api.approval_status",
+      "csv.approval_status"
+    ],
+    "checked_in_at": [
+      "api.check_in_timestamp",
+      "csv.checked_in_at",
+      "csv.check_in_time"
+    ],
+    "company": [
+      "custom.company",
+      "csv.company"
+    ],
+    "linkedin_url": [
+      "custom.linkedin",
+      "csv.linkedin"
+    ],
+    "website": [
+      "custom.website",
+      "csv.website"
+    ]
+  },
+  "unknown_field_policy": "preserve only in size-limited imported_data allowlist; never promote to authorization or public profile automatically",
+  "unknown_status_policy": "quarantine"
+}

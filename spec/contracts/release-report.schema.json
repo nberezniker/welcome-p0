@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WelcomeReleaseReport",
+  "type": "object",
+  "required": [
+    "status",
+    "commit_sha",
+    "tests",
+    "integrations",
+    "blockers"
+  ],
+  "properties": {
+    "status": {
+      "enum": [
+        "PASS_LOCAL",
+        "PASS_STAGING",
+        "PASS_PRODUCTION",
+        "BLOCKED_EXTERNAL",
+        "BLOCKED_BUDGET",
+        "BLOCKED_PROVIDER",
+        "BLOCKED_CONTEST_RULES",
+        "FAIL_TESTS",
+        "FAIL_SECURITY",
+        "FAIL_RELEASE"
+      ]
+    },
+    "commit_sha": {
+      "type": "string",
+      "minLength": 7
+    },
+    "build_digest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "migration_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "staging_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "production_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "integrations": {
+      "type": "object"
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "spend_eur": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NormalizedInboundEvent",
+  "type": "object",
+  "required": [
+    "provider",
+    "external_event_id",
+    "event_type",
+    "received_at"
+  ],
+  "properties": {
+    "provider": {
+      "enum": [
+        "telegram",
+        "luma",
+        "whatsapp",
+        "test"
+      ]
+    },
+    "external_event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "channel_external_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "account_hint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "received_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "additionalProperties": false
+}

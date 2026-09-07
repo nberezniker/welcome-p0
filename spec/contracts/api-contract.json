@@ -1,0 +1,217 @@
+{
+  "schema_version": 1,
+  "status": "DESIGN_CONTRACT_NOT_RUNNING_API",
+  "common": {
+    "error_fields": [
+      "code",
+      "message",
+      "correlation_id",
+      "retryable"
+    ],
+    "mutation_requirements": [
+      "server authorization",
+      "schema validation",
+      "rate limit",
+      "audit",
+      "idempotency where declared"
+    ],
+    "never_trust": [
+      "actor_id in body",
+      "organization_id without role check",
+      "LinkedIn URL as identity"
+    ]
+  },
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/public/profiles/{slug}",
+      "authorization": "anonymous",
+      "response_contract": "public_projection"
+    },
+    {
+      "method": "GET",
+      "path": "/api/public/profiles/{slug}/vcard",
+      "authorization": "anonymous",
+      "response_contract": "public_vcard"
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/profile",
+      "authorization": "owner",
+      "response_contract": "versioned_profile"
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/imports",
+      "authorization": "organizer_admin",
+      "response_contract": "import_preview_or_commit"
+    },
+    {
+      "method": "POST",
+      "path": "/api/registration-claims",
+      "authorization": "verified_account",
+      "response_contract": "claimed_registration"
+    },
+    {
+      "method": "POST",
+      "path": "/api/events/{eventId}/join",
+      "authorization": "authenticated",
+      "response_contract": "membership"
+    },
+    {
+      "method": "GET",
+      "path": "/api/events/{eventId}/recommendations",
+      "authorization": "event_member",
+      "response_contract": "eligible_top3"
+    },
+    {
+      "method": "POST",
+      "path": "/api/introductions",
+      "authorization": "authenticated_eligible_participant",
+      "response_contract": "intro_pending"
+    },
+    {
+      "method": "POST",
+      "path": "/api/introductions/{id}/respond",
+      "authorization": "intro_party",
+      "response_contract": "versioned_intro"
+    },
+    {
+      "method": "POST",
+      "path": "/api/channels/{provider}/challenge",
+      "authorization": "authenticated",
+      "response_contract": "two_sided_link_challenge"
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhooks/telegram",
+      "authorization": "valid_secret",
+      "response_contract": "durable_inbox_ack"
+    },
+    {
+      "method": "POST",
+      "path": "/api/webhooks/whatsapp",
+      "authorization": "valid_meta_signature",
+      "response_contract": "durable_inbox_ack"
+    },
+    {
+      "method": "POST",
+      "path": "/api/organizer/campaigns/{id}/send",
+      "authorization": "organizer_admin",
+      "response_contract": "approved_job202"
+    },
+    {
+      "method": "POST",
+      "path": "/api/consents/revoke",
+      "authorization": "owner",
+      "response_contract": "revoked_and_jobs_suppressed"
+    },
+    {
+      "method": "POST",
+      "path": "/api/reports",
+      "authorization": "authenticated",
+      "response_contract": "report"
+    },
+    {
+      "method": "POST",
+      "path": "/api/me/export",
+      "authorization": "owner_reauth",
+      "response_contract": "export_job"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/me",
+      "authorization": "owner_reauth",
+      "response_contract": "deletion_job"
+    }
+  ],
+  "state_machines": {
+    "registration": [
+      "imported",
+      "invited",
+      "verified",
+      "claimed",
+      "expired"
+    ],
+    "introduction": [
+      "pending",
+      "mutually_accepted",
+      "declined",
+      "revoked",
+      "expired"
+    ],
+    "delivery": [
+      "pending",
+      "leased",
+      "sent",
+      "delivered",
+      "failed",
+      "unknown",
+      "suppressed"
+    ]
+  },
+  "required_test_ids": [
+    "AC-01",
+    "AC-02",
+    "AC-03",
+    "AC-04",
+    "AC-05",
+    "AC-06",
+    "AC-07",
+    "AC-08",
+    "AC-09",
+    "AC-10",
+    "AC-11",
+    "AC-12",
+    "AC-13",
+    "AC-14",
+    "AC-15",
+    "AC-16",
+    "AC-17",
+    "AC-18",
+    "AC-19",
+    "AC-20",
+    "AC-21",
+    "AC-22",
+    "AC-23",
+    "AC-24",
+    "AC-25",
+    "AC-26",
+    "AC-27",
+    "AC-28",
+    "AC-29",
+    "AC-30",
+    "AC-31",
+    "AC-32",
+    "AC-33",
+    "AC-34",
+    "AC-35",
+    "AC-36",
+    "AC-37",
+    "AC-38",
+    "AC-39",
+    "AC-40",
+    "AC-41",
+    "AC-42",
+    "AC-43",
+    "AC-44",
+    "AC-45",
+    "AC-46",
+    "AC-47",
+    "AC-48",
+    "AC-49",
+    "AC-50",
+    "AC-51",
+    "AC-52",
+    "AC-53",
+    "AC-54",
+    "AC-55",
+    "AC-56",
+    "AC-57",
+    "AC-58",
+    "AC-59",
+    "AC-60",
+    "AC-61",
+    "AC-62"
+  ]
+}
