@@ -66,6 +66,45 @@ pnpm load:smoke                    # AC-53 local-only load numbers → evidence/
 node --test spec/tests/core.test.mjs   # archive's 24 core contract tests
 ```
 
+## Deploy (Vercel + managed EU Postgres)
+
+> First deploy = **staging-test only**. Production permission is still false per
+> the Phase 6 preflight — see [RELEASE_REPORT.md §6](RELEASE_REPORT.md).
+
+1. **Managed Postgres (EU).** Create a Neon or Supabase database in an EU
+   region; copy the connection string (`sslmode=require`).
+2. **Env vars in the Vercel dashboard.** Set the names from
+   [.env.deploy.example](.env.deploy.example): `APP_ENV=production`,
+   `DATABASE_URL`, `ENCRYPTION_KEY` (base64 of 32 bytes), `HASH_PEPPER`,
+   `APP_BASE_URL` (the deployment URL), `TELEGRAM_BOT_TOKEN`,
+   `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME`, `WORKER_TICK_SECRET`,
+   and `CRON_SECRET` with the **same value** as `WORKER_TICK_SECRET` (Vercel
+   Cron sends it as `Authorization: Bearer $CRON_SECRET`).
+   `AUTH_DEV_EXPOSE_OTP` must stay unset.
+3. **Migrate locally against the managed URL** (migrations are plain SQL,
+   applied via postgres.js): `DATABASE_URL="postgres://…" pnpm db:migrate` — a
+   shell-set `DATABASE_URL` overrides `.env.local`.
+4. **Deploy** (push to `main` or `vercel deploy --prod`). `vercel.json` pins
+   the function region to `fra1` (EU) and schedules the worker-tick cron
+   (`*/1 * * * *`).
+5. **Verify.** `GET /api/health` must show `"status":"ok"`, `"db":"up"` and the
+   applied `migration_version`; `"worker":"up"` requires a tick within 60s.
+
+**Worker on serverless.** The long-running `pnpm worker` process is not
+available on Vercel functions. Instead `POST|GET /api/internal/worker-tick`
+runs exactly one outbox tick (batch 10) and returns `{processed: n}`. Auth is
+one shared secret (`WORKER_TICK_SECRET`), compared constant-time, accepted as
+`x-worker-tick-secret` header, `Authorization: Bearer <secret>`, or
+`?secret=<secret>`. Unset secret → 401 in production (fail-closed).
+`*/1` cron frequency is plan-dependent — check the limits for your account
+plan at deploy time per [Vercel Cron Jobs docs](https://vercel.com/docs/cron-jobs/manage-cron-jobs)
+(usage & limits); if every-minute is not allowed on the plan, relax the
+schedule in `vercel.json` or ping the endpoint externally with the header.
+
+**Telegram webhook.** Point the bot (setWebhook) at
+`APP_BASE_URL + /api/webhooks/telegram` with `TELEGRAM_WEBHOOK_SECRET` set —
+the route verifies the bot's `x-telegram-bot-api-secret-token` constant-time.
+
 ## Repo map
 
 | Path | Contents |
