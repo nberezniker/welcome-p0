@@ -1,12 +1,122 @@
 @import "tailwindcss";
 
-:root {
-  --background: #f7f7f5;
-  --foreground: #1a1a1a;
+/* WELCOME design tokens — ported from the reference landing visual language
+ * (reference-landing/styles.css): ink/muted text on paper, coral accent, mint
+ * highlights, soft rounded cards. Utilities: bg-ink, text-muted, border-line,
+ * bg-accent, text-accent, bg-mint, text-pine, bg-paper, bg-accent-pale, etc. */
+@theme {
+  --color-ink: #18241f;
+  --color-muted: #59665e;
+  --color-paper: #f5f4ee;
+  --color-line: #dce0d6;
+  --color-accent: #d84932;
+  --color-accent-pale: #fff0e9;
+  --color-pine: #284d3d;
+  --color-mint: #e6efe4;
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html {
+  scroll-padding-top: 96px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+}
+
+/* Visible focus for keyboard users (NFR: focus visible on everything). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Skip link: hidden until focused. */
+.skip-link {
+  position: absolute;
+  top: -80px;
+  left: 12px;
+  z-index: 100;
+  background: #fff;
+  color: var(--color-ink);
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--color-line);
+}
+.skip-link:focus {
+  top: 12px;
+}
+
+/* Buttons — shared primitives (min-height 44px+ for touch targets). */
+.btn {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-transparent px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+}
+.btn-primary {
+  @apply btn bg-ink text-white hover:bg-[#2c3a33];
+}
+.btn-accent {
+  @apply btn bg-accent text-white hover:bg-[#bf3d29];
+}
+.btn-outline {
+  @apply btn border-[#b9c1b7] bg-transparent text-ink hover:bg-white;
+}
+.btn-light {
+  @apply btn border-line bg-white text-ink hover:bg-paper;
+}
+.btn-danger {
+  @apply btn bg-accent text-white hover:bg-[#bf3d29];
+}
+.btn-small {
+  @apply min-h-9 px-3 py-1.5 text-xs;
+}
+
+/* Form controls. */
+.input {
+  @apply w-full min-w-0 rounded-lg border border-[#ccd3c6] bg-white px-3 py-2.5 text-base text-ink placeholder:text-[#9aa69c] focus:border-ink focus:outline-none;
+}
+.label {
+  @apply mb-1 block text-xs font-bold uppercase tracking-wide text-muted;
+}
+.field-error {
+  @apply mt-1 text-sm text-red-700;
+}
+
+/* Cards and chips. */
+.card {
+  @apply rounded-2xl border border-line bg-white p-6 shadow-sm;
+}
+.card-tight {
+  @apply rounded-xl border border-line bg-white p-4;
+}
+.chip {
+  @apply inline-flex items-center gap-1.5 rounded-full bg-mint px-3 py-1 text-xs font-semibold text-pine;
+}
+.chip-offer {
+  @apply inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800;
+}
+.chip-need {
+  @apply inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800;
+}
+.eyebrow {
+  @apply inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted;
+}
+.eyebrow-dot {
+  @apply inline-block size-1.5 shrink-0 rounded-full bg-accent;
+}
+
+/* Respects prefers-reduced-motion (NFR): kill transitions/animations globally. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
