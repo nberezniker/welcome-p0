@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TagInput } from '../../../components/tag-input';
 import { Toast, useToast } from '../../../components/modal';
+import { fill } from '../../../components/fill';
 
 export interface ProfileFormValues {
   display_name: string;
@@ -37,11 +38,11 @@ type Strings = {
   saving: string;
   savedToast: string;
   conflictTitle: string;
-  conflictText: (mine: string, current: string) => string;
+  conflictTextTemplate: string;
   conflictReload: string;
   conflictOverwrite: string;
-  slugNote: (slug: string) => string;
-  revisionNote: (n: number) => string;
+  slugNoteTemplate: string;
+  revisionNoteTemplate: string;
   errorNetwork: string;
 };
 
@@ -172,7 +173,7 @@ export function ProfileEditor({
       {conflict ? (
         <div className="rounded-xl border border-amber-300 bg-amber-50 p-4" role="alert" data-testid="conflict-panel">
           <p className="font-bold text-amber-900">{strings.conflictTitle}</p>
-          <p className="mt-1 text-sm text-amber-900">{strings.conflictText(String(conflict.mine), String(conflict.current))}</p>
+          <p className="mt-1 text-sm text-amber-900">{fill(strings.conflictTextTemplate, { mine: conflict.mine, current: conflict.current })}</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" className="btn-light btn-small" disabled={busy} onClick={() => void reloadCurrent()}>
               {strings.conflictReload}
@@ -284,8 +285,8 @@ export function ProfileEditor({
         <button type="submit" className="btn-primary" disabled={busy} data-testid="pf-save">
           {busy ? strings.saving : strings.saveProfile}
         </button>
-        {slug ? <span className="text-xs text-muted">{strings.slugNote(slug)}</span> : null}
-        {revision !== null ? <span className="text-xs text-muted">{strings.revisionNote(revision)}</span> : null}
+        {slug ? <span className="text-xs text-muted">{fill(strings.slugNoteTemplate, { slug })}</span> : null}
+        {revision !== null ? <span className="text-xs text-muted">{fill(strings.revisionNoteTemplate, { n: revision })}</span> : null}
       </div>
       <Toast message={toast.message} kind={toast.kind} onDone={toast.clear} />
     </form>

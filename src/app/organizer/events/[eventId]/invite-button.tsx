@@ -6,7 +6,7 @@ import { CopyButton } from '../../../../components/copy-button';
 type Strings = {
   invite: string;
   invited: string;
-  inviteTitle: (name: string) => string;
+  inviteTitleTemplate: string;
   inviteHint: string;
   claimUrlLabel: string;
   claimCopied: string;
@@ -77,7 +77,7 @@ export function InviteButton({
           {state === 'not_allowed' ? strings.claimNotAllowed : strings.errorGeneric}
         </p>
       ) : null}
-      <span className="sr-only">{strings.inviteTitle(regName)}</span>
+      <span className="sr-only">{strings.inviteTitleTemplate}</span>
     </div>
   );
 }

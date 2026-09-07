@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Toast, useToast } from '../../../components/modal';
+import { fill } from '../../../components/fill';
 
 export interface NoteItem {
   other_profile_id: string;
@@ -23,7 +24,7 @@ type Strings = {
   savedToast: string;
   noteTooLong: string;
   stepTooLong: string;
-  updated: (date: string) => string;
+  updatedTemplate: string;
   errorNetwork: string;
   errorGeneric: string;
 };
@@ -109,7 +110,7 @@ export function NotesList({ names, strings }: { names: Record<string, string>; s
           <section key={n.other_profile_id} className="card" data-testid={`note-${n.other_profile_id}`}>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <h3 className="text-base font-bold">{names[n.other_profile_id] ?? n.other_profile_id}</h3>
-              <span className="text-xs text-muted">{strings.updated(new Date(n.updated_at).toLocaleString())}</span>
+              <span className="text-xs text-muted">{fill(strings.updatedTemplate, { date: new Date(n.updated_at).toLocaleString() })}</span>
             </div>
             <label className="label mt-3" htmlFor={`note-text-${n.other_profile_id}`}>
               {strings.noteLabel}

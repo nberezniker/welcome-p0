@@ -1,8 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-
-/** Footer locale links (cookie-based locale: POST then refresh server tree). */
+/** Footer locale links (cookie-based locale: POST then reload server tree). */
 export function FooterLocaleLinks({
   current,
   links,
@@ -12,7 +10,6 @@ export function FooterLocaleLinks({
   links: { locale: string; label: string }[];
   label: string;
 }) {
-  const router = useRouter();
   return (
     <div className="mt-1 flex gap-2" aria-label={label}>
       {links.map((l) => (
@@ -29,7 +26,7 @@ export function FooterLocaleLinks({
               headers: { 'content-type': 'application/json' },
               body: JSON.stringify({ locale: l.locale }),
             }).then((res) => {
-              if (res.ok) router.refresh();
+              if (res.ok) window.location.reload();
             });
           }}
         >

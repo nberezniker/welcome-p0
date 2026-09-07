@@ -50,24 +50,31 @@ body {
   top: 12px;
 }
 
-/* Buttons — shared primitives (min-height 44px+ for touch targets). */
-.btn {
+/* Buttons — shared primitives (min-height 44px+ for touch targets).
+ * Tailwind v4 note: @apply cannot reference custom (non-utility) classes, so
+ * each variant repeats the base utilities. */
+.btn,
+.btn-primary,
+.btn-accent,
+.btn-outline,
+.btn-light,
+.btn-danger {
   @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-transparent px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-primary {
-  @apply btn bg-ink text-white hover:bg-[#2c3a33];
+  @apply bg-ink text-white hover:bg-[#2c3a33];
 }
 .btn-accent {
-  @apply btn bg-accent text-white hover:bg-[#bf3d29];
+  @apply bg-accent text-white hover:bg-[#bf3d29];
 }
 .btn-outline {
-  @apply btn border-[#b9c1b7] bg-transparent text-ink hover:bg-white;
+  @apply border-[#b9c1b7] bg-transparent text-ink hover:bg-white;
 }
 .btn-light {
-  @apply btn border-line bg-white text-ink hover:bg-paper;
+  @apply border-line bg-white text-ink hover:bg-paper;
 }
 .btn-danger {
-  @apply btn bg-accent text-white hover:bg-[#bf3d29];
+  @apply bg-accent text-white hover:bg-[#bf3d29];
 }
 .btn-small {
   @apply min-h-9 px-3 py-1.5 text-xs;

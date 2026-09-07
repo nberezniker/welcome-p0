@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Toast, useToast } from '../../components/modal';
+import { fill } from '../../components/fill';
 
 type Strings = {
   emailLabel: string;
@@ -10,7 +11,7 @@ type Strings = {
   sendCode: string;
   sending: string;
   codeStepTitle: string;
-  codeSentTo: (email: string) => string;
+  codeSentToTemplate: string;
   codeLabel: string;
   codeError: string;
   codeInvalid: string;
@@ -18,7 +19,7 @@ type Strings = {
   verifying: string;
   changeEmail: string;
   devHintTitle: string;
-  devHintCode: (code: string) => string;
+  devHintCodeTemplate: string;
   devHintNote: string;
   tryAgain: string;
   errorNetwork: string;
@@ -146,7 +147,7 @@ export function LoginFlow({ strings, nextPath }: { strings: Strings; nextPath: s
       ) : (
         <div>
           <h2 className="text-lg font-bold tracking-tight">{strings.codeStepTitle}</h2>
-          <p className="mt-1 text-sm text-muted">{strings.codeSentTo(email.trim())}</p>
+          <p className="mt-1 text-sm text-muted">{fill(strings.codeSentToTemplate, { email: email.trim() })}</p>
           <form
             className="mt-4"
             onSubmit={(e) => {
@@ -185,7 +186,7 @@ export function LoginFlow({ strings, nextPath }: { strings: Strings; nextPath: s
           {devCode ? (
             <div className="mt-4 rounded-xl border border-dashed border-accent/50 bg-accent-pale p-3 text-sm" data-testid="dev-hint">
               <p className="font-bold text-accent">{strings.devHintTitle}</p>
-              <p className="mt-1 font-mono text-base tracking-widest">{strings.devHintCode(devCode)}</p>
+              <p className="mt-1 font-mono text-base tracking-widest">{fill(strings.devHintCodeTemplate, { code: devCode })}</p>
               <p className="mt-1 text-xs text-muted">{strings.devHintNote}</p>
             </div>
           ) : null}

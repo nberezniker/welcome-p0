@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { fill } from '../../../../components/fill';
 
 interface PreviewData {
   totalRows: number;
@@ -26,12 +27,12 @@ type Strings = {
   importCommit: string;
   importing: string;
   previewTitle: string;
-  previewTotal: (n: number) => string;
-  previewValid: (n: number) => string;
-  previewInvalid: (n: number) => string;
-  previewQuarantined: (n: number) => string;
-  previewDuplicates: (n: number) => string;
-  commitCounts: (c: CommitCounts) => string;
+  previewTotalTemplate: string;
+  previewValidTemplate: string;
+  previewInvalidTemplate: string;
+  previewQuarantinedTemplate: string;
+  previewDuplicatesTemplate: string;
+  commitCountsTemplate: string;
   importErrors: string;
   errorGeneric: string;
   errorNetwork: string;
@@ -120,11 +121,11 @@ export function ImportPanel({ eventId, strings }: { eventId: string; strings: St
         <div className="mt-4" data-testid="import-preview-panel">
           <p className="text-sm font-bold">{strings.previewTitle}</p>
           <ul className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-            <li>{strings.previewTotal(preview.totalRows)}</li>
-            <li>{strings.previewValid(preview.validEmails)}</li>
-            <li>{strings.previewInvalid(preview.invalidEmails)}</li>
-            <li>{strings.previewQuarantined(preview.quarantined)}</li>
-            <li>{strings.previewDuplicates(preview.duplicatesInFile)}</li>
+            <li>{fill(strings.previewTotalTemplate, { n: preview.totalRows })}</li>
+            <li>{fill(strings.previewValidTemplate, { n: preview.validEmails })}</li>
+            <li>{fill(strings.previewInvalidTemplate, { n: preview.invalidEmails })}</li>
+            <li>{fill(strings.previewQuarantinedTemplate, { n: preview.quarantined })}</li>
+            <li>{fill(strings.previewDuplicatesTemplate, { n: preview.duplicatesInFile })}</li>
           </ul>
           {preview.sample.length > 0 ? (
             <div className="mt-2 overflow-x-auto">
@@ -157,7 +158,10 @@ export function ImportPanel({ eventId, strings }: { eventId: string; strings: St
 
       {counts ? (
         <p className="mt-3 rounded-lg bg-mint px-3 py-2 text-sm font-semibold text-pine" data-testid="import-counts">
-          {strings.commitCounts(counts)}
+          {fill(
+            strings.commitCountsTemplate,
+            { created: counts.created, updated: counts.updated, skipped: counts.skipped, quarantined: counts.quarantined },
+          )}
         </p>
       ) : null}
 

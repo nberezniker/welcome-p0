@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Modal, Toast, useToast } from '../../../components/modal';
+import { fill } from '../../../components/fill';
 
 export type ContactKind = 'whatsapp' | 'telegram_username' | 'linkedin_url' | 'website' | 'phone';
 export const ALL_KINDS: ContactKind[] = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone'];
@@ -18,7 +19,7 @@ interface IntroDetail {
 
 type Strings = {
   stateLabels: Record<IntroDetail['introduction']['state'], string>;
-  otherPending: (name: string) => string;
+  otherPendingTemplate: string;
   waitingForYou: string;
   accept: string;
   decline: string;
@@ -33,7 +34,7 @@ type Strings = {
   declineNote: string;
   mutualNote: string;
   decisionLabels: Record<IntroDetail['introduction']['my_decision'], string>;
-  revealedFrom: (name: string) => string;
+  revealedFromTemplate: string;
   reportModalTitle: string;
   reportReasonLabel: string;
   reportDetailsLabel: string;
@@ -220,7 +221,7 @@ export function IntroCard({
 
       {state === 'pending' && myDecision === 'accept' ? (
         <div className="mt-3">
-          <p className="text-sm text-muted">{strings.otherPending(otherName)}</p>
+          <p className="text-sm text-muted">{fill(strings.otherPendingTemplate, { name: otherName })}</p>
           <button
             type="button"
             className="btn-light btn-small mt-2"
@@ -244,7 +245,7 @@ export function IntroCard({
             <p className="mt-2 text-sm text-muted">{strings.revealNone}</p>
           ) : (
             <div className="mt-2">
-              <p className="text-sm font-semibold">{strings.revealedFrom(otherName)}</p>
+              <p className="text-sm font-semibold">{fill(strings.revealedFromTemplate, { name: otherName })}</p>
               <ul className="mt-1.5 flex flex-col gap-1.5">
                 {detail.revealed.map((r) => (
                   <li key={r.kind} className="card-tight flex flex-wrap items-baseline justify-between gap-2 px-3 py-2">

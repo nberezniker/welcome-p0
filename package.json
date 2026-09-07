@@ -2,7 +2,7 @@
   "name": "welcome-p0",
   "version": "0.1.0",
   "private": true,
-  "description": "WELCOME P0 \u2014 persistent personal networking profile + reusable QR product (Phase 1)",
+  "description": "WELCOME P0 — persistent personal networking profile + reusable QR product (Phase 1)",
   "engines": {
     "node": ">=20.9"
   },
@@ -19,7 +19,8 @@
     "db:seed": "node --env-file-if-exists=.env.local --import tsx scripts/seed-demo.mts",
     "worker": "node --env-file-if-exists=.env.local --import tsx scripts/worker.mts",
     "scan:secrets": "node --env-file-if-exists=.env.local scripts/scan-secrets.mjs",
-    "audit:deps": "pnpm audit --prod --audit-level high"
+    "audit:deps": "pnpm audit --prod --audit-level high",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "next": "^15.5.4",
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^22.18.0",
     "@types/qrcode": "^1.5.5",

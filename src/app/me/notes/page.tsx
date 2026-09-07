@@ -43,7 +43,7 @@ export default async function NotesPage() {
             savedToast: t('notes.savedToast'),
             noteTooLong: t('notes.noteTooLong'),
             stepTooLong: t('notes.stepTooLong'),
-            updated: (date) => t('notes.updated', { date }),
+            updatedTemplate: t('notes.updated'),
             errorNetwork: t('common.errorNetwork'),
             errorGeneric: t('common.errorGeneric'),
           }}

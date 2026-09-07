@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { getLocale } from '../i18n';
+import { HydrationMarker } from '../components/hydration-marker';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -24,7 +25,10 @@ export default async function RootLayout({
   const locale = await getLocale();
   return (
     <html lang={locale}>
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <HydrationMarker />
+        {children}
+      </body>
     </html>
   );
 }

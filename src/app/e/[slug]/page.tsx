@@ -48,7 +48,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
   let marketingConsent = false;
   if (viewer.is_member && accountId) {
     const membershipRows = await sql<{ id: string; directory_visible: boolean; attendance_source: string }[]>`
-      SELECT id, directory_visible, attendance_source
+      SELECT m.id, m.directory_visible, m.attendance_source
       FROM event_memberships m JOIN profiles p ON p.id = m.profile_id
       WHERE m.event_id = ${event.id} AND p.account_id = ${accountId} AND m.state = 'active'
       LIMIT 1`;

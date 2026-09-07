@@ -1,9 +1,12 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useState, useTransition } from 'react';
+import { useState } from 'react';
 
-/** Locale switcher: POSTs /api/locale, then refreshes server components. */
+/**
+ * Locale switcher: POSTs /api/locale, then does a full reload so every server
+ * component re-renders with the new cookie (router.refresh() proved flaky on a
+ * cold dev server; a reload is deterministic and keeps the URL unchanged).
+ */
 export function LocaleSwitcher({
   current,
   ariaLabel,
@@ -11,8 +14,6 @@ export function LocaleSwitcher({
   current: string;
   ariaLabel: string;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
 
   const setLocale = async (locale: string) => {
@@ -25,11 +26,13 @@ export function LocaleSwitcher({
         body: JSON.stringify({ locale }),
       });
       if (res.ok) {
-        startTransition(() => router.refresh());
+        window.location.reload();
+        return;
       }
-    } finally {
-      setBusy(false);
+    } catch {
+      // fall through: keep busy=false so the user can retry
     }
+    setBusy(false);
   };
 
   return (
@@ -39,7 +42,7 @@ export function LocaleSwitcher({
           key={code}
           type="button"
           onClick={() => void setLocale(code)}
-          disabled={pending || busy}
+          disabled={busy}
           aria-pressed={current === code}
           aria-label={ariaLabel + ': ' + code.toUpperCase()}
           className={

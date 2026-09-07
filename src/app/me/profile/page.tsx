@@ -64,11 +64,11 @@ export default async function ProfileEditorPage() {
             saving: t('common.saving'),
             savedToast: t('profile.savedToast'),
             conflictTitle: t('profile.conflictTitle'),
-            conflictText: (mine, current) => t('profile.conflictText', { mine, current }),
+            conflictTextTemplate: t('profile.conflictText'),
             conflictReload: t('profile.conflictReload'),
             conflictOverwrite: t('profile.conflictOverwrite'),
-            slugNote: (slug) => t('profile.slugNote', { slug }),
-            revisionNote: (n) => t('profile.revisionNote', { n }),
+            slugNoteTemplate: t('profile.slugNote'),
+            revisionNoteTemplate: t('profile.revisionNote'),
             errorNetwork: t('common.errorNetwork'),
           }}
         />

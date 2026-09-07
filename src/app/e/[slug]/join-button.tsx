@@ -42,6 +42,9 @@ export default function JoinEventButton({
       });
       if (res.ok) {
         setState('joined');
+        // The member panel is server-rendered; reload so the joined state
+        // (participation panel) appears.
+        window.location.reload();
         return;
       }
       const body = (await res.json().catch(() => null)) as { code?: string } | null;

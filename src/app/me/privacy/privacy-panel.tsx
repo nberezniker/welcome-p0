@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Modal, Toast, useToast } from '../../../components/modal';
+import { fill } from '../../../components/fill';
 
 export interface ConsentToggleRow {
   purpose: string;
@@ -36,7 +37,7 @@ type Strings = {
   deleteButton: string;
   deleteModalTitle: string;
   deleteStep1: string;
-  deleteStep2: (name: string) => string;
+  deleteStep2Template: string;
   deleteConfirmPlaceholder: string;
   deleteConfirmButton: string;
   deleteNameMismatch: string;
@@ -257,7 +258,7 @@ export function PrivacyPanel({
           </label>
           <div>
             <label className="label" htmlFor="delete-confirm-name">
-              {strings.deleteStep2(displayName ?? '')}
+              {fill(strings.deleteStep2Template, { name: displayName ?? '' })}
             </label>
             <input
               id="delete-confirm-name"

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Modal, Toast, useToast } from '../../../../../components/modal';
+import { fill } from '../../../../../components/fill';
 
 export interface DirectoryMember {
   profile_id: string;
@@ -27,15 +28,15 @@ type Strings = {
   proposed: string;
   introSentToast: string;
   introAlready: string;
-  revealChooserTitle: (name: string) => string;
+  revealChooserTitleTemplate: string;
   revealChooserHint: string;
   sendRequest: string;
   sending: string;
   recommendationsTitle: string;
   recommendationsEmpty: string;
-  score: (n: number) => string;
-  reasonsForMe: (reasons: string) => string;
-  reasonsForThem: (reasons: string) => string;
+  scoreTemplate: string;
+  reasonsForMeTemplate: string;
+  reasonsForThemTemplate: string;
   notVisibleNote: string;
   cancel: string;
   errorNetwork: string;
@@ -146,14 +147,14 @@ export function DirectoryPanel({
               <article key={rec.profile_id} className="card-tight" data-testid={`rec-${rec.profile_id}`}>
                 <div className="flex items-baseline justify-between gap-2">
                   <h3 className="text-sm font-bold">{rec.display_name}</h3>
-                  <span className="chip">{strings.score(rec.score)}</span>
+                  <span className="chip">{fill(strings.scoreTemplate, { score: rec.score })}</span>
                 </div>
                 <p className="text-xs text-muted">{rec.headline ?? rec.company ?? ''}</p>
                 {rec.reasons_for_me.length > 0 ? (
-                  <p className="mt-2 text-xs text-pine">{strings.reasonsForMe(rec.reasons_for_me.join(', '))}</p>
+                  <p className="mt-2 text-xs text-pine">{fill(strings.reasonsForMeTemplate, { reasons: rec.reasons_for_me.join(', ') })}</p>
                 ) : null}
                 {rec.reasons_for_them.length > 0 ? (
-                  <p className="mt-1 text-xs text-muted">{strings.reasonsForThem(rec.reasons_for_them.join(', '))}</p>
+                  <p className="mt-1 text-xs text-muted">{fill(strings.reasonsForThemTemplate, { reasons: rec.reasons_for_them.join(', ') })}</p>
                 ) : null}
                 <button
                   type="button"
@@ -180,7 +181,7 @@ export function DirectoryPanel({
             {strings.empty}
           </p>
         ) : (
-          <ul className="mt-3 grid gap-3 md:grid-cols-2">
+          <ul className="mt-3 grid gap-3 md:grid-cols-2" data-testid="member-list">
             {members.map((m) => (
               <li key={m.profile_id} className="card-tight" data-testid={`member-${m.profile_id}`}>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -222,7 +223,7 @@ export function DirectoryPanel({
       <Modal
         open={chooserMember !== null}
         onClose={() => setChooserMember(null)}
-        title={chooserMember ? strings.revealChooserTitle(chooserMember.display_name) : ''}
+        title={chooserMember ? fill(strings.revealChooserTitleTemplate, { name: chooserMember.display_name }) : ''}
       >
         <p className="text-xs text-muted">{strings.revealChooserHint}</p>
         <fieldset className="mt-3">

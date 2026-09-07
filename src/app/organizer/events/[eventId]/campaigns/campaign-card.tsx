@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, Toast, useToast } from '../../../../../components/modal';
+import { fill } from '../../../../../components/fill';
 
 export interface CampaignItem {
   id: string;
@@ -27,8 +28,8 @@ type StatsCounters = {
 type Strings = {
   purposeLabels: Record<CampaignItem['purpose'], string>;
   stateLabels: Record<CampaignItem['state'], string>;
-  revision: (n: number) => string;
-  approvedRevision: (n: number) => string;
+  revisionTemplate: string;
+  approvedRevisionTemplate: string;
   edit: string;
   editTitle: string;
   editWarning: string;
@@ -39,17 +40,17 @@ type Strings = {
   cancel: string;
   saving: string;
   audiencePreview: string;
-  audienceCount: (count: number, channelReady: number) => string;
+  audienceCountTemplate: string;
   audienceEmpty: string;
   audienceNote: string;
   approve: string;
-  approved: (count: number) => string;
+  approvedTemplate: string;
   send: string;
   sendTitle: string;
-  sendConfirmText: (purpose: string, count: number) => string;
+  sendConfirmTemplate: string;
   sendCta: string;
   sending: string;
-  sent: (queued: number) => string;
+  sentTemplate: string;
   statsTitle: string;
   statsLabels: Record<keyof StatsCounters, string>;
   statsNote: string;
@@ -132,7 +133,7 @@ export function CampaignCard({
     if (!res) return;
     const payload = (await res.json().catch(() => null)) as { audience_count?: number } | null;
     if (res.ok) {
-      setNote(strings.approved(payload?.audience_count ?? 0));
+      setNote(fill(strings.approvedTemplate, { count: payload?.audience_count ?? 0 }));
       router.refresh();
     } else if (res.status === 403) {
       setError(strings.errorGeneric);
@@ -147,7 +148,7 @@ export function CampaignCard({
     if (!res) return;
     const payload = (await res.json().catch(() => null)) as { queued?: number } | null;
     if (res.status === 202) {
-      setNote(strings.sent(payload?.queued ?? 0));
+      setNote(fill(strings.sentTemplate, { queued: payload?.queued ?? 0 }));
       await loadStats();
       router.refresh();
     } else {
@@ -178,8 +179,8 @@ export function CampaignCard({
       </div>
       <p className="mt-2 whitespace-pre-line text-sm">{campaign.body_text ?? ''}</p>
       <p className="mt-1 text-xs text-muted">
-        {strings.revision(campaign.content_revision)}
-        {campaign.approved_revision !== null ? ` · ${strings.approvedRevision(campaign.approved_revision)}` : ''}
+        {fill(strings.revisionTemplate, { n: campaign.content_revision })}
+        {campaign.approved_revision !== null ? ` · ${fill(strings.approvedRevisionTemplate, { n: campaign.approved_revision })}` : ''}
       </p>
 
       {note ? (
@@ -258,7 +259,7 @@ export function CampaignCard({
 
       {audience ? (
         <div className="mt-3 rounded-xl bg-paper p-3 text-sm" data-testid={`audience-${campaign.id}`}>
-          <p className="font-semibold">{strings.audienceCount(audience.count, audience.channel_ready)}</p>
+          <p className="font-semibold">{fill(strings.audienceCountTemplate, { count: audience.count, channelReady: audience.channel_ready })}</p>
           <p className="mt-1 text-xs text-muted">{strings.audienceNote}</p>
         </div>
       ) : null}
@@ -290,7 +291,7 @@ export function CampaignCard({
       ) : null}
 
       <Modal open={sendOpen} onClose={() => setSendOpen(false)} title={strings.sendTitle}>
-        <p className="text-sm">{strings.sendConfirmText(strings.purposeLabels[campaign.purpose], audience?.count ?? 0)}</p>
+        <p className="text-sm">{fill(strings.sendConfirmTemplate, { purpose: strings.purposeLabels[campaign.purpose], count: audience?.count ?? 0 })}</p>
         <div className="mt-4 flex justify-end gap-2">
           <button type="button" className="btn-light btn-small" onClick={() => setSendOpen(false)}>
             {strings.cancel}

@@ -78,7 +78,7 @@ export default async function PrivacyPage() {
             deleteButton: t('privacy.deleteButton'),
             deleteModalTitle: t('privacy.deleteModalTitle'),
             deleteStep1: t('privacy.deleteStep1'),
-            deleteStep2: (name) => t('privacy.deleteStep2', { name }),
+            deleteStep2Template: t('privacy.deleteStep2'),
             deleteConfirmPlaceholder: t('privacy.deleteConfirmPlaceholder'),
             deleteConfirmButton: t('privacy.deleteConfirmButton'),
             deleteNameMismatch: t('privacy.deleteNameMismatch'),
