@@ -230,6 +230,16 @@ test('authz: attendance toggle on a foreign membership → 403 forbidden', async
   );
   assert.equal(res.status, 403);
   assert.equal(((await res.json()) as { code: string }).code, 'forbidden');
+
+  // control: the owner toggles their own membership attendance fine
+  const own = await attendanceRoute(
+    makeRequest(`/api/me/memberships/${membershipA}/attendance`, {
+      body: { present: true },
+      cookie: memberA.cookie,
+    }),
+    { params: Promise.resolve({ membershipId: membershipA }) },
+  );
+  assertStatus(own, 200);
 });
 
 test('authz: directory of an event not joined → 403 forbidden', async () => {
@@ -239,6 +249,13 @@ test('authz: directory of an event not joined → 403 forbidden', async () => {
   );
   assert.equal(res.status, 403);
   assert.equal(((await res.json()) as { code: string }).code, 'forbidden');
+
+  // symmetric: a member asking for a foreign event's directory
+  const reverse = await directoryRoute(
+    makeRequest(`/api/events/${rivalEventId}/directory`, { cookie: memberA.cookie }),
+    { params: Promise.resolve({ eventIdOrSlug: rivalEventId }) },
+  );
+  assert.equal(reverse.status, 403);
 });
 
 test('authz: recommendations of an event not joined → 403 forbidden', async () => {
