@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
 import { loadEventView } from '../../../../../lib/event-view';
 import { evaluateJoinPolicy } from '../../../../../domain/events';
 import { checkRateLimit } from '../../../../../lib/ratelimit';
@@ -16,7 +16,7 @@ import { recordAudit } from '../../../../../lib/audit';
 const JOIN_RATE_WINDOW_MINUTES = 15;
 const JOIN_RATE_MAX = 30;
 
-export async function POST(
+async function postRoute(
   req: NextRequest,
   { params }: { params: Promise<{ eventIdOrSlug: string }> },
 ) {
@@ -141,3 +141,5 @@ async function currentMaxParticipants(sql: ReturnType<typeof getSql>, eventId: s
   const rows = await sql<{ max_participants: number | null }[]>`SELECT max_participants FROM events WHERE id = ${eventId}`;
   return rows[0]?.max_participants ?? null;
 }
+
+export const POST = withApi(postRoute);

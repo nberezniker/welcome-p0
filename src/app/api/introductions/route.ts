@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../lib/db';
 import { requireAccount } from '../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../lib/http';
 import { validateCreateIntroInput, canonicalPair, eventContextKey, personalContextKey } from '../../../domain/introductions';
 import { scorePair } from '../../../domain/matching';
 import { checkRateLimit } from '../../../lib/ratelimit';
@@ -17,7 +17,7 @@ import { enqueueOutbox } from '../../../infra/outbox';
 const INTRO_RATE_WINDOW_MINUTES = 60;
 const INTRO_RATE_MAX = 60;
 
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -164,3 +164,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

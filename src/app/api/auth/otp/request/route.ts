@@ -4,7 +4,7 @@ import path from 'node:path';
 import { getSql } from '../../../../../lib/db';
 import { devExposeOtp, requireHashPepper } from '../../../../../lib/env';
 import { emailLookupHash, generateOtpCode, hashOtpCode } from '../../../../../lib/crypto';
-import { jsonError, jsonOk, normalizeEmail, readJsonBody, internalError } from '../../../../../lib/http';
+import { internalError, jsonError, jsonOk, normalizeEmail, readJsonBody, withApi } from '../../../../../lib/http';
 
 /** OTP request throttling: max codes per account within the window. */
 const OTP_REQUEST_WINDOW_MINUTES = 15;
@@ -17,7 +17,7 @@ async function writeDevOtpLog(email: string, code: string): Promise<void> {
   await appendFile(path.join(dir, 'otp.log'), `${new Date().toISOString()}\t${email}\t${code}\n`, 'utf8');
 }
 
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const body = await readJsonBody(req);
     const b = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
@@ -89,3 +89,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

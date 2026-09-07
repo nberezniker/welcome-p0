@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../../../lib/http';
+import { internalError, jsonError, jsonOk, withApi } from '../../../../../../lib/http';
 import { recordAudit } from '../../../../../../lib/audit';
 import { canSend, currentEligibleAudience, loadCampaignWithRole } from '../../../../../../domain/campaigns';
 import { enqueueOutbox } from '../../../../../../infra/outbox';
@@ -15,7 +15,7 @@ import { enqueueOutbox } from '../../../../../../infra/outbox';
  * approved_revision=content_revision. Returns 202 {queued}; delivery counts
  * appear via /stats — provider acceptance is NEVER reported as 'delivered'.
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -84,3 +84,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

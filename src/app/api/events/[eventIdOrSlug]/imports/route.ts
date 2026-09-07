@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
 import { requireEventRole, isUuid } from '../../../../../domain/organizer';
 import { parseCsv } from '../../../../../domain/csv';
 import { mapCsvRows, IMPORT_MAX_BYTES, IMPORT_MAX_ROWS } from '../../../../../domain/import';
@@ -24,7 +24,7 @@ async function resolveEventId(idOrSlug: string): Promise<string | null> {
   return rows[0]?.id ?? null;
 }
 
-export async function POST(
+async function postRoute(
   req: NextRequest,
   { params }: { params: Promise<{ eventIdOrSlug: string }> },
 ) {
@@ -171,3 +171,5 @@ export async function POST(
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

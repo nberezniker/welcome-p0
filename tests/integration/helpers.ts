@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomInt } from 'node:crypto';
 import { extractSessionCookie } from '../../src/lib/auth';
 import { hashSessionToken } from '../../src/lib/crypto';
 import { getSql } from '../../src/lib/db';
@@ -11,7 +11,9 @@ export interface RouteResponseLike {
   headers: Headers;
 }
 
-/** Builds a NextRequest like the Next.js server would for a route handler. */
+/** Builds a NextRequest like the Next.js server would for a route handler.
+ * A random X-Forwarded-For is injected unless explicitly provided, so per-IP
+ * rate-limit buckets never collide between unrelated test requests. */
 export function makeRequest(
   url: string,
   init?: { method?: string; body?: unknown; cookie?: string; headers?: Record<string, string> },
@@ -20,6 +22,10 @@ export function makeRequest(
   const headers: Record<string, string> = {};
   if (init?.body !== undefined) headers['content-type'] = 'application/json';
   if (init?.cookie) headers['cookie'] = init.cookie;
+  headers['x-forwarded-for'] = `10.${randomInt(2, 254)}.${randomInt(2, 254)}.${randomInt(2, 254)}`;
+  // A real Next server always receives a Host header; constructed requests
+  // don't get one implicitly, so mirror the URL host unless overridden.
+  headers['host'] = 'localhost:3000';
   for (const [k, v] of Object.entries(init?.headers ?? {})) headers[k.toLowerCase()] = v;
   return new NextRequest(`http://localhost:3000${url}`, {
     method,

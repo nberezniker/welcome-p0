@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { jsonError, internalError } from '../../../../lib/http';
+import { internalError, jsonError, withApi } from '../../../../lib/http';
 import { requireEncryptionKey } from '../../../../lib/env';
 import { decryptValue } from '../../../../lib/crypto';
 import { POLICY_VERSION } from '../../../../i18n';
@@ -12,7 +12,7 @@ import { POLICY_VERSION } from '../../../../i18n';
  * Named by the Phase-4 brief; kept minimal. Listed as a new endpoint in the
  * phase report.
  */
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -79,3 +79,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

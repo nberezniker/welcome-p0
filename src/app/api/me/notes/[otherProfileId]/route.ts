@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, asString, internalError } from '../../../../../lib/http';
+import { asString, internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
 import { recordAudit } from '../../../../../lib/audit';
 
 /** PUT /api/me/notes/[otherProfileId] — upsert the owner's private note about
@@ -13,7 +13,7 @@ const NOTE_MAX = 5000;
 const NEXT_STEP_MAX = 500;
 const STEP_STATUSES = ['none', 'proposed', 'confirmed', 'done', 'dropped'] as const;
 
-export async function PUT(
+async function putRoute(
   req: NextRequest,
   { params }: { params: Promise<{ otherProfileId: string }> },
 ) {
@@ -117,3 +117,5 @@ export async function PUT(
     return internalError(err);
   }
 }
+
+export const PUT = withApi(putRoute);

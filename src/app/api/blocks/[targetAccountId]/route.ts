@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../lib/http';
+import { internalError, jsonError, jsonOk, withApi } from '../../../../lib/http';
 import { recordAudit } from '../../../../lib/audit';
 
 /** DELETE /api/blocks/[targetAccountId] — removes the caller's block,
@@ -9,7 +9,7 @@ import { recordAudit } from '../../../../lib/audit';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function DELETE(
+async function deleteRoute(
   req: NextRequest,
   { params }: { params: Promise<{ targetAccountId: string }> },
 ) {
@@ -38,3 +38,5 @@ export async function DELETE(
     return internalError(err);
   }
 }
+
+export const DELETE = withApi(deleteRoute);

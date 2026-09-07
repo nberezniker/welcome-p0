@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../../../lib/http';
+import { internalError, jsonError, jsonOk, withApi } from '../../../../../../lib/http';
 import { recordAudit } from '../../../../../../lib/audit';
 import { currentEligibleAudience, loadCampaignWithRole } from '../../../../../../domain/campaigns';
 
@@ -12,7 +12,7 @@ import { currentEligibleAudience, loadCampaignWithRole } from '../../../../../..
  * the approval (AC-40); sending re-validates the frozen snapshot against the
  * live consent/block/binding state (AC-41).
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -82,3 +82,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

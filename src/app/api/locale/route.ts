@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { internalError, jsonError, readJsonBody } from '../../../lib/http';
+import { internalError, jsonError, readJsonBody, withApi } from '../../../lib/http';
 import { isProduction } from '../../../lib/env';
 import { isLocale, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, type Locale } from '../../../i18n';
 
@@ -8,7 +8,7 @@ import { isLocale, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, type Locale } from '../
  * The only new product endpoint added in Phase 4 (per the phase brief).
  * Cookie-based locale: documented in src/i18n/README.md.
  */
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const body = (await readJsonBody(req)) as Record<string, unknown> | undefined;
     const raw = body?.['locale'];
@@ -30,3 +30,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

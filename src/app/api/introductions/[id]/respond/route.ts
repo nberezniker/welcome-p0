@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import type { Sql, TransactionSql } from 'postgres';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
 import { validateRespondInput, type IntroDecision } from '../../../../../domain/introductions';
 import { recordAudit } from '../../../../../lib/audit';
 import { appBaseUrl } from '../../../../../lib/env';
@@ -17,7 +17,7 @@ import { enqueueOutbox } from '../../../../../infra/outbox';
  * mutual → 'revoked'. A decline is never surfaced to the other side.
  */
 
-export async function POST(
+async function postRoute(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -165,3 +165,5 @@ async function enqueueMutualNotices(
     });
   }
 }
+
+export const POST = withApi(postRoute);

@@ -1,13 +1,13 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../../lib/http';
 import { requireOwnMembership } from '../../../../../../domain/membership';
 import { recordAudit } from '../../../../../../lib/audit';
 
 /** POST /api/me/memberships/[membershipId]/attendance — voluntary self-report.
  * This is a claim of presence, NEVER a ticket check: join/claim never sets it. */
-export async function POST(
+async function postRoute(
   req: NextRequest,
   { params }: { params: Promise<{ membershipId: string }> },
 ) {
@@ -42,3 +42,5 @@ export async function POST(
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

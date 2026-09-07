@@ -2,13 +2,13 @@ import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireHashPepper } from '../../../../../lib/env';
 import { emailLookupHash, hashOtpCode, timingSafeHexEqual } from '../../../../../lib/crypto';
-import { jsonError, jsonOk, normalizeEmail, readJsonBody, internalError } from '../../../../../lib/http';
+import { internalError, jsonError, jsonOk, normalizeEmail, readJsonBody, withApi } from '../../../../../lib/http';
 import { createSession, setSessionCookie } from '../../../../../lib/auth';
 
 /** Max wrong attempts per OTP before it is invalidated. */
 const OTP_MAX_ATTEMPTS = 5;
 
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const body = await readJsonBody(req);
     const b = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
@@ -90,3 +90,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

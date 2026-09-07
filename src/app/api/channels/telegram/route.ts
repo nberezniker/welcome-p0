@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../lib/http';
+import { internalError, jsonError, jsonOk, withApi } from '../../../../lib/http';
 import { recordAudit } from '../../../../lib/audit';
 import { suppressJobsForAccountChannel } from '../../../../infra/outbox';
 
@@ -10,7 +10,7 @@ import { suppressJobsForAccountChannel } from '../../../../infra/outbox';
  * web app (mirror of the bot's /stop). Phase-4 UI needs this for the unlink
  * button on /me/telegram; kept minimal and listed in the phase report.
  */
-export async function DELETE(req: NextRequest) {
+async function deleteRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -35,3 +35,5 @@ export async function DELETE(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const DELETE = withApi(deleteRoute);

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../../../lib/db';
 import { requireAccount } from '../../../../../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../../../../../lib/http';
+import { internalError, jsonError, jsonOk, withApi } from '../../../../../../../../lib/http';
 import { requireEventRole } from '../../../../../../../../domain/organizer';
 import { challengeTtlMinutes } from '../../../../../../../../domain/challenges';
 import { generateSessionToken, hashSessionToken } from '../../../../../../../../lib/crypto';
@@ -17,7 +17,7 @@ import { recordAudit } from '../../../../../../../../lib/audit';
 const INVITE_RATE_WINDOW_MINUTES = 60;
 const INVITE_RATE_MAX = 200;
 
-export async function POST(
+async function postRoute(
   req: NextRequest,
   { params }: { params: Promise<{ eventId: string; registrationId: string }> },
 ) {
@@ -80,3 +80,5 @@ export async function POST(
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

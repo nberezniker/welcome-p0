@@ -3,7 +3,7 @@ import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
 import { requireEncryptionKey } from '../../../../lib/env';
 import { decryptValue, encryptValue } from '../../../../lib/crypto';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
 import { validateContactInput } from '../../../../domain/profile';
 
 export async function GET(req: NextRequest) {
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function PUT(req: NextRequest) {
+async function putRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -78,3 +78,5 @@ export async function PUT(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const PUT = withApi(putRoute);

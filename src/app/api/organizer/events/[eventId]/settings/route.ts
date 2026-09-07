@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import type { Sql } from 'postgres';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../../lib/http';
 import { requireEventRole } from '../../../../../../domain/organizer';
 import { EVENT_ACCESS_MODES } from '../../../../../../domain/events';
 import { recordAudit } from '../../../../../../lib/audit';
@@ -17,7 +17,7 @@ function isIsoDateTime(value: string): boolean {
 
 /** POST /api/organizer/events/[eventId]/settings — owner/admin only.
  * Body (all optional): { join_code: string|null, access_mode, directory_close_at: string|null }. */
-export async function POST(
+async function postRoute(
   req: NextRequest,
   { params }: { params: Promise<{ eventId: string }> },
 ) {
@@ -109,3 +109,5 @@ export async function POST(
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

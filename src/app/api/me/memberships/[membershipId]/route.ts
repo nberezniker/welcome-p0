@@ -1,14 +1,14 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
 import { requireOwnMembership, validateMembershipPatch } from '../../../../../domain/membership';
 import { recordAudit } from '../../../../../lib/audit';
 
 /** PATCH /api/me/memberships/[membershipId] — the member updates their OWN
  * membership: directory visibility, per-event tag overrides, or leaving.
  * Organizer approval is never involved; state accepts only 'left'. */
-export async function PATCH(
+async function patchRoute(
   req: NextRequest,
   { params }: { params: Promise<{ membershipId: string }> },
 ) {
@@ -48,3 +48,5 @@ export async function PATCH(
     return internalError(err);
   }
 }
+
+export const PATCH = withApi(patchRoute);

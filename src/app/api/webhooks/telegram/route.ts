@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import type { Sql } from 'postgres';
 import { getSql } from '../../../../lib/db';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
 import { secureSecretEqual } from '../../../../lib/crypto';
 import { validateTelegramUpdate } from '../../../../integrations/telegram/updates';
 import { enqueueOutbox } from '../../../../infra/outbox';
@@ -24,7 +24,7 @@ import { enqueueOutbox } from '../../../../infra/outbox';
 
 const SECRET_HEADER = 'x-telegram-bot-api-secret-token';
 
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     // 1. Secret gate BEFORE anything else (AC-36).
     const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
@@ -70,3 +70,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

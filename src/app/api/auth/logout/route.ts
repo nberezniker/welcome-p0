@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { clearSessionCookie, destroySession, SESSION_COOKIE } from '../../../../lib/auth';
-import { jsonOk, internalError } from '../../../../lib/http';
+import { internalError, jsonOk, withApi } from '../../../../lib/http';
 
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const token = req.cookies.get(SESSION_COOKIE)?.value;
     if (token) {
@@ -15,3 +15,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

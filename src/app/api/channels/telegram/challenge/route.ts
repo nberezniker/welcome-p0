@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../../lib/http';
+import { internalError, jsonError, jsonOk, withApi } from '../../../../../lib/http';
 import { hashSessionToken } from '../../../../../lib/crypto';
 import { challengeTtlMinutes } from '../../../../../domain/challenges';
 import { telegramBotUsername } from '../../../../../integrations/telegram';
@@ -18,7 +18,7 @@ import { telegramBotUsername } from '../../../../../integrations/telegram';
  * then presented to the bot via /start. A stolen token without the web-side
  * confirmation can never create a binding.
  */
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -48,3 +48,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

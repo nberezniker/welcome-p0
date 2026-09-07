@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
 import { generateEventSlug, validateEventInput, isValidEventSlug } from '../../../../domain/events';
 import { ensureOrganizerForAccount } from '../../../../domain/organizer';
 import { recordAudit } from '../../../../lib/audit';
@@ -24,7 +24,7 @@ function isUniqueViolation(err: unknown): boolean {
 
 /** POST /api/organizer/events — creates an event; the creator becomes the
  * owner of their (reused) organizer. Status starts as 'active'. */
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -92,3 +92,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

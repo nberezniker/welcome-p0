@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../lib/db';
 import { requireAccount } from '../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError, asString } from '../../../lib/http';
+import { asString, internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../lib/http';
 import { recordAudit } from '../../../lib/audit';
 import { suppressJobsForAccountChannel } from '../../../infra/outbox';
 
@@ -12,7 +12,7 @@ import { suppressJobsForAccountChannel } from '../../../infra/outbox';
  * disables the public card; email lookup is released; queued channel sends
  * are suppressed. Named by the Phase-4 brief; listed as a new endpoint.
  */
-export async function DELETE(req: NextRequest) {
+async function deleteRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -49,3 +49,5 @@ export async function DELETE(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const DELETE = withApi(deleteRoute);

@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
+import type { NextRequest } from 'next/server';
+import { clientIp, consumeIpToken, type TokenVerdict } from './ratelimit';
 
 /** Unified JSON error model: {code, message, correlation_id, retryable}.
  * Never include SQL, stack traces or secrets in the payload. */
@@ -65,4 +67,120 @@ export function normalizeEmail(value: unknown): string | null {
   const v = value.trim().toLowerCase();
   if (v.length < 3 || v.length > 320 || !EMAIL_RE.test(v)) return null;
   return v;
+}
+
+// ---------------------------------------------------------------------------
+// CSRF: same-origin enforcement for mutating requests (Phase 5 hardening).
+// Logic lives here once; every mutating handler is exported through `withApi`.
+// ---------------------------------------------------------------------------
+
+const MUTATING_METHODS = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+
+/** Lowercases and strips default ports so `https://x` matches Host `x:443`. */
+function normalizeHost(host: string): string {
+  return host.toLowerCase().replace(/:(80|443)$/, '');
+}
+
+/**
+ * Same-origin decision for one request:
+ *  - Origin absent → allow unless Sec-Fetch-Site claims 'cross-site'
+ *    (curl/webhook-style server-to-server calls pass);
+ *  - Origin `null` (sandboxed iframe etc.) → reject;
+ *  - Origin present → its host must equal Host / X-Forwarded-Host.
+ */
+export function isSameOrigin(req: NextRequest): boolean {
+  const origin = req.headers.get('origin');
+  if (!origin) {
+    return req.headers.get('sec-fetch-site') !== 'cross-site';
+  }
+  if (origin === 'null') return false;
+  let originHost: string;
+  try {
+    originHost = normalizeHost(new URL(origin).host);
+  } catch {
+    return false;
+  }
+  if (!originHost) return false;
+  const forwarded = req.headers.get('x-forwarded-host');
+  const host = (forwarded ? (forwarded.split(',')[0]?.trim() ?? '') : (req.headers.get('host') ?? ''));
+  if (!host) return false;
+  return originHost === normalizeHost(host);
+}
+
+/** Returns a 403 for a cross-site mutating request, else null. */
+export function csrfGuard(req: NextRequest): NextResponse | null {
+  if (!MUTATING_METHODS.has(req.method)) return null;
+  if (isSameOrigin(req)) return null;
+  return jsonError(403, 'csrf_origin', 'Cross-origin request rejected');
+}
+
+// ---------------------------------------------------------------------------
+// Generic per-IP rate limiting for sensitive routes (Phase 5 hardening).
+// Token buckets are in-memory and single-process (documented limitation,
+// ADR 0005); DB-level per-subject throttles stay in place alongside.
+// ---------------------------------------------------------------------------
+
+interface IpRateRule {
+  key: string;
+  pattern: RegExp;
+  capacity: number;
+  windowMs: number;
+}
+
+const IP_RATE_RULES: IpRateRule[] = [
+  { key: 'otp_request', pattern: /^\/api\/auth\/otp\/request$/, capacity: 10, windowMs: 60_000 },
+  { key: 'otp_verify', pattern: /^\/api\/auth\/otp\/verify$/, capacity: 10, windowMs: 60_000 },
+  { key: 'registration_claims', pattern: /^\/api\/registration-claims$/, capacity: 30, windowMs: 60_000 },
+  { key: 'reports', pattern: /^\/api\/reports$/, capacity: 30, windowMs: 60_000 },
+  { key: 'blocks', pattern: /^\/api\/blocks(\/|$)/, capacity: 30, windowMs: 60_000 },
+];
+
+function rateLimitHeaders(verdict: TokenVerdict, capacity: number): Record<string, string> {
+  return {
+    'X-RateLimit-Limit': String(capacity),
+    'X-RateLimit-Remaining': String(verdict.remaining),
+    'X-RateLimit-Reset': String(Math.ceil((verdict.nowMs + verdict.retryAfterMs) / 1000)),
+  };
+}
+
+export interface RouteContext<P> {
+  params: Promise<P>;
+}
+
+/**
+ * Wraps a route handler with the shared mutation guards: the CSRF origin check
+ * (effective on POST/PATCH/PUT/DELETE) and the per-IP rate limit when the
+ * request path is on the sensitive-route table. ALL mutating handlers must be
+ * exported through this wrapper — no guard logic in individual routes.
+ *
+ * The input type requires the context (param-bearing handlers keep their exact
+ * signature); the returned type makes it optional so 1-arg call sites (routes
+ * without params and their tests) stay valid — Next.js always supplies it.
+ */
+export function withApi<P = Record<string, string>>(
+  handler: (req: NextRequest, ctx: RouteContext<P>) => Promise<Response>,
+): (req: NextRequest, ctx?: RouteContext<P>) => Promise<Response> {
+  return async (req, ctx) => {
+    const csrf = csrfGuard(req);
+    if (csrf) return csrf;
+
+    const path = req.nextUrl.pathname;
+    const rule = IP_RATE_RULES.find((r) => r.pattern.test(path));
+    if (!rule) return handler(req, ctx as RouteContext<P>);
+
+    const verdict = consumeIpToken(clientIp(req), rule.key, {
+      capacity: rule.capacity,
+      windowMs: rule.windowMs,
+    });
+    const headers = rateLimitHeaders(verdict, rule.capacity);
+    if (!verdict.allowed) {
+      return jsonError(429, 'rate_limited', 'Too many requests. Slow down and try again later.', {
+        retryable: true,
+        headers: { ...headers, 'Retry-After': String(Math.max(1, Math.ceil(verdict.retryAfterMs / 1000))) },
+      });
+    }
+    const res = await handler(req, ctx as RouteContext<P>);
+    for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
+    return res;
+  };
 }

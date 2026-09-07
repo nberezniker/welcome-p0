@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError, asString } from '../../../../../lib/http';
+import { asString, internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
 import { hashSessionToken } from '../../../../../lib/crypto';
 import { recordAudit } from '../../../../../lib/audit';
 
@@ -11,7 +11,7 @@ import { recordAudit } from '../../../../../lib/audit';
  * session that created the challenge. Only when this flag is set AND the bot
  * receives /start with the same token does the binding complete.
  */
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -47,3 +47,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);

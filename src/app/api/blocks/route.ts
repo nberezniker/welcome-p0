@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../lib/db';
 import { requireAccount } from '../../../lib/auth';
-import { jsonError, jsonOk, readJsonBody, internalError } from '../../../lib/http';
+import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../lib/http';
 import { recordAudit } from '../../../lib/audit';
 
 /** POST /api/blocks — blocks another account. Suppression is symmetric:
@@ -10,7 +10,7 @@ import { recordAudit } from '../../../lib/audit';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export async function POST(req: NextRequest) {
+async function postRoute(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
@@ -45,3 +45,5 @@ export async function POST(req: NextRequest) {
     return internalError(err);
   }
 }
+
+export const POST = withApi(postRoute);
