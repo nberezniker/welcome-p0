@@ -5,6 +5,8 @@ import { requireAccount } from '../../../../../lib/auth';
 import { jsonError, jsonOk, readJsonBody, internalError } from '../../../../../lib/http';
 import { validateRespondInput, type IntroDecision } from '../../../../../domain/introductions';
 import { recordAudit } from '../../../../../lib/audit';
+import { appBaseUrl } from '../../../../../lib/env';
+import { enqueueOutbox } from '../../../../../infra/outbox';
 
 /**
  * POST /api/introductions/[id]/respond — accept / decline / withdraw.
@@ -82,8 +84,10 @@ export async function POST(
           `;
           if (cas[0]) {
             next = 'mutual';
-            // Exactly one row wins the CAS → exactly one mutual audit.
+            // Exactly one row wins the CAS → exactly one mutual audit and
+            // exactly one notice per side (outbox dedupe keys make it so).
             await recordAudit(tx, auth.accountId, 'intro.mutual', 'introduction', intro.id, {});
+            await enqueueMutualNotices(tx, intro.id, intro.profile_a, intro.profile_b);
           }
         }
       }
@@ -122,4 +126,42 @@ async function upsertConsent(
       version = introduction_consents.version + 1,
       updated_at = now()
   `;
+}
+
+/**
+ * Mutual transition: one service notice per side, enqueued in the SAME
+ * transaction as the CAS win (spec 04 §7). Bodies carry a web link only —
+ * no private contact values ever travel through the channel.
+ */
+async function enqueueMutualNotices(
+  tx: Sql | TransactionSql,
+  introductionId: string,
+  profileA: string,
+  profileB: string,
+): Promise<void> {
+  const accountRows = await tx<{ id: string; account_id: string }[]>`
+    SELECT id, account_id FROM profiles WHERE id IN (${profileA}, ${profileB})
+  `;
+  const byProfile = new Map(accountRows.map((r) => [r.id, r.account_id]));
+  const accountA = byProfile.get(profileA);
+  const accountB = byProfile.get(profileB);
+  if (!accountA || !accountB) return;
+  for (const [accountId, otherAccountId] of [
+    [accountA, accountB],
+    [accountB, accountA],
+  ] as const) {
+    await enqueueOutbox(tx, {
+      dedupeKey: `intro_mutual:${introductionId}:${accountId}`,
+      kind: 'intro_mutual_notice',
+      subjectId: introductionId,
+      channel: 'telegram',
+      purpose: 'service_channel',
+      payload: {
+        account_id: accountId,
+        text: `WELCOME: знакомство состоялось! Контактные данные открылись в веб-приложении: ${appBaseUrl()}/introductions`,
+        enforce_consent: true,
+        counterparty_account_id: otherAccountId,
+      },
+    });
+  }
 }

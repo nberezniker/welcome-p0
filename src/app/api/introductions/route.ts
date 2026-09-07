@@ -6,6 +6,8 @@ import { validateCreateIntroInput, canonicalPair, eventContextKey, personalConte
 import { scorePair } from '../../../domain/matching';
 import { checkRateLimit } from '../../../lib/ratelimit';
 import { recordAudit } from '../../../lib/audit';
+import { appBaseUrl } from '../../../lib/env';
+import { enqueueOutbox } from '../../../infra/outbox';
 
 /** POST /api/introductions — the SESSION user requests an introduction.
  * Idempotent: a repeated request returns the canonical row, never a duplicate.
@@ -25,7 +27,9 @@ export async function POST(req: NextRequest) {
     if (!input.ok) return jsonError(400, input.code, input.message);
 
     const sql = getSql();
-    const myRows = await sql<{ id: string }[]>`SELECT id FROM profiles WHERE account_id = ${auth.accountId} LIMIT 1`;
+    const myRows = await sql<{ id: string; display_name: string }[]>`
+      SELECT id, display_name FROM profiles WHERE account_id = ${auth.accountId} LIMIT 1
+    `;
     const my = myRows[0];
     if (!my) return jsonError(409, 'profile_required', 'Create your profile first');
 
@@ -120,6 +124,21 @@ export async function POST(req: NextRequest) {
           VALUES (${inserted[0].id}, ${my.id}, 'pending', ${input.value.revealFields}, 1)
           ON CONFLICT (introduction_id, profile_id) DO NOTHING
         `;
+        // Transactional outbox: one service notice for the RECIPIENT. No
+        // private contact values in the body — the answer lives in the web app.
+        await enqueueOutbox(tx, {
+          dedupeKey: `intro_requested:${inserted[0].id}:${target.account_id}`,
+          kind: 'intro_requested_notice',
+          subjectId: inserted[0].id,
+          channel: 'telegram',
+          purpose: 'service_channel',
+          payload: {
+            account_id: target.account_id,
+            text: `WELCOME: ${my.display_name} отправил(а) вам запрос на знакомство. Ответить можно здесь: ${appBaseUrl()}`,
+            enforce_consent: true,
+            counterparty_account_id: auth.accountId,
+          },
+        });
         return { id: inserted[0].id, state: inserted[0].state, created: true };
       }
       const existing = await tx<{ id: string; state: string }[]>`
