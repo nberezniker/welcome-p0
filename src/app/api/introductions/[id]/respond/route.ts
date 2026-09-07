@@ -45,6 +45,20 @@ async function postRoute(
         return { code: 'not_found', state: '' }; // never leak existence to non-parties
       }
 
+      // SECURITY_TESTS #11: a block between the parties (either direction)
+      // freezes the introduction — no new accept/decline/withdraw, hence no
+      // new mutual transition and no new reveal after the block.
+      const otherProfileId = intro.profile_a === my.id ? intro.profile_b : intro.profile_a;
+      const blockedRows = await tx<{ count: number }[]>`
+        SELECT count(*)::int AS count
+        FROM blocks b
+        JOIN profiles pme ON pme.id = ${my.id}
+        JOIN profiles poth ON poth.id = ${otherProfileId}
+        WHERE (b.blocker_account_id = pme.account_id AND b.target_account_id = poth.account_id)
+           OR (b.blocker_account_id = poth.account_id AND b.target_account_id = pme.account_id)
+      `;
+      if ((blockedRows[0]?.count ?? 0) > 0) return { code: 'blocked', state: '' };
+
       const decision = input.value.decision;
       const current = intro.state;
 
@@ -96,6 +110,9 @@ async function postRoute(
 
     if (result.code === 'not_found') {
       return jsonError(404, 'not_found', 'Introduction not found');
+    }
+    if (result.code === 'blocked') {
+      return jsonError(403, 'blocked', 'Introduction is not available');
     }
     if (result.code === 'invalid_state') {
       return jsonError(409, 'invalid_state', `This introduction is ${result.state}; only pending introductions can be answered`);

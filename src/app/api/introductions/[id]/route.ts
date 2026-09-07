@@ -51,8 +51,21 @@ export async function GET(
     // A refusal is visible only to the person who refused.
     const effectiveState = intro.state === 'declined' && myDecision !== 'decline' ? 'pending' : intro.state;
 
+    // SECURITY_TESTS #11: a block between the parties (either direction)
+    // suppresses the reveal — blocked parties never see (new) contact values.
+    const otherProfileId = intro.profile_a === my.id ? intro.profile_b : intro.profile_a;
+    const blockedRows = await sql<{ count: number }[]>`
+      SELECT count(*)::int AS count
+      FROM blocks b
+      JOIN profiles pme ON pme.id = ${my.id}
+      JOIN profiles poth ON poth.id = ${otherProfileId}
+      WHERE (b.blocker_account_id = pme.account_id AND b.target_account_id = poth.account_id)
+         OR (b.blocker_account_id = poth.account_id AND b.target_account_id = pme.account_id)
+    `;
+    const blocked = (blockedRows[0]?.count ?? 0) > 0;
+
     let revealed: Array<{ kind: string; value: string }> = [];
-    if (intro.state === 'mutual' && mine && other) {
+    if (intro.state === 'mutual' && mine && other && !blocked) {
       const mutualFields = mine.reveal_fields.filter((f) => other.reveal_fields.includes(f)) as RevealField[];
       if (mutualFields.length > 0) {
         const otherProfileId = intro.profile_a === my.id ? intro.profile_b : intro.profile_a;
