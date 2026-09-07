@@ -118,16 +118,16 @@ export default async function DashboardPage() {
             <CopyButton value={publicUrl} label={t('common.copy')} copiedLabel={t('common.copied')} testId="copy-public-url" />
           </div>
 
-          <div className="mt-5 flex flex-col gap-5 sm:flex-row">
-            <div className="shrink-0">
+          <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
               <h3 className="eyebrow">{t('me.dashboard.qrTitle')}</h3>
               <p className="mt-2 max-w-xs text-xs text-muted">{t('me.dashboard.qrHint')}</p>
             </div>
             <div className="flex items-center gap-3">
               {/* QR image endpoint: /api/public/profiles/[slug]/qr.svg */}
               {/* Plain <img> is intentional: the QR is an SVG served by our own
-                  API endpoint; next/image cannot optimize SVG without allowing
-                  dangerous SVG optimization. eslint-disable-next-line @next/next/no-img-element */}
+                  API endpoint; next/image cannot optimize SVG files. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qrUrl}
                 alt={t('me.dashboard.qrAlt', { name: profile.display_name })}

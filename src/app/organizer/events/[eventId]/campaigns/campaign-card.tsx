@@ -194,8 +194,12 @@ export function CampaignCard({
 
       {!isOwner ? <p className="mt-2 text-xs text-muted">{strings.audienceNote}</p> : null}
 
+      <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
+          <button type="button" className="btn-light btn-small" disabled={busy} onClick={() => void loadStats()} data-testid={`campaign-stats-${campaign.id}`}>
+            {strings.statsTitle}
+          </button>
       {canEdit(campaign, immutable) ? (
-        <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">
+        <>
           {!editing ? (
             <button type="button" className="btn-light btn-small" onClick={() => setEditing(true)} data-testid={`campaign-edit-${campaign.id}`}>
               {strings.edit}
@@ -249,11 +253,9 @@ export function CampaignCard({
             </button>
           ) : null}
 
-          <button type="button" className="btn-light btn-small" disabled={busy} onClick={() => void loadStats()} data-testid={`campaign-stats-${campaign.id}`}>
-            {strings.statsTitle}
-          </button>
-        </div>
+        </>
       ) : null}
+      </div>
 
       {audience ? (
         <div className="mt-3 rounded-xl bg-paper p-3 text-sm" data-testid={`audience-${campaign.id}`}>

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadPublicProfile } from "../../../lib/public-profile";
 import type { PublicContact } from "../../../lib/public-profile";
+import { getT } from "../../../i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -36,39 +37,40 @@ function contactHref(contact: PublicContact): string | null {
   }
 }
 
-const KIND_LABELS: Record<PublicContact["kind"], string> = {
-  whatsapp: "WhatsApp",
-  telegram_username: "Telegram",
-  linkedin_url: "LinkedIn",
-  website: "Сайт",
-  phone: "Телефон",
-};
-
 export default async function PublicProfilePage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const { t } = await getT();
   const profile = await loadPublicProfile(slug);
   if (!profile) notFound();
+
+  const kindLabels: Record<PublicContact["kind"], string> = {
+    whatsapp: "WhatsApp",
+    telegram_username: "Telegram",
+    linkedin_url: "LinkedIn",
+    website: t("contacts.kind.website"),
+    phone: t("contacts.kind.phone"),
+  };
 
   // All user-controlled text is rendered as escaped React text. No HTML injection.
   return (
     <main className="mx-auto w-full max-w-xl px-6 py-14">
-      <article className="rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm">
-        <h1 className="text-3xl font-semibold tracking-tight">{profile.display_name}</h1>
-        {profile.headline && <p className="mt-2 text-lg text-neutral-600">{profile.headline}</p>}
-        {profile.company && <p className="mt-1 text-neutral-500">{profile.company}</p>}
-        {profile.short_bio && <p className="mt-4 whitespace-pre-line text-neutral-700">{profile.short_bio}</p>}
+      <article className="card">
+        <h1 className="text-3xl font-extrabold tracking-tight">{profile.display_name}</h1>
+        {profile.headline && <p className="mt-2 text-lg text-muted">{profile.headline}</p>}
+        {profile.company && <p className="mt-1 text-muted">{profile.company}</p>}
+        {profile.short_bio && <p className="mt-4 whitespace-pre-line text-ink">{profile.short_bio}</p>}
 
         {profile.offer_tags.length > 0 && (
           <section className="mt-6">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Могу помочь</h2>
+            <h2 className="eyebrow">{t("pubcard.offering")}</h2>
             <ul className="mt-2 flex flex-wrap gap-2">
-              {profile.offer_tags.map((t) => (
-                <li key={t} className="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-800">
-                  {t}
+              {profile.offer_tags.map((tag) => (
+                <li key={tag} className="chip-offer">
+                  {tag}
                 </li>
               ))}
             </ul>
@@ -77,11 +79,11 @@ export default async function PublicProfilePage({
 
         {profile.need_tags.length > 0 && (
           <section className="mt-4">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Ищу</h2>
+            <h2 className="eyebrow">{t("pubcard.lookingFor")}</h2>
             <ul className="mt-2 flex flex-wrap gap-2">
-              {profile.need_tags.map((t) => (
-                <li key={t} className="rounded-full bg-sky-50 px-3 py-1 text-sm text-sky-800">
-                  {t}
+              {profile.need_tags.map((tag) => (
+                <li key={tag} className="chip-need">
+                  {tag}
                 </li>
               ))}
             </ul>
@@ -89,21 +91,23 @@ export default async function PublicProfilePage({
         )}
 
         {profile.languages.length > 0 && (
-          <p className="mt-4 text-sm text-neutral-500">Языки: {profile.languages.join(", ")}</p>
+          <p className="mt-4 text-sm text-muted">
+            {t("pubcard.languages")}: {profile.languages.join(", ")}
+          </p>
         )}
 
-        {profile.contacts.length > 0 && (
-          <section className="mt-6 border-t border-neutral-100 pt-6">
-            <h2 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Контакты</h2>
-            <ul className="mt-3 space-y-2">
+        {profile.contacts.length > 0 ? (
+          <section className="mt-6 border-t border-line pt-6">
+            <h2 className="eyebrow">{t("pubcard.contacts")}</h2>
+            <ul className="mt-3 flex flex-col gap-2">
               {profile.contacts.map((c) => {
                 const href = contactHref(c);
                 return (
                   <li key={c.kind} className="flex items-baseline gap-3 text-sm">
-                    <span className="w-24 shrink-0 text-neutral-500">{KIND_LABELS[c.kind]}</span>
+                    <span className="w-24 shrink-0 text-muted">{kindLabels[c.kind]}</span>
                     {href ? (
                       <a
-                        className="break-all font-medium underline hover:text-neutral-800"
+                        className="break-all font-medium underline underline-offset-2 hover:text-ink"
                         href={href}
                         rel="noopener noreferrer nofollow"
                       >
@@ -117,24 +121,23 @@ export default async function PublicProfilePage({
               })}
             </ul>
           </section>
+        ) : (
+          <p className="mt-6 border-t border-line pt-6 text-sm text-muted">{t("pubcard.contactsEmpty")}</p>
         )}
 
-        <div className="mt-8 flex flex-col gap-3 border-t border-neutral-100 pt-6 sm:flex-row">
+        <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row">
           <Link
             href={`/api/public/profiles/${profile.slug}/vcard`}
             prefetch={false}
-            className="rounded-xl bg-neutral-900 px-4 py-2 text-center text-sm font-medium text-white hover:bg-neutral-700"
+            className="btn-primary"
           >
-            Скачать vCard
+            {t("pubcard.vcard")}
           </Link>
-          <Link
-            href={`/api/public/profiles/${profile.slug}/qr.svg`}
-            prefetch={false}
-            className="rounded-xl border border-neutral-300 px-4 py-2 text-center text-sm font-medium hover:bg-neutral-50"
-          >
-            QR-код
+          <Link href={`/api/public/profiles/${profile.slug}/qr.svg`} prefetch={false} className="btn-light">
+            {t("pubcard.qr")}
           </Link>
         </div>
+        <p className="mt-4 text-xs text-muted">{t("pubcard.buildNote")}</p>
       </article>
     </main>
   );
