@@ -1,0 +1,120 @@
+# WELCOME P0 CI — definition written in Phase 5.
+# NOTE: authored but NOT YET verified against GitHub Actions runners — the repo
+# has no GitHub remote yet. First push must confirm: pnpm version resolution,
+# postgres service health, and the defect-drill job's DB access.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: welcome_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/welcome_test
+      # Test-only fixed secrets (no real values in CI): same contract as scripts/run-integration.mjs
+      HASH_PEPPER: ci-pepper-0123456789abcdef
+      ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      APP_ENV: development
+      AUTH_DEV_EXPOSE_OTP: "true"
+      APP_BASE_URL: http://localhost:3000
+      TELEGRAM_WEBHOOK_SECRET: ci-telegram-webhook-secret
+      TELEGRAM_BOT_USERNAME: WELCOME_ci_bot
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: migrations
+        run: pnpm db:migrate
+
+      - name: typecheck
+        run: pnpm typecheck
+
+      - name: lint
+        run: pnpm lint
+
+      - name: unit tests
+        run: pnpm test:unit
+
+      - name: integration tests
+        run: pnpm test:integration
+
+      - name: build
+        run: pnpm build
+
+      - name: secret scan
+        run: pnpm scan:secrets
+
+      - name: dependency audit (prod, high+)
+        run: pnpm audit:deps
+
+  # Controlled defect drill: proves the public-projection gate can fail.
+  # Runs its own DB lifecycle (reset + migrate inside the script) and requires
+  # a clean worktree by design — hence a separate job, not a gate step.
+  drill-defect:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: welcome_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/welcome_test
+      HASH_PEPPER: ci-pepper-0123456789abcdef
+      ENCRYPTION_KEY: BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc=
+      APP_ENV: development
+      AUTH_DEV_EXPOSE_OTP: "true"
+      APP_BASE_URL: http://localhost:3000
+      TELEGRAM_WEBHOOK_SECRET: ci-telegram-webhook-secret
+      TELEGRAM_BOT_USERNAME: WELCOME_ci_bot
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: defect drill (inject → FAIL → revert → PASS)
+        run: pnpm drill:defect

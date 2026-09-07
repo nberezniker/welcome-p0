@@ -207,7 +207,7 @@ try {
   let next = 0;
   const worker = async () => {
     while (next < N_REQ_READ) {
-      const i = next++;
+      next++;
       const t0 = performance.now();
       const res = await fetch(`${BASE_URL}/api/events/${eventId}/recommendations`, { headers: { cookie: warmCookie } });
       readLatencies.push(performance.now() - t0);
