@@ -55,10 +55,16 @@ export function t(
   return interpolate(value, vars);
 }
 
-/** Server-side locale resolution for pages/layouts: reads the locale cookie. */
+/** Server-side locale resolution for pages/layouts: reads the locale cookie.
+ * Falls back to the default locale when called outside a request scope
+ * (e.g. when component-level tests render a page directly). */
 export async function getLocale(): Promise<Locale> {
-  const jar = await cookies();
-  return resolveLocale(jar.get(LOCALE_COOKIE)?.value);
+  try {
+    const jar = await cookies();
+    return resolveLocale(jar.get(LOCALE_COOKIE)?.value);
+  } catch {
+    return DEFAULT_LOCALE;
+  }
 }
 
 /** Convenience for server components: [locale, bound translator]. */

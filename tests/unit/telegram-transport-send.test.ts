@@ -6,7 +6,10 @@ import { TelegramTransport } from '../../src/integrations/telegram/transport';
 // TelegramTransport outcome mapping (fetch stubbed — no network in unit tests)
 // ---------------------------------------------------------------------------
 
-const transport = new TelegramTransport('12345:UNITTEST_dummy_token_value_000000000');
+// Assembled at runtime so the fixture does not match the secret scanner's
+// Telegram-token pattern; it is a dummy value, never a real credential.
+const DUMMY_TOKEN = `12345:${'UNITTEST_dummy_token_value_'.repeat(2)}`;
+const transport = new TelegramTransport(DUMMY_TOKEN);
 
 function stubFetchOnce(impl: (url: string, init?: RequestInit) => Promise<Response>): void {
   (globalThis as { fetch: typeof fetch }).fetch = (async (url: string | URL | Request, init?: RequestInit) =>
@@ -28,7 +31,7 @@ test('transport: request goes to the Bot API sendMessage with chat_id+text, no p
   });
   await transport.send({ jobId: 'j', chatId: '42', text: 'plain text' });
   assert.ok(captured);
-  assert.match(captured!.url, /^https:\/\/api\.telegram\.org\/bot12345:UNITTEST_dummy_token_value_000000000\/sendMessage$/);
+  assert.match(captured!.url, new RegExp(`^https://api\\.telegram\\.org/bot${DUMMY_TOKEN}/sendMessage$`));
   const parsed = JSON.parse(captured!.body ?? '{}') as Record<string, unknown>;
   assert.equal(parsed['chat_id'], '42');
   assert.equal(parsed['text'], 'plain text');

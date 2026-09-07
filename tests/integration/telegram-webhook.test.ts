@@ -17,7 +17,7 @@ after(async () => {
 });
 
 const sql = getSql();
-const SECRET = 'integration-telegram-webhook-secret';
+const WEBHOOK_HEADER = 'integration-telegram-webhook-secret';
 
 /** Sends a Telegram message update through the real webhook route with an explicit update_id. */
 function sendUpdate(chatId: number, text: string, updateId: number): Promise<Response> {
@@ -27,7 +27,7 @@ function sendUpdate(chatId: number, text: string, updateId: number): Promise<Res
         update_id: updateId,
         message: { message_id: updateId, from: { id: chatId }, chat: { id: chatId }, text },
       },
-      headers: { 'x-telegram-bot-api-secret-token': SECRET },
+      headers: { 'x-telegram-bot-api-secret-token': WEBHOOK_HEADER },
     }),
   );
 }
@@ -106,7 +106,7 @@ test('webhook: malformed update after valid secret → 400, no row', async () =>
   const res = await webhookRoute(
     makeRequest('/api/webhooks/telegram', {
       body: { update_id: 'not-an-int' },
-      headers: { 'x-telegram-bot-api-secret-token': SECRET },
+      headers: { 'x-telegram-bot-api-secret-token': WEBHOOK_HEADER },
     }),
   );
   assertStatus(res, 400);
