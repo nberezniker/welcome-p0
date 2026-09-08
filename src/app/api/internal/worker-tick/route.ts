@@ -13,12 +13,13 @@ export const dynamic = 'force-dynamic';
  * Runs exactly ONE outbox tick via the existing tickOnce() (batch of 10 —
  * comfortably inside the function budget) and returns the per-tick counts.
  *
- * One shared secret (env WORKER_TICK_SECRET), three accepted carriers, every
+ * One shared secret (env WORKER_TICK_SECRET), two accepted carriers, every
  * comparison constant-time (secureSecretEqual):
  *   1. header `x-worker-tick-secret` — external pinger / manual runs;
  *   2. `Authorization: Bearer <secret>` — what Vercel Cron sends when the
- *      CRON_SECRET env var is set (set CRON_SECRET = WORKER_TICK_SECRET);
- *   3. `?secret=<secret>` query fallback for callers that cannot send headers.
+ *      CRON_SECRET env var is set (set CRON_SECRET = WORKER_TICK_SECRET).
+ * The former `?secret=` query carrier was REMOVED (F-09): secrets in query
+ * strings leak into access logs and proxies.
  *
  * Fail-closed: with WORKER_TICK_SECRET unset the endpoint answers 401 in every
  * environment except APP_ENV=development, where it stays usable without config.
@@ -26,14 +27,14 @@ export const dynamic = 'force-dynamic';
 
 const SECRET_HEADER = 'x-worker-tick-secret';
 
-/** True when the request carries the shared secret in any accepted carrier. */
+/** True when the request carries the shared secret in an accepted carrier. */
 function isAuthorized(req: NextRequest): boolean {
   const expected = process.env.WORKER_TICK_SECRET;
   if (!expected) return appEnv() === 'development'; // unset secret → fail closed
   if (secureSecretEqual(req.headers.get(SECRET_HEADER) ?? '', expected)) return true;
   const auth = req.headers.get('authorization');
   if (auth?.startsWith('Bearer ') && secureSecretEqual(auth.slice('Bearer '.length), expected)) return true;
-  return secureSecretEqual(req.nextUrl.searchParams.get('secret') ?? '', expected);
+  return false;
 }
 
 async function tickRoute(req: NextRequest) {

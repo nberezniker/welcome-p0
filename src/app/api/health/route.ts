@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../lib/db';
+import { secureSecretEqual } from '../../../lib/crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -7,22 +8,29 @@ export const dynamic = 'force-dynamic';
 const EXPECTED_MIGRATIONS = ['001'];
 const WORKER_FRESHNESS_SECONDS = 60;
 
-interface HealthPayload {
+/** Public payload (F-16): no stack-layout details, no migration version —
+ * exactly what uptime monitors need. */
+interface PublicHealthPayload {
   status: 'ok' | 'error';
   db: 'up' | 'down';
+  worker: 'up' | 'down';
+}
+
+/** Detailed payload — only for callers presenting the shared worker secret. */
+interface DetailedHealthPayload extends PublicHealthPayload {
   migrations: 'applied' | 'missing';
   migration_version: string | null;
-  worker: 'up' | 'down';
 }
 
 /**
  * Health check: DB read, DB write (real worker_heartbeat beat update), applied
  * migrations, and worker heartbeat freshness. Returns 200 only when the DB is
  * up and migrations are applied; worker status is reported separately.
- * Until the dedicated worker ships (later phase), this endpoint's beat update
- * is the heartbeat source.
+ * F-16: `migration_version` is no longer public — it is included ONLY when the
+ * request carries `x-health-details: <WORKER_TICK_SECRET>` (constant-time
+ * compare; unset secret → details are never exposed).
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   const sql = getSql();
   let db: 'up' | 'down' = 'down';
   let migrations: 'applied' | 'missing' = 'missing';
@@ -58,14 +66,16 @@ export async function GET() {
     console.error('[health] check failed', err);
   }
 
-  const status: HealthPayload['status'] = db === 'up' && migrations === 'applied' ? 'ok' : 'error';
-  const payload: HealthPayload = {
-    status,
-    db,
-    migrations,
-    migration_version: migrationVersion,
-    worker,
-  };
+  const status: PublicHealthPayload['status'] = db === 'up' && migrations === 'applied' ? 'ok' : 'error';
+
+  const secret = process.env.WORKER_TICK_SECRET;
+  const detailsAuthorized =
+    !!secret && secureSecretEqual(req.headers.get('x-health-details') ?? '', secret);
+
+  const payload: PublicHealthPayload | DetailedHealthPayload = detailsAuthorized
+    ? { status, db, migrations, migration_version: migrationVersion, worker }
+    : { status, db, worker };
+
   return NextResponse.json(payload, {
     status: status === 'ok' ? 200 : 503,
     headers: { 'Cache-Control': 'no-store' },

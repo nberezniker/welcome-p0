@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getT } from '../../i18n';
+import { safeNextPath } from '../../lib/redirect';
 import { getOptionalAccountId } from '../../lib/session-page';
 import { SiteHeader, SiteFooter } from '../../components/site-chrome';
 import { LoginFlow } from './login-flow';
@@ -21,7 +22,8 @@ export default async function LoginPage({
   if (accountId) redirect('/me');
   const params = await searchParams;
   const rawNext = typeof params.next === 'string' ? params.next : null;
-  const nextPath = rawNext && rawNext.startsWith('/') && !rawNext.startsWith('//') ? rawNext : null;
+  // F-10: shared validator also rejects backslash protocol-relative bypasses.
+  const nextPath = safeNextPath(rawNext);
 
   return (
     <>

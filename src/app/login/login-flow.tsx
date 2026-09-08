@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Toast, useToast } from '../../components/modal';
 import { fill } from '../../components/fill';
+import { safeNextPath } from '../../lib/redirect';
 
 type Strings = {
   emailLabel: string;
@@ -95,7 +96,7 @@ export function LoginFlow({ strings, nextPath }: { strings: Strings; nextPath: s
         body: JSON.stringify({ email: email.trim(), code: value }),
       });
       if (res.ok) {
-        router.replace(nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//') ? nextPath : '/me');
+        router.replace(safeNextPath(nextPath) ?? '/me');
       } else if (res.status === 401 || res.status === 400) {
         setCodeError(strings.codeInvalid);
       } else {

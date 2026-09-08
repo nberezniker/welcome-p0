@@ -17,7 +17,7 @@ const tickSecretFixture = 'integration-worker-tick-secret';
 
 // The integration runner leaves WORKER_TICK_SECRET unset (dev allowance is
 // covered by its own test below); this suite pins a secret so the fail-closed
-// 401s and all three secret carriers are exercised. Mock transport on: the
+// 401s and both accepted secret carriers are exercised. Mock transport on: the
 // route wires selectTransport() itself, which needs dev + TELEGRAM_MOCK=1.
 process.env.WORKER_TICK_SECRET = tickSecretFixture;
 process.env.TELEGRAM_MOCK = '1';
@@ -46,7 +46,7 @@ test('worker-tick: missing secret → 401 (fail-closed)', async () => {
   assertStatus(res, 401);
 });
 
-test('worker-tick: wrong secret on all three carriers → 401 (header, Bearer, query)', async () => {
+test('worker-tick: wrong secret on both carriers → 401 (header, Bearer)', async () => {
   const wrong = 'definitely-not-the-secret';
   const byHeader = await tickPOST(
     makeRequest('/api/internal/worker-tick', { method: 'POST', headers: { 'x-worker-tick-secret': wrong } }),
@@ -59,8 +59,6 @@ test('worker-tick: wrong secret on all three carriers → 401 (header, Bearer, q
     }),
   );
   assertStatus(byBearer, 401);
-  const byQuery = await tickGET(makeRequest(`/api/internal/worker-tick?secret=${wrong}`, { method: 'GET' }));
-  assertStatus(byQuery, 401);
 });
 
 test('worker-tick: fail-closed — production with unset secret → 401', async () => {
@@ -123,12 +121,11 @@ test('worker-tick: correct secret via Authorization Bearer (Vercel cron style) �
   assert.equal(typeof body.processed, 'number');
 });
 
-test('worker-tick: correct secret via ?secret= query fallback → 200', async () => {
+test('worker-tick: ?secret= query carrier was REMOVED (F-09) → 401 even with the correct secret', async () => {
   const res = await tickGET(makeRequest(`/api/internal/worker-tick?secret=${tickSecretFixture}`, { method: 'GET' }));
-  assertStatus(res, 200);
-  const body = (await res.json()) as { ok: boolean; processed: number };
-  assert.equal(body.ok, true);
-  assert.equal(typeof body.processed, 'number');
+  assertStatus(res, 401);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, 'unauthorized_worker_tick');
 });
 
 test('worker-tick: development with unset secret → 200 (documented local allowance)', async () => {
