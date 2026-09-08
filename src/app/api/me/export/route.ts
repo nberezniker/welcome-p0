@@ -20,7 +20,7 @@ async function postRoute(req: NextRequest) {
     const sql = getSql();
     const key = requireEncryptionKey();
 
-    const [profileRows, contactRows, consentRows, membershipRows, noteRows, blockRows, reportRows] = await Promise.all([
+    const [profileRows, contactRows, consentRows, membershipRows, noteRows, blockRows, reportRows, introductionRows] = await Promise.all([
       sql`SELECT public_slug, display_name, headline, company, short_bio, languages, offer_tags, need_tags, revision, created_at
           FROM profiles WHERE account_id = ${auth.accountId}`,
       sql<{ kind: string; encrypted_value: string; public_enabled: boolean; updated_at: Date }[]>`
@@ -38,6 +38,18 @@ async function postRoute(req: NextRequest) {
           FROM connection_notes WHERE owner_account_id = ${auth.accountId}`,
       sql`SELECT target_account_id, created_at FROM blocks WHERE blocker_account_id = ${auth.accountId}`,
       sql`SELECT target_account_id, reason, details, status, created_at FROM reports WHERE reporter_account_id = ${auth.accountId}`,
+      // F-05 (GDPR art. 15): introductions where the caller is a party, with
+      // the caller's OWN consent record. The other party's reveal fields and
+      // consent decisions are third-party data and are NOT included; no
+      // decrypted contact values ever appear here.
+      sql`SELECT i.id, i.state, i.context_key, i.event_id, i.reason, i.created_at,
+                 ic.decision AS my_decision, ic.reveal_fields AS my_reveal_fields,
+                 ic.updated_at AS my_consent_updated_at
+          FROM introductions i
+          JOIN profiles pme ON pme.id = i.profile_a OR pme.id = i.profile_b
+          LEFT JOIN introduction_consents ic ON ic.introduction_id = i.id AND ic.profile_id = pme.id
+          WHERE pme.account_id = ${auth.accountId}
+          ORDER BY i.created_at ASC`,
     ]);
 
     const contacts = contactRows.map((c) => ({
@@ -60,6 +72,7 @@ async function postRoute(req: NextRequest) {
       contacts,
       consents: consentRows,
       memberships: membershipRows,
+      introductions: introductionRows,
       notes: noteRows,
       blocks: blockRows,
       reports: reportRows,
