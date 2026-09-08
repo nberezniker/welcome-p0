@@ -1,21 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { appendFile, mkdir } from 'node:fs/promises';
-import path from 'node:path';
 import { getSql } from '../../../../../lib/db';
-import { devExposeOtp, requireHashPepper } from '../../../../../lib/env';
+import { appEnv, devExposeOtp, requireHashPepper } from '../../../../../lib/env';
 import { emailLookupHash, generateOtpCode, hashOtpCode } from '../../../../../lib/crypto';
 import { internalError, jsonError, jsonOk, normalizeEmail, readJsonBody, withApi } from '../../../../../lib/http';
+import { otpEmailTask, planOtpDelivery, selectEmailTransport } from '../../../../../integrations/email';
 
 /** OTP request throttling: max codes per account within the window. */
 const OTP_REQUEST_WINDOW_MINUTES = 15;
 const OTP_REQUEST_MAX_PER_WINDOW = 3;
 const OTP_TTL_MINUTES = 10;
-
-async function writeDevOtpLog(email: string, code: string): Promise<void> {
-  const dir = path.join(process.cwd(), '.runtime');
-  await mkdir(dir, { recursive: true });
-  await appendFile(path.join(dir, 'otp.log'), `${new Date().toISOString()}\t${email}\t${code}\n`, 'utf8');
-}
 
 async function postRoute(req: NextRequest) {
   try {
@@ -31,14 +24,16 @@ async function postRoute(req: NextRequest) {
     const lookupHash = emailLookupHash(email, pepper);
 
     // Create the account if absent (status active). Enumeration-safe: same response either way.
-    let rows = await sql<{ id: string }[]>`
+    let rows = await sql<{ id: string; is_demo: boolean }[]>`
       INSERT INTO accounts (auth_subject, email_lookup_hash)
       VALUES (${'email:' + lookupHash}, ${lookupHash})
       ON CONFLICT (auth_subject) DO NOTHING
-      RETURNING id
+      RETURNING id, is_demo
     `;
     if (rows.length === 0) {
-      rows = await sql<{ id: string }[]>`SELECT id FROM accounts WHERE email_lookup_hash = ${lookupHash} LIMIT 1`;
+      rows = await sql<{ id: string; is_demo: boolean }[]>`
+        SELECT id, is_demo FROM accounts WHERE email_lookup_hash = ${lookupHash} LIMIT 1
+      `;
     }
     const account = rows[0];
     if (!account) {
@@ -77,13 +72,36 @@ async function postRoute(req: NextRequest) {
       `;
     });
 
-    if (devExposeOtp()) {
-      const res = NextResponse.json({ ok: true, devCode: code });
-      return res;
+    // F-01 delivery decision (matrix + demo fallback — see
+    // src/integrations/email/index.ts). The old unconditional writeDevOtpLog
+    // (a 500 on Vercel's read-only FS) is gone.
+    const plan = planOtpDelivery({
+      appEnv: appEnv(),
+      resendApiKey: process.env.RESEND_API_KEY,
+      devExposeOtp: devExposeOtp(),
+      exposeDemoOtp: process.env.AUTH_EXPOSE_DEMO_OTP === 'true',
+      isDemo: account.is_demo,
+    });
+
+    if (plan.action === 'expose') {
+      // dev/tests mechanism or the documented is_demo fallback — code in the response.
+      return NextResponse.json({ ok: true, devCode: code });
+    }
+    if (plan.action === 'reject') {
+      // Production without any email provider: honest explicit failure.
+      return jsonError(plan.status, plan.code, 'Email delivery is not configured. Please try again later.', {
+        retryable: plan.retryable,
+      });
     }
 
-    // Never returned to the client: written to the gitignored dev log instead.
-    await writeDevOtpLog(email, code);
+    const result = await selectEmailTransport().send(otpEmailTask(email, code));
+    if (result.state !== 'sent') {
+      // Provider unavailable (or disabled transport slipped through): honest retryable failure.
+      return jsonError(503, 'email_send_failed', 'Email delivery is temporarily unavailable. Please try again.', {
+        retryable: true,
+      });
+    }
+    // Enumeration-safe success: the code itself is never returned here.
     return jsonOk({ ok: true });
   } catch (err) {
     return internalError(err);

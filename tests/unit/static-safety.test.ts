@@ -8,14 +8,17 @@ import { fileURLToPath } from 'node:url';
  *  - dangerouslySetInnerHTML: XSS escape hatch — forbidden everywhere;
  *  - eval( / new Function(: dynamic code execution — forbidden everywhere;
  *  - server-side fetch to non-allowlisted hosts: P0 must never fetch remote
- *    URLs (SSRF, spec 04 §9) — the ONLY outbound host allowed is
- *    https://api.telegram.org, and ONLY inside integrations/telegram/transport.ts.
+ *    URLs (SSRF, spec 04 §9) — outbound hosts are allowed ONLY inside their
+ *    dedicated transport file under integrations/ (telegram Bot API; Resend
+ *    email API, F-01).
  * Tripwire limitation: fetch targets spanning multiple lines are not parsed;
  * every current call site is single-line. */
 
 const SRC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src');
-const OUTBOUND_ALLOWLIST_FILE = 'integrations/telegram/transport.ts';
-const OUTBOUND_ALLOWLIST_HOST = 'api.telegram.org';
+const OUTBOUND_ALLOWLIST: { file: string; host: string }[] = [
+  { file: 'integrations/telegram/transport.ts', host: 'api.telegram.org' },
+  { file: 'integrations/email/transport.ts', host: 'api.resend.com' },
+];
 
 function listSourceFiles(dir: string): string[] {
   const out: string[] = [];
@@ -60,20 +63,23 @@ test('static safety: no eval( or new Function( anywhere in src/', () => {
 });
 
 test('static safety: fetch( targets stay within the outbound allowlist', () => {
-  // 1. Any fetch line carrying an absolute http(s) URL must live in the
-  //    allowlisted transport file and reference api.telegram.org.
+  // 1. Any fetch line carrying an absolute http(s) URL must live in an
+  //    allowlisted transport file and reference that file's allowlisted host.
   const absolute = scan(/\bfetch\(/, (relFile, lineText) => /['"`]https?:\/\//.test(lineText));
   const offenders = absolute.filter(
-    (f) => !(f.file === OUTBOUND_ALLOWLIST_FILE && f.text.includes(OUTBOUND_ALLOWLIST_HOST)),
+    (f) => !OUTBOUND_ALLOWLIST.some((a) => f.file === a.file && f.text.includes(a.host)),
   );
   assert.deepEqual(offenders, []);
 
   // 2. Client fetches must use relative paths — no http literal in the call line.
+  const allowlistedFiles = new Set(OUTBOUND_ALLOWLIST.map((a) => a.file));
   const clientWithHttp = scan(/\bfetch\(/, (relFile, lineText) =>
-    relFile !== OUTBOUND_ALLOWLIST_FILE && /http:\/\//.test(lineText));
+    !allowlistedFiles.has(relFile) && /http:\/\//.test(lineText));
   assert.deepEqual(clientWithHttp, []);
 
-  // 3. The allowlisted transport must actually pin the allowlisted host.
-  const transport = readFileSync(path.join(SRC_DIR, 'integrations', 'telegram', 'transport.ts'), 'utf8');
-  assert.ok(transport.includes('https://api.telegram.org'), 'transport must call api.telegram.org explicitly');
+  // 3. Every allowlisted transport must actually pin its host.
+  for (const a of OUTBOUND_ALLOWLIST) {
+    const transport = readFileSync(path.join(SRC_DIR, ...a.file.split('/')), 'utf8');
+    assert.ok(transport.includes(`https://${a.host}`), `${a.file} must call https://${a.host} explicitly`);
+  }
 });
