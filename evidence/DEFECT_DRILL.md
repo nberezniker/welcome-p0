@@ -1,7 +1,7 @@
 # Defect drill — controlled defect injection (Phase 5, item 9)
 
-- Date: 2026-09-07T21:44:49.117Z
-- Commit: 7605b005bc90f77b90d82a561a0b6e6bdcbe1f34
+- Date: 2026-09-08T23:53:17.130Z
+- Commit: bb1d923220651d0d5a850027a6e6862b76d79962
 - Injected defect: `src/lib/public-profile.ts` — `loadPublicProfile` contact query changed from
   `public_enabled = true` to `public_enabled IN (true, false)` (regex replace on disk,
   marked `DEFECT-DRILL-INJECTION`), so PRIVATE contact values leak into the public
