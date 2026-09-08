@@ -1,8 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { after } from 'node:test';
 import { POST as otpRequest } from '../../src/app/api/auth/otp/request/route';
+import { POST as verifyOtp } from '../../src/app/api/auth/otp/verify/route';
 import { POST as localeRoute } from '../../src/app/api/locale/route';
-import { makeRequest, uniqueEmail, assertStatus } from './helpers';
+import { GET as meProfile } from '../../src/app/api/me/profile/route';
+import { GET as meContacts } from '../../src/app/api/me/contacts/route';
+import { GET as eventView } from '../../src/app/api/events/[eventIdOrSlug]/route';
+import { makeRequest, uniqueEmail, assertStatus, loginViaOtp } from './helpers';
+import { closeSql } from '../../src/lib/db';
+
+after(async () => {
+  await closeSql();
+});
 
 /** Phase 5 hardening: CSRF origin enforcement + generic per-IP rate limits.
  * The guards live in src/lib/http.ts and wrap every mutating handler. */
@@ -144,4 +154,37 @@ test('rate limit: success responses carry X-RateLimit headers on governed routes
   assert.equal(res.headers.get('x-ratelimit-limit'), '10');
   assert.ok(res.headers.get('x-ratelimit-remaining'));
   assert.ok(res.headers.get('x-ratelimit-reset'));
+});
+
+// ---------------------------------------------------------------------------
+// F-08: cache discipline — every AUTHENTICATED GET must return
+// Cache-Control: no-store, private (platform default 'public, max-age=0'
+// would let shared caches keep private payloads).
+// ---------------------------------------------------------------------------
+
+test('F-08: authed GETs return cache-control: no-store, private', async () => {
+  const cookie = await loginViaOtp(otpRequest, verifyOtp, uniqueEmail('cache-h'));
+
+  const authed = [
+    ['/api/me/profile', meProfile],
+    ['/api/me/contacts', meContacts],
+  ] as const;
+  for (const [path, handler] of authed) {
+    const res = await handler(makeRequest(path, { cookie }));
+    assertStatus(res, 200);
+    assert.equal(
+      res.headers.get('cache-control'),
+      'no-store, private',
+      path + ' must be no-store, private',
+    );
+  }
+
+  // Event view carries the event-view header set (no-store, private + noindex),
+  // including on the unknown-event path.
+  const evRes = await eventView(
+    makeRequest('/api/events/00000000-0000-0000-0000-000000000000', { cookie }),
+    { params: Promise.resolve({ eventIdOrSlug: '00000000-0000-0000-0000-000000000000' }) },
+  );
+  assert.equal(evRes.status, 404);
+  assert.equal(evRes.headers.get('cache-control'), 'no-store, private');
 });

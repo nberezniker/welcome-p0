@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../../../lib/http';
+import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../../lib/http';
 import { loadCampaignWithRole } from '../../../../../../domain/campaigns';
 import { campaignJobStats, OUTBOX_STATUSES, type OutboxStatus } from '../../../../../../infra/outbox';
 
@@ -42,16 +42,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ORDER BY count DESC
     `;
 
-    return jsonOk({
-      ok: true,
-      campaign_id: loaded.campaign.id,
-      state: loaded.campaign.state,
-      queued_total: loaded.campaign.queued_count,
-      counters,
-      outcome_codes: codes.map((c) => ({ state: c.state, code: c.code, count: c.count })),
-      status_registry: OUTBOX_STATUSES,
-      note: 'sent = provider accepted; delivered is never claimed from send acceptance',
-    });
+    return jsonOk(
+      {
+        ok: true,
+        campaign_id: loaded.campaign.id,
+        state: loaded.campaign.state,
+        queued_total: loaded.campaign.queued_count,
+        counters,
+        outcome_codes: codes.map((c) => ({ state: c.state, code: c.code, count: c.count })),
+        status_registry: OUTBOX_STATUSES,
+        note: 'sent = provider accepted; delivered is never claimed from send acceptance',
+      },
+      { headers: privateCacheHeaders() },
+    );
   } catch (err) {
     return internalError(err);
   }

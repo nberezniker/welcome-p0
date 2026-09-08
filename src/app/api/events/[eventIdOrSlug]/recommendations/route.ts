@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../../lib/http';
+import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../lib/http';
 import { isUuid } from '../../../../../domain/organizer';
 import { recommendForEvent } from '../../../../../domain/recommendations';
 
@@ -45,7 +45,7 @@ export async function GET(
       return jsonError(403, 'forbidden', 'Only active members can get recommendations');
     }
     if (!viewerMembership.matching_enabled) {
-      return jsonOk({ ok: true, recommendations: [] });
+      return jsonOk({ ok: true, recommendations: [] }, { headers: privateCacheHeaders() });
     }
 
     const recommendations = await recommendForEvent(
@@ -54,7 +54,7 @@ export async function GET(
       event.id,
     );
 
-    return jsonOk({ ok: true, recommendations });
+    return jsonOk({ ok: true, recommendations }, { headers: privateCacheHeaders() });
   } catch (err) {
     return internalError(err);
   }

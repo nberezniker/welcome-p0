@@ -10,6 +10,16 @@ export interface JsonHeaders {
   headers?: Record<string, string>;
 }
 
+/**
+ * F-08: explicit cache discipline for AUTHENTICATED responses. Platform
+ * defaults (`public, max-age=0`) let shared caches store private payloads;
+ * every authed GET must set `no-store, private` explicitly. The event-view
+ * helper (src/lib/event-view.ts) carries the same directive.
+ */
+export function privateCacheHeaders(): Record<string, string> {
+  return { 'Cache-Control': 'no-store, private' };
+}
+
 export function jsonOk(data: Record<string, unknown>, init?: { status?: number } & JsonHeaders): NextResponse {
   return NextResponse.json(data, { status: init?.status ?? 200, headers: init?.headers });
 }

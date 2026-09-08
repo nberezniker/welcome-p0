@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../lib/http';
+import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../lib/http';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       ORDER BY updated_at DESC
     `;
 
-    return jsonOk({ ok: true, notes: rows });
+    return jsonOk({ ok: true, notes: rows }, { headers: privateCacheHeaders() });
   } catch (err) {
     return internalError(err);
   }

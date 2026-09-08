@@ -85,7 +85,7 @@ export async function loadEventView(
 /** This endpoint is member-conditional: never cache across viewers. */
 export function eventViewCacheHeaders(): Record<string, string> {
   return {
-    'Cache-Control': 'no-store',
+    'Cache-Control': 'no-store, private',
     'X-Robots-Tag': 'noindex',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
   };

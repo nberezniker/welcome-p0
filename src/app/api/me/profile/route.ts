@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
+import { privateCacheHeaders, internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
 import { checkRevision, validateProfileInput } from '../../../../domain/profile';
 import { generatePublicSlug } from '../../../../lib/crypto';
 
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
       FROM profiles WHERE account_id = ${auth.accountId} LIMIT 1
     `;
     const row = rows[0];
-    return jsonOk({ ok: true, profile: row ?? null });
+    return jsonOk({ ok: true, profile: row ?? null }, { headers: privateCacheHeaders() });
   } catch (err) {
     return internalError(err);
   }

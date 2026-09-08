@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../lib/http';
+import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../lib/http';
 import { decryptValue } from '../../../../lib/crypto';
 import { requireEncryptionKey } from '../../../../lib/env';
 import type { RevealField } from '../../../../domain/introductions';
@@ -78,16 +78,19 @@ export async function GET(
       }
     }
 
-    return jsonOk({
-      ok: true,
-      introduction: {
-        id: intro.id,
-        state: effectiveState,
-        my_decision: myDecision,
-        other_accepted: otherAccepted,
+    return jsonOk(
+      {
+        ok: true,
+        introduction: {
+          id: intro.id,
+          state: effectiveState,
+          my_decision: myDecision,
+          other_accepted: otherAccepted,
+        },
+        revealed,
       },
-      revealed,
-    });
+      { headers: privateCacheHeaders() },
+    );
   } catch (err) {
     return internalError(err);
   }

@@ -3,7 +3,7 @@ import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
 import { requireEncryptionKey } from '../../../../lib/env';
 import { decryptValue, encryptValue } from '../../../../lib/crypto';
-import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
+import { privateCacheHeaders, internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
 import { validateContactInput } from '../../../../domain/profile';
 
 export async function GET(req: NextRequest) {
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       SELECT id FROM profiles WHERE account_id = ${auth.accountId} LIMIT 1
     `;
     const profile = profileRows[0];
-    if (!profile) return jsonOk({ ok: true, contacts: [] });
+    if (!profile) return jsonOk({ ok: true, contacts: [] }, { headers: privateCacheHeaders() });
 
     const key = requireEncryptionKey();
     const rows = await sql<{ kind: string; encrypted_value: string; public_enabled: boolean }[]>`
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       }
       return { kind: r.kind, value, public_enabled: r.public_enabled };
     });
-    return jsonOk({ ok: true, contacts });
+    return jsonOk({ ok: true, contacts }, { headers: privateCacheHeaders() });
   } catch (err) {
     return internalError(err);
   }

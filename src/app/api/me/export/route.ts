@@ -72,7 +72,7 @@ async function postRoute(req: NextRequest) {
       headers: {
         'content-type': 'application/json; charset=utf-8',
         'content-disposition': `attachment; filename="welcome-export-${new Date().toISOString().slice(0, 10)}.json"`,
-        'cache-control': 'no-store',
+        'cache-control': 'no-store, private',
       },
     });
   } catch (err) {

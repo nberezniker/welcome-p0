@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { jsonError, jsonOk, internalError } from '../../../../../../lib/http';
+import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../../lib/http';
 import { currentEligibleAudience, loadCampaignWithRole } from '../../../../../../domain/campaigns';
 
 /**
@@ -39,15 +39,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         AND pr.account_id = ANY(${audience.map((a) => a.account_id)})
     `;
 
-    return jsonOk({
-      ok: true,
-      audience: {
-        count: audience.length,
-        channel_ready: withChannel[0]?.count ?? 0,
-        sample: audience.slice(0, 20).map((a) => ({ display_name: a.display_name })),
+    return jsonOk(
+      {
+        ok: true,
+        audience: {
+          count: audience.length,
+          channel_ready: withChannel[0]?.count ?? 0,
+          sample: audience.slice(0, 20).map((a) => ({ display_name: a.display_name })),
+        },
+        snapshot_note: 'The binding audience snapshot is frozen at approve time and re-validated at send.',
       },
-      snapshot_note: 'The binding audience snapshot is frozen at approve time and re-validated at send.',
-    });
+      { headers: privateCacheHeaders() },
+    );
   } catch (err) {
     return internalError(err);
   }

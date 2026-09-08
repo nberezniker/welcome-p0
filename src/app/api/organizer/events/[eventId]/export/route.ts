@@ -114,7 +114,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ even
       headers: {
         'content-type': 'text/csv; charset=utf-8',
         'content-disposition': `attachment; filename="${event.slug}.csv"`,
-        'cache-control': 'no-store',
+        'cache-control': 'no-store, private',
       },
     });
   } catch (err) {
