@@ -231,15 +231,22 @@ test('/start: no token and bad token → instructions reply, no binding, NO cons
   const chatId = 990400;
   await sendUpdate(chatId, '/start', nextUpdateId());
   await sendUpdate(chatId, '/start link_totally_invalid_token_1234567890', nextUpdateId());
-  await drainWorker(new MockTelegramTransport());
+  // F-07: after the mock sends a reply, its durable payload is minimized —
+  // the copy text is asserted from the transport record instead.
+  const mock = new MockTelegramTransport();
+  await drainWorker(mock);
 
   assert.equal(await bindingState(String(chatId)), null);
-  const replies = await sql<{ payload: Record<string, unknown> }[]>`
+  const sentReplies = mock.sent.filter((t) => t.chatId === String(chatId));
+  assert.ok(sentReplies.length >= 2, 'instructions replies enqueued (and sent)');
+  const joined = sentReplies.map((r) => String(r.text)).join('\n');
+  assert.match(joined, /НЕ согласие/, 'copy states Start is NOT consent');
+  const minimized = await sql<{ payload: Record<string, unknown> }[]>`
     SELECT payload FROM outbox_jobs WHERE kind = 'telegram_reply' AND payload->>'chat_id' = ${String(chatId)}
   `;
-  assert.ok(replies.length >= 2, 'instructions replies enqueued');
-  const joined = replies.map((r) => String(r.payload['text'])).join('\n');
-  assert.match(joined, /НЕ согласие/, 'copy states Start is NOT consent');
+  for (const row of minimized) {
+    assert.equal(row.payload['text'], undefined, 'sent reply payload must be minimized (F-07)');
+  }
 });
 
 test('/start: non-command text from an unknown chat → ignored, no dialog with strangers', async () => {

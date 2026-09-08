@@ -12,6 +12,7 @@ import {
   type TransportOutcome,
 } from './outbox';
 import { handleTelegramUpdate, type TelegramUpdatePayload } from './telegram-handlers';
+import { minimizeTelegramInboxPayload, runCleanupIfDue, type CleanupReport } from './cleanup';
 import { selectTransport } from '../integrations/telegram';
 import type { ChannelTransport } from '../integrations/telegram/transport';
 
@@ -23,11 +24,15 @@ import type { ChannelTransport } from '../integrations/telegram/transport';
  *      (completing the AC-25 hook end-to-end);
  *   2. executes the transport OUTSIDE any DB transaction;
  *   3. records the outcome + a delivery_attempts row in a short transaction.
+ * After the job batch, the retention/minimization cleanup pass runs when due
+ * (F-06/F-07 — at most once per CLEANUP_MIN_INTERVAL_HOURS).
  */
 
 export interface WorkerDeps {
   sql?: Sql;
   transport?: ChannelTransport;
+  /** Test hook: set false to skip the cleanup due-gate. */
+  cleanup?: boolean;
 }
 
 export interface TickReport {
@@ -35,11 +40,14 @@ export interface TickReport {
   requeuedLeases: number;
   claimed: number;
   results: { job_id: string; kind: string; outcome: string }[];
+  /** F-06: retention pass result — null when not due this tick. */
+  cleanup: CleanupReport | null;
 }
 
 const BATCH_LIMIT = 10;
 
-/** One worker tick: heartbeat → requeue expired leases → claim → process. */
+/** One worker tick: heartbeat → requeue expired leases → claim → process →
+ * cleanup pass when due (F-06). */
 export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   const sql = deps.sql ?? getSql();
 
@@ -56,13 +64,25 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
     const outcome = await processJob(sql, deps.transport ?? null, job);
     results.push({ job_id: job.id, kind: job.kind, outcome });
   }
-  return { heartbeat: true, requeuedLeases, claimed: jobs.length, results };
+
+  // F-06: retention + minimization, due-gated (>= 6h between runs), after the
+  // job batch so a busy tick is never delayed by housekeeping.
+  const cleanup = deps.cleanup === false ? null : await runCleanupIfDue({ sql });
+
+  return { heartbeat: true, requeuedLeases, claimed: jobs.length, results, cleanup };
 }
 
 async function processJob(sql: Sql, transport: ChannelTransport | null, job: OutboxJobRow): Promise<string> {
   try {
     if (job.kind === 'telegram_update') {
-      return `processed:${await handleTelegramUpdate(sql, job.payload as unknown as TelegramUpdatePayload)}`;
+      const outcome = await handleTelegramUpdate(sql, job.payload as unknown as TelegramUpdatePayload);
+      // F-07: the update was processed — strip conversation PII from the
+      // durable inbox row (chat_id lives in channel_bindings, not here).
+      const inboxEventId = job.payload['inbox_event_id'];
+      if (typeof inboxEventId === 'number' || typeof inboxEventId === 'string') {
+        await minimizeTelegramInboxPayload(sql, Number(inboxEventId));
+      }
+      return `processed:${outcome}`;
     }
     return await processOutbound(sql, transport, job);
   } catch (err) {

@@ -46,8 +46,10 @@ ALTER TABLE profiles ADD CONSTRAINT profiles_public_slug_max_check
   CHECK (char_length(public_slug) <= 128);
 
 -- ---------------------------------------------------------------------------
--- F-06: cleanup-pass indexes (full scans otherwise).
+-- F-06: cleanup-pass indexes (full scans otherwise) + cleanup due-gate bookkeeping.
 -- ---------------------------------------------------------------------------
+ALTER TABLE worker_heartbeat ADD COLUMN IF NOT EXISTS last_cleanup_at timestamptz;
+
 CREATE INDEX sessions_expires_idx ON sessions(expires_at);
 CREATE INDEX auth_otp_codes_created_idx ON auth_otp_codes(created_at);
 CREATE INDEX link_challenges_expires_idx ON link_challenges(expires_at);

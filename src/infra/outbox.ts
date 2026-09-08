@@ -180,8 +180,13 @@ export async function applyOutcome(sql: Sql, job: OutboxJobRow, outcome: Transpo
 
     if (outcome.state === 'sent') {
       await recordAttempt(tx, job.id, 'sent', outcome.code, outcome.providerMessageId);
+      // F-07 minimization: the message text (may contain names/links) is no
+      // longer needed once the provider accepted the job — drop it from the
+      // durable payload. campaign_id stays (stats + counters use it).
       await tx`
-        UPDATE outbox_jobs SET status = 'sent', attempt = ${attempt}, lease_until = NULL WHERE id = ${job.id}
+        UPDATE outbox_jobs SET status = 'sent', attempt = ${attempt}, lease_until = NULL,
+          payload = payload - 'text'
+        WHERE id = ${job.id}
       `;
       await bumpCampaignSentCount(tx, job);
       return 'sent';
