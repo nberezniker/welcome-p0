@@ -138,3 +138,16 @@ Full list with per-integration detail: [evidence/release-report.json](evidence/r
 - Evidence index: [evidence/EVIDENCE_INDEX.md](evidence/EVIDENCE_INDEX.md)
 - Environment record: [evidence/runtime/environment.md](evidence/runtime/environment.md)
 - Product handoff & how to run: [README.md](README.md) · Decision log: [docs-internal/adr/](docs-internal/adr/)
+
+---
+
+## Live update — 2026-09-08 evening (staging-test deployed)
+
+Post-report deployment executed with the owner present (zero spend):
+
+- **Managed DB:** Neon Free, region **Frankfurt (aws-eu-central-1)** — `holy-queen-11447908`, migrations 001–004 applied, 26 tables.
+- **Live URL:** https://welcome-p0-nikiti4.vercel.app — `GET /api/health` → `{"status":"ok","db":"up","migrations":"applied","migration_version":"004","worker":"up"}`.
+- **Verified live:** landing 200 (66.8 KB); public card API returns public projection only; vCard escaping correct; QR SVG 200; worker-tick endpoint 200 with secret (and GitHub Actions `worker-tick` workflow run success — cron replaced by Actions pinger due to Hobby daily-cron limit).
+- **Demo data:** 2 `is_demo` accounts/profiles seeded with production encryption key (synthetic users, labeled demo).
+- **Status changes:** staging-test deploy → now **exists** (was `BLOCKED_EXTERNAL`); Telegram live round trip → still `BLOCKED_EXTERNAL` (no bot token); contest status unchanged (`BLOCKED_CONTEST_RULES` / window ended).
+- **Known deviations:** serverless worker = tick endpoint (GitHub Actions every 5 min) instead of long-running process; production permission remains `false` per preflight — this deployment is staging-test, not production release.
