@@ -1,0 +1,21 @@
+# Outbox worker tick for the serverless deployment: Vercel Hobby crons run
+# only once per day, so this workflow pings the tick endpoint every 5 minutes.
+# Required repo secrets: WORKER_TICK_SECRET, DEMO_URL (e.g. https://welcome-p0-xxx.vercel.app)
+name: worker-tick
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}
+permissions: {}
+jobs:
+  tick:
+    if: ${{ github.repository_owner == 'nberezniker' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping worker tick
+        env:
+          URL: ${{ secrets.DEMO_URL }}
+          SECRET: ${{ secrets.WORKER_TICK_SECRET }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$SECRET" ]; then echo "secrets not configured yet — skipping"; exit 0; fi
+          curl -sS --max-time 25 -X POST "$URL/api/internal/worker-tick" -H "x-worker-tick-secret: $SECRET" | head -c 400

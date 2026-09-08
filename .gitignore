@@ -19,3 +19,6 @@ next-env.d.ts
 .DS_Store
 *.pem
 *.tsbuildinfo
+.vercel
+.env*
+.env.deploy.secrets

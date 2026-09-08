@@ -1,10 +1,9 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["fra1"],
   "crons": [
     {
       "path": "/api/internal/worker-tick",
-      "schedule": "*/1 * * * *"
+      "schedule": "17 3 * * *"
     }
   ]
 }
