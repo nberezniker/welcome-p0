@@ -178,8 +178,9 @@ test.describe('WELCOME P0 smoke', () => {
   // F-04: the security header set must be present on page routes. The rest of
   // the smoke (hydration marker, locale switch, OTP flow) doubles as the proof
   // that the CSP does not break the Next.js client bootstrap.
-  test('security headers on / and /login (F-04)', async ({ page }) => {
-    for (const path of ['/', '/login']) {
+  // F-15: the legal pages render and count as page routes.
+  test('security headers on /, /login and legal pages (F-04, F-15)', async ({ page }) => {
+    for (const path of ['/', '/login', '/legal/privacy', '/legal/terms']) {
       const res = await page.goto(path);
       expect(res?.status(), `GET ${path}`).toBe(200);
       const h = res?.headers() ?? {};

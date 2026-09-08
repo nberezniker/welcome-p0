@@ -76,7 +76,9 @@ export default async function LoginPage({
       <SiteFooter
         statusLine={t('landing.footerStatus')}
         privacyLabel={t('landing.footerPrivacy')}
-        privacyHref="/me/privacy"
+        privacyHref="/legal/privacy"
+        termsLabel={t('landing.footerTerms')}
+        termsHref="/legal/terms"
         localeLinks={[]}
       />
     </>

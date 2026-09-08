@@ -112,6 +112,7 @@ export const ru: Partial<Dictionary> = {
   'landing.demoBanner': 'P0-сборка — рабочий preview, ещё не staging.',
   'landing.footerStatus': 'P0-сборка — staging pending. Аккаунты создаются локально; ничего не отправляется третьим лицам.',
   'landing.footerPrivacy': 'Приватность',
+  'landing.footerTerms': 'Условия',
   'landing.fictionalNote': 'Профиль в примере вымышленный.',
   'landing.cardName': 'Анна Левина',
   'landing.cardRole': 'Продуктовый дизайнер',

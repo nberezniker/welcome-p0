@@ -112,6 +112,7 @@ export const es: Partial<Dictionary> = {
   'landing.demoBanner': 'Build P0: una vista previa funcional, aún sin staging.',
   'landing.footerStatus': 'Build P0: el staging está pendiente. Las cuentas se crean localmente; nada se envía a terceros.',
   'landing.footerPrivacy': 'Privacidad',
+  'landing.footerTerms': 'Términos',
   'landing.fictionalNote': 'El perfil mostrado es un ejemplo ficticio de interfaz.',
   'landing.cardName': 'Anna Levina',
   'landing.cardRole': 'Diseñadora de producto',

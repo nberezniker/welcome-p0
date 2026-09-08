@@ -65,16 +65,20 @@ export function SiteHeader({
   );
 }
 
-/** Public site footer: locale links, privacy page link, honest status line. */
+/** Public site footer: locale links, privacy + terms links, honest status line. */
 export function SiteFooter({
   statusLine,
   privacyLabel,
   privacyHref,
+  termsLabel,
+  termsHref,
   localeLinks,
 }: {
   statusLine: string;
   privacyLabel: string;
   privacyHref: string;
+  termsLabel?: string;
+  termsHref?: string;
   localeLinks: { locale: string; href: string; label: string }[];
 }) {
   return (
@@ -88,6 +92,11 @@ export function SiteFooter({
           <Link href={privacyHref} className="underline underline-offset-2 hover:text-ink">
             {privacyLabel}
           </Link>
+          {termsLabel && termsHref ? (
+            <Link href={termsHref} className="underline underline-offset-2 hover:text-ink">
+              {termsLabel}
+            </Link>
+          ) : null}
           <div className="mt-1 flex gap-2" aria-label="Locale links">
             {localeLinks.map((l) => (
               <a key={l.locale} href={l.href} lang={l.locale} className="underline underline-offset-2 hover:text-ink">

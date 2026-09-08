@@ -124,6 +124,7 @@ export const en = {
   'landing.demoBanner': 'P0 build — a working preview, not yet a staged service.',
   'landing.footerStatus': 'P0 build — staging pending. Real accounts are created locally; nothing is sent to third parties.',
   'landing.footerPrivacy': 'Privacy',
+  'landing.footerTerms': 'Terms',
   'landing.fictionalNote': 'Profile shown is a fictional interface example.',
   'landing.cardName': 'Anna Levina',
   'landing.cardRole': 'Product designer',

@@ -270,7 +270,9 @@ export default async function LandingPage() {
       <SiteFooter
         statusLine={t('landing.footerStatus')}
         privacyLabel={t('landing.footerPrivacy')}
-        privacyHref="/me/privacy"
+        privacyHref="/legal/privacy"
+        termsLabel={t('landing.footerTerms')}
+        termsHref="/legal/terms"
         localeLinks={[]}
       />
       <div className="mx-auto w-full max-w-6xl px-5 pb-6 sm:px-7">
