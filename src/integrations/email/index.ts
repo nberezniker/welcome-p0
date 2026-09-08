@@ -1,4 +1,4 @@
-import { ResendEmailTransport, type EmailSendResult, type EmailTransport } from './transport';
+import { ResendEmailTransport, type EmailTransport } from './transport';
 import { DevOtpLogTransport } from './dev-transport';
 import { DisabledEmailTransport } from './disabled-transport';
 
