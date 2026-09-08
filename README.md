@@ -1,5 +1,7 @@
 # WELCOME
 
+[![CI](https://github.com/nberezniker/welcome-p0/actions/workflows/ci.yml/badge.svg)](https://github.com/nberezniker/welcome-p0/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Persistent personal networking profile + reusable QR: one profile you control,
 a public card you can print on a QR badge, event matching and consent-gated
 contact exchange, with Telegram as the P0 messaging channel.
