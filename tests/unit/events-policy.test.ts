@@ -1,6 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { evaluateJoinPolicy, isValidTimezone, validateEventInput, isValidEventSlug } from '../../src/domain/events';
+import {
+  evaluateJoinPolicy,
+  isValidTimezone,
+  validateEventInput,
+  isValidEventSlug,
+  isValidJoinCode,
+  JOIN_CODE_MIN,
+  JOIN_CODE_MAX,
+} from '../../src/domain/events';
 
 // ---------------------------------------------------------------------------
 // isValidTimezone — IANA check via Intl
@@ -60,6 +68,35 @@ test('evaluateJoinPolicy: capacity reached → event_full', () => {
   const r = evaluateJoinPolicy({ ...baseEvent, max_participants: 50, activeCount: 50 }, undefined);
   assert.equal(r.ok, false);
   if (!r.ok) assert.equal(r.code, 'event_full');
+});
+
+// ---------------------------------------------------------------------------
+// Join code bounds (F-02: min raised 4→8) + constant-time compare behaviour
+// ---------------------------------------------------------------------------
+
+test('join code bounds: min is 8, max 64 (F-02)', () => {
+  assert.equal(JOIN_CODE_MIN, 8);
+  assert.equal(JOIN_CODE_MAX, 64);
+  assert.equal(isValidJoinCode('A'.repeat(8)), true);
+  assert.equal(isValidJoinCode('A'.repeat(64)), true);
+  assert.equal(isValidJoinCode('A'.repeat(7)), false, '7 chars must be rejected (was allowed before F-02)');
+  assert.equal(isValidJoinCode('HACK'), false);
+  assert.equal(isValidJoinCode('A'.repeat(65)), false);
+  assert.equal(isValidJoinCode(''), false);
+});
+
+test('evaluateJoinPolicy: constant-time compare keeps the same accept/reject outcomes', () => {
+  // exact match accepted
+  assert.deepEqual(evaluateJoinPolicy({ ...baseEvent, access_mode: 'closed', join_code: 'SECRET123' }, 'SECRET123'), { ok: true });
+  // near-miss prefixes/suffixes rejected (no string-identity shortcut)
+  for (const candidate of ['SECRET1234', 'SECRET12', 'ECRET123', '']) {
+    const r = evaluateJoinPolicy({ ...baseEvent, access_mode: 'closed', join_code: 'SECRET123' }, candidate);
+    assert.equal(r.ok, false);
+    if (!r.ok) assert.equal(r.code, 'join_forbidden');
+  }
+  // non-string input never matches
+  const r = evaluateJoinPolicy({ ...baseEvent, access_mode: 'closed', join_code: 'SECRET123' }, 12345678);
+  assert.equal(r.ok, false);
 });
 
 // ---------------------------------------------------------------------------

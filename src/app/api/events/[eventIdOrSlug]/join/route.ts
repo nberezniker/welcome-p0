@@ -2,9 +2,11 @@ import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
+import { clientIp, checkRateLimit } from '../../../../../lib/ratelimit';
+import { requireHashPepper } from '../../../../../lib/env';
+import { hmacHex } from '../../../../../lib/crypto';
 import { loadEventView } from '../../../../../lib/event-view';
 import { evaluateJoinPolicy } from '../../../../../domain/events';
-import { checkRateLimit } from '../../../../../lib/ratelimit';
 import { recordAudit } from '../../../../../lib/audit';
 
 /** POST /api/events/[eventIdOrSlug]/join — explicit membership join.
@@ -15,6 +17,18 @@ import { recordAudit } from '../../../../../lib/audit';
 
 const JOIN_RATE_WINDOW_MINUTES = 15;
 const JOIN_RATE_MAX = 30;
+
+// F-02: DB-backed failed-attempt window per (event, hashed IP). The in-memory
+// /join IP rule (10/min) is the coarse first line; this lock is the durable one
+// — >= JOIN_CODE_LOCK_MAX failed codes from one IP on one event within 15
+// minutes returns 429 join_code_locked BEFORE the code is even evaluated.
+const JOIN_CODE_LOCK_WINDOW_MINUTES = 15;
+const JOIN_CODE_LOCK_MAX = 20;
+
+/** Raw client IP → peppered HMAC. Only the hash is ever stored (join_attempts). */
+function hashIp(ip: string): string {
+  return hmacHex(ip, requireHashPepper());
+}
 
 async function postRoute(
   req: NextRequest,
@@ -59,13 +73,34 @@ async function postRoute(
     const body = await readJsonBody(req);
     const b = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
 
+    const ipHash = hashIp(clientIp(req));
+    const accessMode = view.event.access_mode ?? 'closed';
+
+    // F-02: count recent failed attempts from this IP on this event BEFORE
+    // evaluating the code, so a locked IP cannot keep testing candidates.
+    if (accessMode !== 'public') {
+      const failures = await sql<{ count: number }[]>`
+        SELECT count(*)::int AS count
+        FROM join_attempts
+        WHERE event_id = ${eventId}
+          AND ip_hash = ${ipHash}
+          AND attempted_at > now() - (${JOIN_CODE_LOCK_WINDOW_MINUTES} * interval '1 minute')
+      `;
+      if ((failures[0]?.count ?? 0) >= JOIN_CODE_LOCK_MAX) {
+        return jsonError(429, 'join_code_locked', 'Too many failed attempts. Try again later.', {
+          retryable: true,
+          headers: { 'Retry-After': String(JOIN_CODE_LOCK_WINDOW_MINUTES * 60) },
+        });
+      }
+    }
+
     const countRows = await sql<{ count: number }[]>`
       SELECT count(*)::int AS count FROM event_memberships WHERE event_id = ${eventId} AND state = 'active'
     `;
     const decision = evaluateJoinPolicy(
       {
         status: view.event.status,
-        access_mode: view.event.access_mode ?? 'closed',
+        access_mode: accessMode,
         join_code: await currentJoinCode(sql, eventId),
         max_participants: await currentMaxParticipants(sql, eventId),
         activeCount: countRows[0]?.count ?? 0,
@@ -73,6 +108,14 @@ async function postRoute(
       b.join_code,
     );
     if (!decision.ok) {
+      // A rejected code attempt is recorded as a fact row (F-02); other
+      // rejections (inactive event, full event) are not code guessing.
+      if (decision.code === 'join_forbidden') {
+        await sql`
+          INSERT INTO join_attempts (event_id, ip_hash)
+          VALUES (${eventId}, ${ipHash})
+        `;
+      }
       return jsonError(403, decision.code, decision.message);
     }
 
@@ -111,6 +154,10 @@ async function postRoute(
     });
 
     if (result.joined) {
+      // F-02: a successful join clears this (event, ip) attempt history.
+      await sql`
+        DELETE FROM join_attempts WHERE event_id = ${eventId} AND ip_hash = ${ipHash}
+      `;
       await recordAudit(sql, auth.accountId, 'event.joined', 'event', eventId, {
         membership_id: result.membership.id,
       });

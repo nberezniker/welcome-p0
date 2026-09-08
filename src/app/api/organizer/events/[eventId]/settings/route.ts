@@ -4,12 +4,11 @@ import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../../lib/http';
 import { requireEventRole } from '../../../../../../domain/organizer';
-import { EVENT_ACCESS_MODES } from '../../../../../../domain/events';
+import { EVENT_ACCESS_MODES, JOIN_CODE_MAX, JOIN_CODE_MIN, isValidJoinCode } from '../../../../../../domain/events';
 import { recordAudit } from '../../../../../../lib/audit';
 
-/** Settings the owner/admin may change on an event. */
-const JOIN_CODE_MIN = 4;
-const JOIN_CODE_MAX = 64;
+/** Settings the owner/admin may change on an event. Join code bounds live in
+ * the events domain (F-02: min raised 4→8). */
 
 function isIsoDateTime(value: string): boolean {
   return !Number.isNaN(Date.parse(value)) && /^\d{4}-\d{2}-\d{2}/.test(value.trim());
@@ -42,7 +41,7 @@ async function postRoute(
         joinCode = null;
       } else if (typeof b.join_code === 'string') {
         const code = b.join_code.trim();
-        if (code.length < JOIN_CODE_MIN || code.length > JOIN_CODE_MAX) {
+        if (!isValidJoinCode(code)) {
           return jsonError(400, 'invalid_join_code', `join_code must be ${JOIN_CODE_MIN}..${JOIN_CODE_MAX} chars, or null to clear`);
         }
         joinCode = code;

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { secureSecretEqual } from '../lib/crypto';
 import type { Validated } from './profile';
 
 /** Events domain: pure input validation + join policy.
@@ -9,6 +10,14 @@ export type EventMode = (typeof EVENT_MODES)[number];
 
 export const EVENT_ACCESS_MODES = ['public', 'closed', 'registration'] as const;
 export type EventAccessMode = (typeof EVENT_ACCESS_MODES)[number];
+
+/** Join code bounds (F-02: min raised 4→8; owner/admin settings route validates). */
+export const JOIN_CODE_MIN = 8;
+export const JOIN_CODE_MAX = 64;
+
+export function isValidJoinCode(value: string): boolean {
+  return value.length >= JOIN_CODE_MIN && value.length <= JOIN_CODE_MAX;
+}
 
 export interface EventInput {
   name: string;
@@ -174,7 +183,12 @@ export function evaluateJoinPolicy(event: JoinPolicyEvent, providedCode: unknown
   }
   if (event.access_mode !== 'public') {
     const hasCode = typeof event.join_code === 'string' && event.join_code.length > 0;
-    const matches = hasCode && typeof providedCode === 'string' && providedCode === event.join_code;
+    // Constant-time compare (F-14): the provided code vs the event secret never
+    // leaks prefix/length through early-exit string equality.
+    const matches =
+      hasCode &&
+      typeof providedCode === 'string' &&
+      secureSecretEqual(providedCode, event.join_code as string);
     if (!hasCode || !matches) {
       return { ok: false, code: 'join_forbidden', message: 'This event requires a valid join code or registration claim' };
     }

@@ -130,6 +130,9 @@ interface IpRateRule {
 const IP_RATE_RULES: IpRateRule[] = [
   { key: 'otp_request', pattern: /^\/api\/auth\/otp\/request$/, capacity: 10, windowMs: 60_000 },
   { key: 'otp_verify', pattern: /^\/api\/auth\/otp\/verify$/, capacity: 10, windowMs: 60_000 },
+  // F-02: join_code brute-force surface — 10 joins/min/IP on top of the DB-level
+  // per-(event, ip) failed-attempt lock enforced inside the route itself.
+  { key: 'event_join', pattern: /^\/api\/events\/[^/]+\/join$/, capacity: 10, windowMs: 60_000 },
   { key: 'registration_claims', pattern: /^\/api\/registration-claims$/, capacity: 30, windowMs: 60_000 },
   { key: 'reports', pattern: /^\/api\/reports$/, capacity: 30, windowMs: 60_000 },
   { key: 'blocks', pattern: /^\/api\/blocks(\/|$)/, capacity: 30, windowMs: 60_000 },
