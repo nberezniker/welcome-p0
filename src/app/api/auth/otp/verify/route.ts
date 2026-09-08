@@ -8,6 +8,12 @@ import { createSession, setSessionCookie } from '../../../../../lib/auth';
 /** Max wrong attempts per OTP before it is invalidated. */
 const OTP_MAX_ATTEMPTS = 5;
 
+// F-13: DB-backed per-account failed-verify window. The in-memory per-IP
+// bucket is per-instance; this counter is durable across instances. The
+// response stays the enumeration-safe `401 invalid_code` in every branch.
+const OTP_VERIFY_WINDOW_MINUTES = 15;
+const OTP_VERIFY_WINDOW_MAX = 5;
+
 async function postRoute(req: NextRequest) {
   try {
     const body = await readJsonBody(req);
@@ -30,6 +36,19 @@ async function postRoute(req: NextRequest) {
     if (!account) {
       // Enumeration-safe: identical response to a wrong code. Burn a dummy hash to even out timing.
       hashOtpCode('000000', pepper);
+      return jsonError(401, 'invalid_code', 'Invalid or expired code');
+    }
+
+    // F-13: >= 5 recorded failures within the window lock ALL verifies for
+    // this account (even a correct code) until the window slides clear.
+    const failures = await sql<{ count: number }[]>`
+      SELECT count(*)::int AS count
+      FROM otp_verify_failures
+      WHERE account_id = ${account.id}
+        AND attempted_at > now() - (${OTP_VERIFY_WINDOW_MINUTES} * interval '1 minute')
+    `;
+    if ((failures[0]?.count ?? 0) >= OTP_VERIFY_WINDOW_MAX) {
+      hashOtpCode('000000', pepper); // timing parity with the wrong-code path
       return jsonError(401, 'invalid_code', 'Invalid or expired code');
     }
 
@@ -61,6 +80,8 @@ async function postRoute(req: NextRequest) {
         RETURNING attempts
       `;
       void updated;
+      // F-13: record the failure for the account-level window.
+      await sql`INSERT INTO otp_verify_failures (account_id) VALUES (${account.id})`;
       return jsonError(401, 'invalid_code', 'Invalid or expired code');
     }
 
@@ -76,6 +97,7 @@ async function postRoute(req: NextRequest) {
         UPDATE auth_otp_codes SET consumed_at = now()
         WHERE account_id = ${account.id} AND consumed_at IS NULL
       `;
+      await tx`DELETE FROM otp_verify_failures WHERE account_id = ${account.id}`;
       return createSession(account.id, tx);
     });
 
