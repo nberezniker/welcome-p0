@@ -17,6 +17,13 @@ export function appBaseUrl(): string {
   return process.env.APP_BASE_URL || 'http://localhost:3000';
 }
 
+/** APP_BASE_URL without a fallback: '' when unset. For bot copy, where a bare
+ * relative path is still readable but a guessed host (localhost / hardcoded
+ * deploy URL) would be wrong. */
+export function appBaseUrlOrEmpty(): string {
+  return process.env.APP_BASE_URL || '';
+}
+
 /** Pepper for HMAC-SHA256 email lookup and OTP hashing. Required in every environment. */
 export function requireHashPepper(): string {
   const pepper = process.env.HASH_PEPPER;

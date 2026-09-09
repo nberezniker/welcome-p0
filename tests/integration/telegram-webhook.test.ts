@@ -241,7 +241,7 @@ test('/start: no token and bad token → instructions reply, no binding, NO cons
   const sentReplies = mock.sent.filter((t) => t.chatId === String(chatId));
   assert.ok(sentReplies.length >= 2, 'instructions replies enqueued (and sent)');
   const joined = sentReplies.map((r) => String(r.text)).join('\n');
-  assert.match(joined, /НЕ согласие/, 'copy states Start is NOT consent');
+  assert.match(joined, /ничего не привязывает/, 'copy states Start is NOT consent');
   const minimized = await sql<{ payload: Record<string, unknown> }[]>`
     SELECT payload FROM outbox_jobs WHERE kind = 'telegram_reply' AND payload->>'chat_id' = ${String(chatId)}
   `;

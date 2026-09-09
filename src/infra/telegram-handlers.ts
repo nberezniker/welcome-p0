@@ -1,6 +1,7 @@
 import type { Sql, TransactionSql } from 'postgres';
 import { hashSessionToken } from '../lib/crypto';
 import { recordAudit } from '../lib/audit';
+import { appBaseUrlOrEmpty } from '../lib/env';
 import { enqueueOutbox, suppressJobsForAccountChannel } from './outbox';
 import { recommendForEvent } from '../domain/recommendations';
 
@@ -40,30 +41,70 @@ export function startsWithCommand(text: string | null | undefined, command: stri
   return text.trim().toLowerCase().startsWith(command);
 }
 
-const COPY = {
-  help: [
-    'WELCOME — команды:',
-    '/matches — сколько рекомендаций для вас',
-    '/privacy — как WELCOME обращается с данными',
-    '/stop — отключить автоматические сообщения',
-    '/delete — как удалить аккаунт',
-  ].join('\n'),
-  start_no_token:
-    'Привяжите Telegram к вашему WELCOME-аккаунту: откройте WELCOME в браузере → «Telegram», подтвердите привязку и нажмите Start по ссылке оттуда.\n\n' +
-    'Важно: Start — это НЕ согласие ни на что. Согласия оформляются только в веб-приложении.',
-  start_link_bad:
-    'Ссылка недействительна или истекла (срок жизни — 10 минут). Получите новую в WELCOME и повторите.\n\n' +
-    'Start — это НЕ согласие ни на что.',
-  start_link_unconfirmed:
-    'Ссылка получена, но подтверждение из веб-сессии не найдено. Откройте WELCOME в браузере, подтвердите привязку и нажмите Start ещё раз. Привязка создаётся только после двух подтверждений.',
-  linked: 'WELCOME: Telegram привязан. Команды: /help',
-  stop: 'Автоматические сообщения WELCOME отключены. Очередь на отправку очищена. Заново привязать канал можно через WELCOME в браузере.',
-  privacy:
-    'WELCOME хранит минимум данных, контакты шифруются, а сообщения не содержат приватных значений. Политика и управление согласиями — в веб-приложении: раздел «Приватность».',
-  delete:
-    'Удаление аккаунта выполняется в веб-приложении WELCOME: раздел «Приватность» → «Удалить аккаунт». Бот не удаляет данные командой.',
-  no_event: 'Пока нет активного события. Присоединитесь к событию в WELCOME, чтобы видеть рекомендации.',
-  matches_prefix: 'WELCOME: рекомендаций сейчас:',
+/** Resolves {base} placeholders to APP_BASE_URL. '' when the var is unset —
+ * the bare relative path keeps the text readable, a guessed host would not. */
+function fmt(text: string): string {
+  return text.replaceAll('{base}', appBaseUrlOrEmpty());
+}
+
+/** Bot copy, built lazily at read time so every message carries fresh
+ * APP_BASE_URL links. Keys must stay stable — tests assert on them. */
+const copy = {
+  get help(): string {
+    return fmt(`Команды бота WELCOME:
+/matches — сколько людей стоит встретить прямо сейчас
+/privacy — что мы делаем с вашими данными
+/stop — отключить сообщения от бота
+/delete — как удалить аккаунт
+
+Всё остальное — в приложении: {base}/me`);
+  },
+  get start_no_token(): string {
+    return fmt(`Привет! 👋 Это бот WELCOME.
+
+Привязать Telegram к профилю — за 3 шага:
+1️⃣ Откройте {base}/me/telegram и войдите
+2️⃣ Нажмите «Привязать Telegram» и перейдите по ссылке из приложения
+3️⃣ Бот напишет «Готово» — и всё
+
+P.S. Сама команда /start ничего не привязывает и не даёт согласий — привязка всегда подтверждается в приложении.`);
+  },
+  get start_link_bad(): string {
+    return fmt(`Эта ссылка уже истекла (живёт 10 минут) ⏳
+
+Не страшно: откройте {base}/me/telegram → «Привязать Telegram» → пришлите свежую ссылку.`);
+  },
+  get start_link_unconfirmed(): string {
+    return fmt(`Полдела сделано — ссылка получена ✅
+
+Осталось второе подтверждение: откройте {base}/me/telegram → нажмите «Я отправил /start, подтвердить» → и пришлите ссылку ещё раз. После этого бот напишет «Готово».`);
+  },
+  get linked(): string {
+    return `Готово — Telegram привязан! 🎉
+
+Сюда могут приходить уведомления WELCOME. Посмотреть команды: /help`;
+  },
+  get stop(): string {
+    return fmt(`Принято — сообщения отключены ✅ Очередь очищена.
+
+Вернуть канал можно в приложении: {base}/me/telegram`);
+  },
+  get privacy(): string {
+    return fmt(`Коротко о данных: храним минимум, контакты шифруем, в сообщениях бота приватных значений нет.
+
+Полная политика и переключатели согласий: {base}/me/privacy`);
+  },
+  get delete(): string {
+    return fmt(`Удаление аккаунта — только в приложении: {base}/me/privacy → «Удалить аккаунт».
+
+Бот сознательно не удаляет данные командой: чтобы никто посторонний не смог сделать это от вашего имени.`);
+  },
+  get no_event(): string {
+    return fmt(`Пока вы не участвуете ни в одном событии 🤷
+
+Откройте {base}/me/events и присоединитесь — тогда появятся рекомендации «кого встретить».`);
+  },
+  matches_prefix: 'Сейчас стоит встретиться с',
 };
 
 /** Processes one durable telegram_update job. Idempotent per update_id (dedupe at enqueue + reply keys). */
@@ -111,25 +152,25 @@ async function handleKnownCommand(
       });
       await suppressJobsForAccountChannel(tx, accountId, 'telegram', 'channel_revoked');
     });
-    await enqueueReply(sql, { chatId, text: COPY.stop, updateId });
+    await enqueueReply(sql, { chatId, text: copy.stop, updateId });
     return 'stopped';
   }
   if (startsWithCommand(text, '/privacy')) {
-    await enqueueReply(sql, { chatId, text: COPY.privacy, updateId });
+    await enqueueReply(sql, { chatId, text: copy.privacy, updateId });
     return 'privacy';
   }
   if (startsWithCommand(text, '/help')) {
-    await enqueueReply(sql, { chatId, text: COPY.help, updateId });
+    await enqueueReply(sql, { chatId, text: copy.help, updateId });
     return 'help';
   }
   if (startsWithCommand(text, '/delete')) {
-    await enqueueReply(sql, { chatId, text: COPY.delete, updateId });
+    await enqueueReply(sql, { chatId, text: copy.delete, updateId });
     return 'delete';
   }
   if (startsWithCommand(text, '/matches')) {
     return handleMatches(sql, accountId, chatId, updateId);
   }
-  await enqueueReply(sql, { chatId, text: COPY.help, updateId });
+  await enqueueReply(sql, { chatId, text: copy.help, updateId });
   return 'fallback_help';
 }
 
@@ -146,13 +187,13 @@ async function handleMatches(sql: Sql, accountId: string, chatId: string, update
   `;
   const membership = membershipRows[0];
   if (!membership) {
-    await enqueueReply(sql, { chatId, text: COPY.no_event, updateId });
+    await enqueueReply(sql, { chatId, text: copy.no_event, updateId });
     return 'matches_none';
   }
   const recs = await recommendForEvent(sql, { accountId, profileId: membership.profile_id }, membership.event_id, 3);
   await enqueueReply(sql, {
     chatId,
-    text: `${COPY.matches_prefix} ${recs.length}. Детали — в WELCOME${membership.event_name ? ` (событие «${membership.event_name}») ` : ''}:`,
+    text: `${copy.matches_prefix} ${recs.length}. Детали — в WELCOME${membership.event_name ? ` (событие «${membership.event_name}») ` : ''}:`,
     updateId,
   });
   return 'matches_count';
@@ -164,7 +205,7 @@ async function handleMatches(sql: Sql, accountId: string, chatId: string, update
  */
 async function handleStartLink(sql: Sql, chatId: string, token: string | null): Promise<string> {
   if (!token) {
-    await enqueueReply(sql, { chatId, text: COPY.start_no_token });
+    await enqueueReply(sql, { chatId, text: copy.start_no_token });
     return 'start_no_token';
   }
 
@@ -177,12 +218,12 @@ async function handleStartLink(sql: Sql, chatId: string, token: string | null): 
   `;
   const challenge = challengeRows[0];
   if (!challenge || !challenge.account_id) {
-    await enqueueReply(sql, { chatId, text: COPY.start_link_bad });
+    await enqueueReply(sql, { chatId, text: copy.start_link_bad });
     return 'start_link_invalid';
   }
   if (challenge.proof_flags['web_confirmed'] !== true) {
     // AC-11: the Telegram-side token alone is insufficient — no binding.
-    await enqueueReply(sql, { chatId, text: COPY.start_link_unconfirmed });
+    await enqueueReply(sql, { chatId, text: copy.start_link_unconfirmed });
     return 'start_link_unconfirmed';
   }
 
@@ -208,7 +249,7 @@ async function handleStartLink(sql: Sql, chatId: string, token: string | null): 
       subjectId: challenge.id,
       channel: 'telegram',
       purpose: 'service_channel',
-      payload: { chat_id: chatId, text: COPY.linked },
+      payload: { chat_id: chatId, text: copy.linked },
     });
     return 'bound';
   });
