@@ -84,3 +84,10 @@ Deployed to production (`welcome-p0-nikiti4.vercel.app`) after applying migratio
 - **F-18 closed**: live session cookie = `Secure; HttpOnly; SameSite=lax`.
 - **F-12**: actions SHA-pinned; **F-14**: migration 005 CHECKs live (28 tables).
 - **Open**: F-03 (MFA — backlog), F-11/F-13/F-17 (documented accepted risks), Next 16 upgrade, legal text needs legal review before commercial launch.
+
+## Remediation status update — 2026-09-09 (evening)
+
+- **F-03 CLOSED**: MFA step-up implemented (migration 006: mfa_credentials AES-GCM, sha256 single-use recovery codes, 5/15min verify lock; TOTP RFC-6238 vectors-tested; owner actions require `mfa_verified_at` <=30min → 403 `mfa_required`; `/me/security` UI with QR + recovery codes). Live-verified on prod: login 200, `/me/security` 200, enroll returns otpauth/QR/recovery codes.
+- **Next.js upgraded 15.5.25 → 16.3.4** (breaking changes resolved: flat-config eslint, react-hooks@7 rules, dev-origin allowlist, turbopack root; e2e race in intro-flow fixed). Gates: unit 192, integration 203, e2e 2, audit clean.
+- **Migration 006 applied to prod Neon** (31 tables). NOTE for the future: new migrations must be applied to the managed DB before/with each production deploy — verify step added to the deploy checklist.
+- **Demo event seeded on prod**: `welcome-demo-meetup` (Sat 2026-09-12 18:00 Madrid, join code `WELCOME24`), 8 synthetic registrations, demo1/demo2 members with matching tags, one mutual intro — full live demo flow available.

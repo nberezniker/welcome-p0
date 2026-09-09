@@ -151,3 +151,12 @@ Post-report deployment executed with the owner present (zero spend):
 - **Demo data:** 2 `is_demo` accounts/profiles seeded with production encryption key (synthetic users, labeled demo).
 - **Status changes:** staging-test deploy → now **exists** (was `BLOCKED_EXTERNAL`); Telegram live round trip → still `BLOCKED_EXTERNAL` (no bot token); contest status unchanged (`BLOCKED_CONTEST_RULES` / window ended).
 - **Known deviations:** serverless worker = tick endpoint (GitHub Actions every 5 min) instead of long-running process; production permission remains `false` per preflight — this deployment is staging-test, not production release.
+
+---
+
+## Final update — 2026-09-09
+
+- **F-03 MFA implemented and deployed** (TOTP + recovery codes + step-up on owner actions, `/me/security`).
+- **Next.js 16.3.4 upgrade** shipped (all gates green: unit 192, integration 203, e2e 2, audit clean).
+- **Demo event live**: `welcome-demo-meetup` with members, matching score-100 pair and mutual intro.
+- Remaining external items: `RESEND_API_KEY` (real-user email OTP), `TELEGRAM_BOT_TOKEN` (live Telegram), legal review of `/legal/*` before commercial launch.
