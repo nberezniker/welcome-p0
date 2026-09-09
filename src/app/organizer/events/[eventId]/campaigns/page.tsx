@@ -126,6 +126,11 @@ export default async function CampaignsPage({ params }: { params: Promise<{ even
                 refresh: t('camp.refresh'),
                 errorGeneric: t('common.errorGeneric'),
                 errorNetwork: t('common.errorNetwork'),
+                mfaTitle: t('mfa.stepUpTitle'),
+                mfaText: t('mfa.stepUpText'),
+                mfaCodeLabel: t('mfa.stepUpCode'),
+                mfaCta: t('mfa.stepUpCta'),
+                mfaVerifying: t('mfa.stepUpVerifying'),
               }}
             />
           ))}

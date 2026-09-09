@@ -98,15 +98,24 @@ async function postRoute(req: NextRequest) {
         WHERE account_id = ${account.id} AND consumed_at IS NULL
       `;
       await tx`DELETE FROM otp_verify_failures WHERE account_id = ${account.id}`;
-      return createSession(account.id, tx);
+      // F-03: an account with a CONFIRMED MFA factor gets a session WITHOUT a
+      // fresh mfa_verified_at — it must pass /api/auth/mfa/verify (TOTP or
+      // recovery code) before owner-level organizer actions (ADR 0007).
+      const mfaRows = await tx`
+        SELECT 1 FROM mfa_credentials
+        WHERE account_id = ${account.id} AND confirmed_at IS NOT NULL
+        LIMIT 1
+      `;
+      const session = await createSession(account.id, tx);
+      return { session, mfaRequired: mfaRows.length > 0 };
     });
 
     if (!issued) {
       return jsonError(401, 'invalid_code', 'Invalid or expired code');
     }
 
-    const res = jsonOk({ ok: true });
-    setSessionCookie(res, issued.token, issued.expiresAt);
+    const res = issued.mfaRequired ? jsonOk({ ok: true, mfa_required: true }) : jsonOk({ ok: true });
+    setSessionCookie(res, issued.session.token, issued.session.expiresAt);
     return res;
   } catch (err) {
     return internalError(err);

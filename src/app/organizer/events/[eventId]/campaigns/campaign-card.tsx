@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, Toast, useToast } from '../../../../../components/modal';
 import { fill } from '../../../../../components/fill';
@@ -57,6 +57,11 @@ type Strings = {
   refresh: string;
   errorGeneric: string;
   errorNetwork: string;
+  mfaTitle: string;
+  mfaText: string;
+  mfaCodeLabel: string;
+  mfaCta: string;
+  mfaVerifying: string;
 };
 
 type AudienceData = { count: number; channel_ready: number; sample: { display_name: string }[] };
@@ -80,6 +85,13 @@ export function CampaignCard({
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // F-03 step-up: on 403 mfa_required the owner confirms the second factor
+  // here and the interrupted action is retried automatically.
+  const [mfaOpen, setMfaOpen] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
+  const [mfaError, setMfaError] = useState<string | null>(null);
+  const [mfaBusy, setMfaBusy] = useState(false);
+  const retryAfterMfa = useRef<(() => Promise<void>) | null>(null);
   const toast = useToast();
 
   const immutable = campaign.state === 'running' || campaign.state === 'completed' || campaign.state === 'cancelled';
@@ -126,9 +138,22 @@ export function CampaignCard({
     }
   };
 
+  /** Opens the MFA modal when the API answered 403 mfa_required. */
+  const gateMfa = async (res: Response, retry: () => Promise<void>): Promise<boolean> => {
+    if (res.status !== 403) return false;
+    const payload = (await res.json().catch(() => null)) as { code?: string } | null;
+    if (payload?.code !== 'mfa_required') return false;
+    retryAfterMfa.current = retry;
+    setMfaError(null);
+    setMfaCode('');
+    setMfaOpen(true);
+    return true;
+  };
+
   const doApprove = async () => {
     const res = await call(`/api/organizer/campaigns/${campaign.id}/approve`, { method: 'POST' });
     if (!res) return;
+    if (await gateMfa(res, doApprove)) return;
     const payload = (await res.json().catch(() => null)) as { audience_count?: number } | null;
     if (res.ok) {
       setNote(fill(strings.approvedTemplate, { count: payload?.audience_count ?? 0 }));
@@ -144,6 +169,7 @@ export function CampaignCard({
     setSendOpen(false);
     const res = await call(`/api/organizer/campaigns/${campaign.id}/send`, { method: 'POST' });
     if (!res) return;
+    if (await gateMfa(res, doSend)) return;
     const payload = (await res.json().catch(() => null)) as { queued?: number } | null;
     if (res.status === 202) {
       setNote(fill(strings.sentTemplate, { queued: payload?.queued ?? 0 }));
@@ -151,6 +177,30 @@ export function CampaignCard({
       router.refresh();
     } else {
       setError(strings.errorGeneric);
+    }
+  };
+
+  const verifyMfa = async () => {
+    setMfaBusy(true);
+    setMfaError(null);
+    try {
+      const res = await fetch('/api/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ code: mfaCode }),
+      });
+      if (res.ok) {
+        setMfaOpen(false);
+        const retry = retryAfterMfa.current;
+        retryAfterMfa.current = null;
+        await retry?.();
+      } else {
+        setMfaError(strings.errorGeneric);
+      }
+    } catch {
+      setMfaError(strings.errorGeneric);
+    } finally {
+      setMfaBusy(false);
     }
   };
 
@@ -298,6 +348,41 @@ export function CampaignCard({
           </button>
           <button type="button" className="btn-accent btn-small" disabled={busy} onClick={() => void doSend()} data-testid="confirm-send">
             {busy ? strings.sending : strings.sendCta}
+          </button>
+        </div>
+      </Modal>
+      <Modal open={mfaOpen} onClose={() => setMfaOpen(false)} title={strings.mfaTitle}>
+        <p className="text-sm">{strings.mfaText}</p>
+        {mfaError ? (
+          <p className="mt-2 text-sm text-red-700" role="alert">
+            {mfaError}
+          </p>
+        ) : null}
+        <label className="label mt-3" htmlFor={`mfa-code-${campaign.id}`}>
+          {strings.mfaCodeLabel}
+        </label>
+        <input
+          id={`mfa-code-${campaign.id}`}
+          className="input w-40"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={32}
+          value={mfaCode}
+          onChange={(e) => setMfaCode(e.target.value)}
+          data-testid={`mfa-stepup-code-${campaign.id}`}
+        />
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" className="btn-light btn-small" onClick={() => setMfaOpen(false)}>
+            {strings.cancel}
+          </button>
+          <button
+            type="button"
+            className="btn-primary btn-small"
+            disabled={mfaBusy || mfaCode.trim().length === 0}
+            onClick={() => void verifyMfa()}
+            data-testid={`mfa-stepup-verify-${campaign.id}`}
+          >
+            {mfaBusy ? strings.mfaVerifying : strings.mfaCta}
           </button>
         </div>
       </Modal>

@@ -25,6 +25,7 @@ export default async function MeLayout({ children }: { children: React.ReactNode
     { href: '/me/events', label: t('me.nav.events') },
     { href: '/me/telegram', label: t('me.nav.telegram') },
     { href: '/me/privacy', label: t('me.nav.privacy') },
+    { href: '/me/security', label: t('me.nav.security') },
     { href: '/organizer', label: t('me.nav.organizer') },
   ];
 

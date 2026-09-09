@@ -13,6 +13,8 @@ export interface AuthContext {
   accountId: string;
   accountStatus: string;
   sessionId: string;
+  /** When the session last passed MFA (F-03); NULL = never verified in this session. */
+  mfaVerifiedAt: Date | null;
 }
 
 export interface IssuedSession {
@@ -53,8 +55,8 @@ export async function requireAccount(req: NextRequest): Promise<AuthContext | nu
   const tokenHash = hashSessionToken(token);
 
   const sql = getSql();
-  const rows = await sql<{ session_id: string; expires_at: Date; account_id: string; account_status: string }[]>`
-    SELECT s.id AS session_id, s.expires_at, a.id AS account_id, a.status AS account_status
+  const rows = await sql<{ session_id: string; expires_at: Date; account_id: string; account_status: string; mfa_verified_at: Date | null }[]>`
+    SELECT s.id AS session_id, s.expires_at, a.id AS account_id, a.status AS account_status, s.mfa_verified_at
     FROM sessions s
     JOIN accounts a ON a.id = s.account_id
     WHERE s.token_hash = ${tokenHash} AND s.expires_at > now()
@@ -75,7 +77,7 @@ export async function requireAccount(req: NextRequest): Promise<AuthContext | nu
     `;
   }
 
-  return { accountId: row.account_id, accountStatus: row.account_status, sessionId: row.session_id };
+  return { accountId: row.account_id, accountStatus: row.account_status, sessionId: row.session_id, mfaVerifiedAt: row.mfa_verified_at ? new Date(row.mfa_verified_at) : null };
 }
 
 /** Resolves an active account id from a raw session token (server components —
@@ -94,6 +96,27 @@ export async function getAccountIdByToken(token: string | null | undefined): Pro
   const row = rows[0];
   if (!row || row.account_status !== 'active') return null;
   return row.account_id;
+}
+
+/**
+ * F-03 step-up policy (ADR 0007): owner-level organizer actions require a
+ * CONFIRMED MFA credential AND a session whose mfa_verified_at is fresh
+ * (within MFA_STEP_UP_WINDOW_MINUTES). Accounts WITHOUT a confirmed MFA
+ * factor keep the legacy behaviour — mfa_required is never raised for them.
+ * Platform admins are exempt at the call sites (owner-only enforcement).
+ */
+export const MFA_STEP_UP_WINDOW_MINUTES = 30;
+
+/** True when the caller may perform owner-level organizer actions right now. */
+export async function requireMfaFresh(auth: Pick<AuthContext, 'accountId' | 'mfaVerifiedAt'>): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql<{ confirmed_at: Date | null }[]>`
+    SELECT confirmed_at FROM mfa_credentials WHERE account_id = ${auth.accountId} LIMIT 1
+  `;
+  const cred = rows[0];
+  if (!cred || cred.confirmed_at == null) return true; // MFA not enrolled — no step-up
+  if (!auth.mfaVerifiedAt) return false;
+  return auth.mfaVerifiedAt.getTime() > Date.now() - MFA_STEP_UP_WINDOW_MINUTES * 60_000;
 }
 
 /** Sets the HttpOnly session cookie. secure=true in production; SameSite=Lax. */

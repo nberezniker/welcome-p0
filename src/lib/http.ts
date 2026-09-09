@@ -146,6 +146,11 @@ const IP_RATE_RULES: IpRateRule[] = [
   { key: 'registration_claims', pattern: /^\/api\/registration-claims$/, capacity: 30, windowMs: 60_000 },
   { key: 'reports', pattern: /^\/api\/reports$/, capacity: 30, windowMs: 60_000 },
   { key: 'blocks', pattern: /^\/api\/blocks(\/|$)/, capacity: 30, windowMs: 60_000 },
+  // F-03: MFA surface — enroll/manage are cheap but sensitive; the step-up
+  // verify additionally carries the DB-level per-account 5/15min lock.
+  { key: 'mfa_enroll', pattern: /^\/api\/me\/mfa\/totp$/, capacity: 10, windowMs: 60_000 },
+  { key: 'mfa_manage', pattern: /^\/api\/me\/mfa(\/|$)/, capacity: 10, windowMs: 60_000 },
+  { key: 'mfa_verify', pattern: /^\/api\/auth\/mfa\/verify$/, capacity: 10, windowMs: 60_000 },
 ];
 
 function rateLimitHeaders(verdict: TokenVerdict, capacity: number): Record<string, string> {

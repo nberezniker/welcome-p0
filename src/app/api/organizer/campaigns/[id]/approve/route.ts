@@ -1,16 +1,19 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
-import { requireAccount } from '../../../../../../lib/auth';
+import { requireAccount, requireMfaFresh } from '../../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, withApi } from '../../../../../../lib/http';
 import { recordAudit } from '../../../../../../lib/audit';
 import { currentEligibleAudience, loadCampaignWithRole } from '../../../../../../domain/campaigns';
 
 /**
  * POST /api/organizer/campaigns/[id]/approve — OWNER ONLY (staff AND admin →
- * 403, AC-23). Freezes the currently eligible audience into campaign_audience
- * and pins approved_revision = content_revision. Editing afterwards resets
- * the approval (AC-40); sending re-validates the frozen snapshot against the
- * live consent/block/binding state (AC-41).
+ * 403, AC-23). F-03: when the owner has a confirmed MFA factor, the session
+ * must have passed MFA within the last 30 minutes (step-up, ADR 0007) —
+ * otherwise 403 mfa_required and the client shows the code modal. Freezes the
+ * currently eligible audience into campaign_audience and pins
+ * approved_revision = content_revision. Editing afterwards resets the approval
+ * (AC-40); sending re-validates the frozen snapshot against the live
+ * consent/block/binding state (AC-41).
  */
 async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -25,6 +28,10 @@ async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: s
     // Explicit owner gate: admin is deliberately NOT enough for approval.
     if (loaded.role !== 'owner') {
       return jsonError(403, 'forbidden', 'Only the organizer owner can approve campaigns');
+    }
+    // F-03 step-up (owner actions only; admins are exempt per spec §9).
+    if (!(await requireMfaFresh(auth))) {
+      return jsonError(403, 'mfa_required', 'Confirm your second factor to continue');
     }
     const { campaign } = loaded;
     if (campaign.state !== 'draft' && campaign.state !== 'approved') {

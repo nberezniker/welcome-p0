@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
-import { requireAccount } from '../../../../../../lib/auth';
+import { requireAccount, requireMfaFresh } from '../../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, withApi } from '../../../../../../lib/http';
 import { recordAudit } from '../../../../../../lib/audit';
 import { canSend, currentEligibleAudience, loadCampaignWithRole } from '../../../../../../domain/campaigns';
@@ -12,8 +12,11 @@ import { enqueueOutbox } from '../../../../../../infra/outbox';
  * frozen snapshot never bypasses a revoke — consent withdrawal, blocks or a
  * revoked binding between approve and send exclude the member here, and the
  * worker re-checks again at send time). Requires state='approved' AND
- * approved_revision=content_revision. Returns 202 {queued}; delivery counts
- * appear via /stats — provider acceptance is NEVER reported as 'delivered'.
+ * approved_revision=content_revision. F-03: for the ORGANIZER OWNER with a
+ * confirmed MFA factor the session must be MFA-verified within 30 minutes
+ * (step-up, ADR 0007) — 403 mfa_required otherwise; admins are exempt per
+ * spec §9. Returns 202 {queued}; delivery counts appear via /stats — provider
+ * acceptance is NEVER reported as 'delivered'.
  */
 async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -27,6 +30,10 @@ async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: s
     if (loaded.role === null) return jsonError(404, 'not_found', 'Campaign not found');
     if (loaded.role !== 'owner' && loaded.role !== 'admin') {
       return jsonError(403, 'forbidden', 'Only the organizer owner or admin can send campaigns');
+    }
+    // F-03 step-up — owner actions only (admins exempt per spec §9).
+    if (loaded.role === 'owner' && !(await requireMfaFresh(auth))) {
+      return jsonError(403, 'mfa_required', 'Confirm your second factor to continue');
     }
     const { campaign } = loaded;
     if (!canSend(campaign.state, campaign.content_revision, campaign.approved_revision)) {
