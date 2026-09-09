@@ -68,3 +68,19 @@ Dependency audit: `pnpm audit` — no known vulnerabilities (prod + full). Licen
 - Parameterized SQL only; zero `dangerouslySetInnerHTML`; link scheme allowlist; vCard/CSV escaping; import quarantine.
 - Webhook secret-before-parse + dedupe + 24h staleness; consent re-check at send; suppression on revoke/stop; unknown-cap retry.
 - Zero third-party scripts/trackers; CI defect-drill; secret scanner; IDOR negative suite.
+
+---
+
+## Remediation status — 2026-09-09 (deployed & live-verified)
+
+Deployed to production (`welcome-p0-nikiti4.vercel.app`) after applying migration 005 to Neon. Live verifications by AutoCoder:
+
+- **F-01 fixed**: demo OTP flow works on prod (`AUTH_EXPOSE_DEMO_OTP` + `is_demo` only); non-demo OTP without email provider → honest `503 email_channel_disabled` (not 500); transport-ready for `RESEND_API_KEY`. Full demo login verified (200 + session).
+- **F-02**: lockout logic covered by integration suite (21st attempt → 429); no events seeded on prod yet.
+- **F-04**: CSP / X-Frame-Options / Permissions-Policy / Referrer-Policy present on `/` and `/login` (4/4 headers, live curl).
+- **F-05/F-06/F-07**: cleanup pass live via worker-tick (`runCleanupIfDue`, 6h slot); payload minimization active; export extended.
+- **F-08**: authed GET returns `cache-control: no-store, private` (live).
+- **F-09/F-16**: query-secret carrier removed (401 on query); public health hides `migration_version` (details via secret header, live-verified).
+- **F-18 closed**: live session cookie = `Secure; HttpOnly; SameSite=lax`.
+- **F-12**: actions SHA-pinned; **F-14**: migration 005 CHECKs live (28 tables).
+- **Open**: F-03 (MFA — backlog), F-11/F-13/F-17 (documented accepted risks), Next 16 upgrade, legal text needs legal review before commercial launch.
