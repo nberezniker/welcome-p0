@@ -1,12 +1,12 @@
 # defect drill — FAIL expected (defect injected)
-# commit: bb1d923220651d0d5a850027a6e6862b76d79962
+# commit: d2026ac68ebb923adeafc991a0f9ea641981c448
 # exit code: 1
 
 TAP version 13
 # Subtest: public API returns ONLY the public projection (disabled contact and private data absent)
 not ok 1 - public API returns ONLY the public projection (disabled contact and private data absent)
   ---
-  duration_ms: 78.956708
+  duration_ms: 66.8475
   type: 'test'
   location: '/Users/nikiti4/.openclaw-autoclaw/workspace/welcome/tests/integration/profile.test.ts:7:297'
   failureType: 'testCodeFailure'
@@ -30,4 +30,4 @@ not ok 1 - public API returns ONLY the public projection (disabled contact and p
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 330.345625
+# duration_ms 379.022458
