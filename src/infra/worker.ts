@@ -4,6 +4,7 @@ import { hasGrant, isConsentPurpose, type ConsentPurpose } from '../domain/conse
 import {
   applyOutcome,
   applySuppression,
+  applyUpdateProcessed,
   claimJobs,
   computeBackoffMs,
   MAX_UNKNOWN_ATTEMPTS,
@@ -24,6 +25,9 @@ import type { ChannelTransport } from '../integrations/telegram/transport';
  *      (completing the AC-25 hook end-to-end);
  *   2. executes the transport OUTSIDE any DB transaction;
  *   3. records the outcome + a delivery_attempts row in a short transaction.
+ * Inbound jobs (kind 'telegram_update') have no transport step: once the
+ * handler succeeded they go terminal 'delivered' (applyUpdateProcessed) —
+ * an expired lease must never re-claim a processed update.
  * After the job batch, the retention/minimization cleanup pass runs when due
  * (F-06/F-07 — at most once per CLEANUP_MIN_INTERVAL_HOURS).
  */
@@ -82,6 +86,12 @@ async function processJob(sql: Sql, transport: ChannelTransport | null, job: Out
       if (typeof inboxEventId === 'number' || typeof inboxEventId === 'string') {
         await minimizeTelegramInboxPayload(sql, Number(inboxEventId));
       }
+      // Lease-churn fix: a processed update is terminal 'delivered' — without
+      // this the leased row survived the tick and was re-claimed (reprocessed)
+      // on every lease expiry. Deliberately the LAST step: if minimization
+      // throws, the job is still leased and the catch below requeues it; once
+      // delivered, nothing in this branch can throw.
+      await applyUpdateProcessed(sql, job, outcome);
       return `processed:${outcome}`;
     }
     return await processOutbound(sql, transport, job);

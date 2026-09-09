@@ -11,6 +11,9 @@ import { getSql } from '../lib/db';
  *   pending → leased → sent | failed | suppressed
  *                     ├─→ pending (retry: 429 / lease expiry / unknown under cap)
  *                     └─→ unknown (terminal after MAX_UNKNOWN_ATTEMPTS — never infinite resend, AC-42)
+ *   Inbound jobs (kind 'telegram_update') have no transport step: once their
+ *   handler succeeded the lease closes at terminal 'delivered'
+ *   (applyUpdateProcessed) — an expired lease must never re-claim them.
  */
 
 export type OutboxStatus =
@@ -242,6 +245,29 @@ export async function applySuppression(sql: Sql, job: OutboxJobRow, code: string
       UPDATE outbox_jobs SET status = 'suppressed', attempt = ${job.attempt + 1}, lease_until = NULL WHERE id = ${job.id}
     `;
     return 'suppressed';
+  });
+}
+
+/**
+ * Terminal transition for successfully processed inbound jobs
+ * (kind 'telegram_update'): the worker handles the update synchronously with
+ * no transport round-trip, so 'delivered' closes the lease. Without it the row
+ * stayed 'leased' and churned — every lease expiry re-queued it for
+ * reprocessing. Same shape as the other finalizers: one short transaction
+ * records the try (state 'processed', code = handler outcome) and flips the
+ * status, guarded so only the current lease holder finalizes.
+ */
+export async function applyUpdateProcessed(sql: Sql, job: OutboxJobRow, outcome: string): Promise<OutboxStatus> {
+  return sql.begin(async (tx) => {
+    const locked = await tx<OutboxJobRow[]>`
+      SELECT id, status FROM outbox_jobs WHERE id = ${job.id} FOR UPDATE
+    `;
+    if (!locked[0] || locked[0].status !== 'leased') return locked[0]?.status as OutboxStatus ?? 'cancelled';
+    await recordAttempt(tx, job.id, 'processed', outcome, null);
+    await tx`
+      UPDATE outbox_jobs SET status = 'delivered', attempt = ${job.attempt + 1}, lease_until = NULL WHERE id = ${job.id}
+    `;
+    return 'delivered';
   });
 }
 

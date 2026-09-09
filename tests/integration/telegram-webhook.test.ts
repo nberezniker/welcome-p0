@@ -9,6 +9,7 @@ import { POST as verifyOtp } from '../../src/app/api/auth/otp/verify/route';
 import { POST as createProfileRoute } from '../../src/app/api/me/profile/route';
 import { getSql, closeSql } from '../../src/lib/db';
 import { MockTelegramTransport } from '../../src/integrations/telegram/mock-transport';
+import { tickOnce } from '../../src/infra/worker';
 import { loginViaOtp, makeRequest, uniqueEmail, assertStatus, accountIdFromCookie } from './helpers';
 import { createUser, bindTelegram, jobRow, attemptRows, drainWorker } from './phase3-helpers';
 
@@ -435,4 +436,82 @@ test('replay hardening: fresh update with valid date is accepted', async () => {
   });
   assert.equal(res.status, 200);
   assert.equal(((await res.json()) as { accepted: boolean }).accepted, true);
+});
+
+// ---------------------------------------------------------------------------
+// Lease-churn regression: a processed telegram_update job must end terminal
+// 'delivered' — the old defect left it 'leased', so every lease expiry (60s)
+// re-claimed and reprocessed it forever.
+// ---------------------------------------------------------------------------
+
+async function updateJobId(updateId: number): Promise<string> {
+  const rows = await sql<{ id: string }[]>`
+    SELECT id FROM outbox_jobs WHERE dedupe_key = ${'tg_update:' + updateId}
+  `;
+  if (!rows[0]) throw new Error(`outbox job for update ${updateId} not found`);
+  return rows[0]!.id;
+}
+
+test('regression: stranger update processed → delivered, never re-claimed after lease expiry', async () => {
+  const chatId = 990510;
+  const updateId = nextUpdateId();
+  const res = await sendRaw({
+    update_id: updateId,
+    message: {
+      message_id: updateId, from: { id: chatId }, chat: { id: chatId }, text: 'hi',
+      date: Math.floor(Date.now() / 1000) - 60, // fresh — inside the staleness window
+    },
+  });
+  assert.equal(res.status, 200);
+  const jobId = await updateJobId(updateId);
+
+  const mock = new MockTelegramTransport();
+  const first = await tickOnce({ transport: mock });
+  assert.ok(
+    first.results.some((r) => r.job_id === jobId && r.outcome === 'processed:ignored_stranger'),
+    'tick reports the update as processed:ignored_stranger',
+  );
+  const afterTick1 = await jobRow(jobId);
+  assert.equal(afterTick1.status, 'delivered', 'processed update is terminal delivered, not leased');
+  assert.equal(afterTick1.attempt, 1, 'exactly one processing try recorded');
+  const lease = await sql<{ lease_until: Date | null }[]>`
+    SELECT lease_until FROM outbox_jobs WHERE id = ${jobId}
+  `;
+  assert.equal(lease[0]!.lease_until, null, 'terminal job holds no lease');
+
+  // Simulate the stale lease the old defect left behind: even with an expired
+  // lease_until a delivered job must never be re-claimed or reprocessed.
+  await sql`UPDATE outbox_jobs SET lease_until = now() - interval '1 second' WHERE id = ${jobId}`;
+  const second = await tickOnce({ transport: mock });
+  assert.ok(!second.results.some((r) => r.job_id === jobId), 'delivered job is not re-claimed');
+  const afterTick2 = await jobRow(jobId);
+  assert.equal(afterTick2.status, 'delivered', 'stays delivered across lease expiry');
+  assert.equal(afterTick2.attempt, afterTick1.attempt, 'attempt must not grow');
+  const replies = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM outbox_jobs
+    WHERE kind = 'telegram_reply' AND payload->>'chat_id' = ${String(chatId)}
+  `;
+  assert.equal(replies[0]!.count, 0, 'still no dialog with strangers');
+});
+
+test('regression: /start without token processed once — one instructions reply across lease expiry', async () => {
+  const chatId = 990511;
+  const updateId = nextUpdateId();
+  await sendUpdate(chatId, '/start', updateId);
+  const jobId = await updateJobId(updateId);
+
+  const mock = new MockTelegramTransport();
+  await tickOnce({ transport: mock }); // handles the update → delivered; its reply is enqueued but stays pending this tick
+  await sql`UPDATE outbox_jobs SET lease_until = now() - interval '1 second' WHERE id = ${jobId}`;
+  await tickOnce({ transport: mock }); // old bug: re-claim + reprocess the update here; now only the reply is claimed
+
+  const row = await jobRow(jobId);
+  assert.equal(row.status, 'delivered', 'stays delivered across lease expiry');
+  assert.equal(row.attempt, 1, 'no reprocessing after lease expiry');
+  const replies = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM outbox_jobs
+    WHERE kind = 'telegram_reply' AND payload->>'chat_id' = ${String(chatId)}
+  `;
+  assert.equal(replies[0]!.count, 1, 'exactly one instructions reply — no duplicate');
+  assert.equal(mock.sent.filter((t) => t.chatId === String(chatId)).length, 1, 'no double-send to the chat');
 });
