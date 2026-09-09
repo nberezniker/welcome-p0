@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 
 // F-04: security headers on every path. Production CSP is script-strict:
 // Next.js App Router ships its bootstrap/hydration payload via INLINE <script>
@@ -27,9 +29,18 @@ const CSP = [
 ].join('; ');
 
 const nextConfig: NextConfig = {
+  // Pin the Turbopack workspace root to the app dir: the parent workspace dir
+  // contains an unrelated package-lock.json that Next would otherwise warn about.
+  turbopack: {
+    root: dirname(fileURLToPath(import.meta.url)),
+  },
   // Server-side fetching of arbitrary URLs is forbidden (SSRF rule) — nothing here proxies remote hosts.
   reactStrictMode: true,
   poweredByHeader: false,
+  // Next 16 blocks cross-origin access to dev resources (/_next/hmr) by default;
+  // the e2e suite targets 127.0.0.1, which no longer matches the implicit
+  // localhost allowlist. Dev-only setting — no effect on production builds.
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
   async headers() {
     return [
       {

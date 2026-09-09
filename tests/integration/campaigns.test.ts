@@ -70,17 +70,6 @@ async function addMember(eventId: string, member: Actor, opts: { visible?: boole
   }
 }
 
-async function campaignState(campaignId: string): Promise<{
-  state: string;
-  content_revision: number;
-  approved_revision: number | null;
-}> {
-  const rows = await sql<{ state: string; content_revision: number; approved_revision: number | null }[]>`
-    SELECT state, content_revision, approved_revision FROM campaigns WHERE id = ${campaignId}
-  `;
-  return rows[0]!;
-}
-
 // ---------------------------------------------------------------------------
 // AC-23: staff must never run campaigns
 // ---------------------------------------------------------------------------

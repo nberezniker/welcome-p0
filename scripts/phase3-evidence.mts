@@ -131,7 +131,7 @@ console.log('challenge without session →', chalRes.status, '(401 expected: evi
 // Direct-token positive flow (worker side): emulate web confirm via the flag,
 // then /start through the worker handler.
 const token = randomUUID().replaceAll('-', '') + randomUUID().replaceAll('-', '');
-const webConfirmed = await sql`
+await sql`
   INSERT INTO link_challenges (account_id, purpose, token_hash, expires_at, proof_flags)
   VALUES (${owner.accountId}, 'telegram_link', ${hashSessionToken(token)}, now() + interval '10 minutes', '{"web_confirmed": true}'::jsonb)
   RETURNING id`;

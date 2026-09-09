@@ -157,12 +157,18 @@ test.describe('WELCOME P0 smoke', () => {
     await page.goto('/me/introductions');
     await waitHydrated(page);
     await page.locator('fieldset input[type=checkbox]').first().check(); // reveal whatsapp
+    // The reload below must not race an in-flight accept POST (it aborts the
+    // request and the decision rolls back) — wait for the response first.
+    const acceptA = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/respond'));
     await page.getByRole('button', { name: 'Accept' }).click();
+    await acceptA;
 
     await pageB.goto('/me/introductions');
     await waitHydrated(pageB);
     await pageB.locator('fieldset input[type=checkbox]').first().check(); // reveal whatsapp
+    const acceptB = pageB.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/respond'));
     await pageB.getByRole('button', { name: 'Accept' }).click();
+    await acceptB;
 
     // Both sides reload and see the revealed field.
     await page.reload();

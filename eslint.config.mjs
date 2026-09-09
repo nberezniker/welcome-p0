@@ -1,13 +1,5 @@
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-import { FlatCompat } from "@eslint/eslintrc";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
+import coreWebVitals from "eslint-config-next/core-web-vitals";
+import typescriptConfig from "eslint-config-next/typescript";
 
 const eslintConfig = [
   {
@@ -22,7 +14,9 @@ const eslintConfig = [
       "reference-landing/**",
     ],
   },
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  // eslint-config-next@16 ships native flat config (FlatCompat no longer works)
+  ...coreWebVitals,
+  ...typescriptConfig,
   {
     rules: {
       "@typescript-eslint/no-explicit-any": "error",

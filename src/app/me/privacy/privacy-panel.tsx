@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Modal, Toast, useToast } from '../../../components/modal';
 import { fill } from '../../../components/fill';
 
@@ -78,6 +79,7 @@ export function PrivacyPanel({
   const [typedName, setTypedName] = useState('');
   const [deleting, setDeleting] = useState(false);
   const toast = useToast();
+  const router = useRouter();
 
   const toggleConsent = async (purpose: string, granted: boolean) => {
     setBusyPurpose(purpose);
@@ -151,7 +153,9 @@ export function PrivacyPanel({
         body: JSON.stringify({ confirm: typedName }),
       });
       if (res.ok) {
-        window.location.href = '/?deleted=1';
+        // Account is gone and the session cookie was cleared server-side; router navigation
+        // refetches server components, so the landing renders in the logged-out state.
+        router.push('/?deleted=1');
       } else if (res.status === 400) {
         toast.show(strings.deleteNameMismatch, 'error');
       } else {

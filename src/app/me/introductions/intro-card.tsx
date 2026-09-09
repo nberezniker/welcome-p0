@@ -70,22 +70,26 @@ export function IntroCard({
   const [reportDetails, setReportDetails] = useState('');
   const toast = useToast();
 
-  const load = async () => {
+  /** Fetches the intro detail; caller decides when to put it into state. */
+  const load = async (): Promise<IntroDetail | null> => {
     try {
       const res = await fetch(`/api/introductions/${introId}`);
       const payload = (await res.json().catch(() => null)) as IntroDetail | null;
-      if (res.ok && payload?.introduction) {
-        setDetail(payload);
-      } else {
-        setDetail(null);
-      }
+      return res.ok && payload?.introduction ? payload : null;
     } catch {
-      setDetail(null);
+      return null;
     }
   };
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    void (async () => {
+      const result = await load();
+      if (!cancelled) setDetail(result);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [introId]);
 
@@ -101,7 +105,7 @@ export function IntroCard({
       });
       if (res.ok) {
         toast.show(strings.responded);
-        await load();
+        setDetail(await load());
       } else {
         toast.show(strings.errorGeneric, 'error');
       }

@@ -65,37 +65,44 @@ export function DirectoryPanel({
   const [sentTo, setSentTo] = useState<Set<string>>(new Set());
   const toast = useToast();
 
-  const load = async () => {
-    try {
-      const [dirRes, recRes] = await Promise.all([
-        fetch(`/api/events/${eventId}/directory`),
-        fetch(`/api/events/${eventId}/recommendations`),
-      ]);
-      if (dirRes.status === 403) {
-        const body = (await dirRes.json().catch(() => null)) as { code?: string } | null;
-        if (body?.code === 'directory_closed') setClosed(true);
-        setMembers([]);
-      } else if (dirRes.ok) {
-        const body = (await dirRes.json().catch(() => null)) as { members?: DirectoryMember[] } | null;
-        setMembers(body?.members ?? []);
-      } else {
-        setMembers([]);
-      }
-      if (recRes.ok) {
-        const body = (await recRes.json().catch(() => null)) as { recommendations?: RecommendationItem[] } | null;
-        setRecommendations(body?.recommendations ?? []);
-      } else {
-        setRecommendations([]);
-      }
-    } catch {
-      setMembers([]);
-      setRecommendations([]);
-    }
-  };
-
   useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    void (async () => {
+      try {
+        const [dirRes, recRes] = await Promise.all([
+          fetch(`/api/events/${eventId}/directory`),
+          fetch(`/api/events/${eventId}/recommendations`),
+        ]);
+        if (!cancelled) {
+          if (dirRes.status === 403) {
+            const body = (await dirRes.json().catch(() => null)) as { code?: string } | null;
+            if (body?.code === 'directory_closed') setClosed(true);
+            setMembers([]);
+          } else if (dirRes.ok) {
+            const body = (await dirRes.json().catch(() => null)) as { members?: DirectoryMember[] } | null;
+            setMembers(body?.members ?? []);
+          } else {
+            setMembers([]);
+          }
+        }
+        if (!cancelled) {
+          if (recRes.ok) {
+            const body = (await recRes.json().catch(() => null)) as { recommendations?: RecommendationItem[] } | null;
+            setRecommendations(body?.recommendations ?? []);
+          } else {
+            setRecommendations([]);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          setMembers([]);
+          setRecommendations([]);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [eventId]);
 
   const propose = async () => {
