@@ -167,3 +167,7 @@ Post-report deployment executed with the owner present (zero spend):
 
 - **Resend подключён к проду** (`RESEND_API_KEY`, `RESEND_FROM=onboarding@resend.dev`). Проверка: тестовое письмо доставлено на email владельца (Resend id `cbecbe10…`), прод-запрос OTP для реального (не-demo) аккаунта → `200 {ok:true}`.
 - **Ограничение Resend test-mode:** без верифицированного домена письма уходят только на email владельца аккаунта Resend. Для приёма OTP произвольными пользователями: добавить домен в Resend → DNS-записи → `RESEND_FROM` на этот домен (админ-шаг, не код).
+
+## Real-user email login verified end-to-end — 2026-09-10
+
+- OTP request → email delivered (Resend, owner address) → code verified (user-provided) → **200 session issued** → authed profile API + GDPR export both 200. This closes the last functional gap of the auth flow on production: real (non-demo) users can now sign up and log in, subject to the Resend test-mode address restriction (domain verification pending for arbitrary recipients).
