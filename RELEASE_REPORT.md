@@ -160,3 +160,10 @@ Post-report deployment executed with the owner present (zero spend):
 - **Next.js 16.3.4 upgrade** shipped (all gates green: unit 192, integration 203, e2e 2, audit clean).
 - **Demo event live**: `welcome-demo-meetup` with members, matching score-100 pair and mutual intro.
 - Remaining external items: `RESEND_API_KEY` (real-user email OTP), `TELEGRAM_BOT_TOKEN` (live Telegram), legal review of `/legal/*` before commercial launch.
+
+---
+
+## Email transport live — 2026-09-10
+
+- **Resend подключён к проду** (`RESEND_API_KEY`, `RESEND_FROM=onboarding@resend.dev`). Проверка: тестовое письмо доставлено на email владельца (Resend id `cbecbe10…`), прод-запрос OTP для реального (не-demo) аккаунта → `200 {ok:true}`.
+- **Ограничение Resend test-mode:** без верифицированного домена письма уходят только на email владельца аккаунта Resend. Для приёма OTP произвольными пользователями: добавить домен в Resend → DNS-записи → `RESEND_FROM` на этот домен (админ-шаг, не код).
