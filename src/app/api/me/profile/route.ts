@@ -14,6 +14,12 @@ interface ProfileRow {
   languages: string[];
   offer_tags: string[];
   need_tags: string[];
+  need_intents: string[];
+  offer_intents: string[];
+  interests: string[];
+  industry: string | null;
+  job_function: string | null;
+  keywords: string[];
   revision: number;
 }
 
@@ -25,7 +31,9 @@ export async function GET(req: NextRequest) {
     const sql = getSql();
     const rows = await sql<ProfileRow[]>`
       SELECT public_slug, display_name, headline, company, short_bio,
-             languages, offer_tags, need_tags, revision::int AS revision
+             languages, offer_tags, need_tags,
+             need_intents, offer_intents, interests, industry, job_function, keywords,
+             revision::int AS revision
       FROM profiles WHERE account_id = ${auth.accountId} LIMIT 1
     `;
     const row = rows[0];
@@ -78,11 +86,19 @@ async function postRoute(req: NextRequest) {
           languages = ${input.value.languages},
           offer_tags = ${input.value.offerTags},
           need_tags = ${input.value.needTags},
+          need_intents = ${input.value.needIntents},
+          offer_intents = ${input.value.offerIntents},
+          interests = ${input.value.interests},
+          industry = ${input.value.industry},
+          job_function = ${input.value.jobFunction},
+          keywords = ${input.value.keywords},
           revision = revision + 1,
           updated_at = now()
         WHERE id = ${currentRow.id} AND revision = ${current}
         RETURNING public_slug, display_name, headline, company, short_bio,
-                  languages, offer_tags, need_tags, revision::int AS revision
+                  languages, offer_tags, need_tags,
+                  need_intents, offer_intents, interests, industry, job_function, keywords,
+                  revision::int AS revision
       `;
       const row = updated[0];
       if (!row) {
@@ -101,12 +117,17 @@ async function postRoute(req: NextRequest) {
     for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const created = await sql<ProfileRow[]>`
-          INSERT INTO profiles (account_id, public_slug, display_name, headline, company, short_bio, languages, offer_tags, need_tags)
+          INSERT INTO profiles (account_id, public_slug, display_name, headline, company, short_bio, languages,
+                                offer_tags, need_tags, need_intents, offer_intents, interests, industry, job_function, keywords)
           VALUES (${auth.accountId}, ${generatePublicSlug()}, ${input.value.displayName}, ${input.value.headline},
                   ${input.value.company}, ${input.value.shortBio}, ${input.value.languages},
-                  ${input.value.offerTags}, ${input.value.needTags})
+                  ${input.value.offerTags}, ${input.value.needTags},
+                  ${input.value.needIntents}, ${input.value.offerIntents}, ${input.value.interests},
+                  ${input.value.industry}, ${input.value.jobFunction}, ${input.value.keywords})
           RETURNING public_slug, display_name, headline, company, short_bio,
-                    languages, offer_tags, need_tags, revision::int AS revision
+                  languages, offer_tags, need_tags,
+                  need_intents, offer_intents, interests, industry, job_function, keywords,
+                  revision::int AS revision
         `;
         const row = created[0];
         if (row) {

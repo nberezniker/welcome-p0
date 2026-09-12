@@ -118,7 +118,19 @@ test('directory: member sees only visible active members; strict field allowlist
     { params: Promise.resolve({ membershipId: aMid }) },
   );
   await membershipPatchRoute(
-    makeRequest(`/api/me/memberships/${bMid}`, { body: { directory_visible: true, offer_tags: ['seed-money'], need_tags: ['frontend'] }, cookie: b.cookie }),
+    makeRequest(`/api/me/memberships/${bMid}`, {
+      body: {
+        directory_visible: true,
+        offer_tags: ['seed-money'],
+        need_tags: ['frontend'],
+        offer_intents: ['open-to-cofound'],
+        need_intents: ['seeking-investment'],
+        interests: ['ai-ml', 'startups'],
+        industry: 'ai-saas',
+        job_function: 'founder-ceo',
+      },
+      cookie: b.cookie,
+    }),
     { params: Promise.resolve({ membershipId: bMid }) },
   );
 
@@ -130,9 +142,18 @@ test('directory: member sees only visible active members; strict field allowlist
   assert.ok(bEntry);
   assert.deepEqual(bEntry?.offer_tags, ['seed-money']);
   assert.equal(bEntry?.display_name, 'Member dir2-b');
+  // Taxonomy v3 axes are part of the directory projection (catalogue values only).
+  assert.deepEqual(bEntry?.offer_intents, ['open-to-cofound']);
+  assert.deepEqual(bEntry?.need_intents, ['seeking-investment']);
+  assert.deepEqual(bEntry?.interests, ['ai-ml', 'startups']);
+  assert.equal(bEntry?.industry, 'ai-saas');
+  assert.equal(bEntry?.job_function, 'founder-ceo');
 
-  // Strict allowlist: no emails, contacts, notes, account ids, revisions.
-  const allowed = new Set(['profile_id', 'display_name', 'headline', 'company', 'offer_tags', 'need_tags']);
+  // Strict allowlist: no emails, contacts, notes, account ids, revisions, keywords.
+  const allowed = new Set([
+    'profile_id', 'display_name', 'headline', 'company', 'offer_tags', 'need_tags',
+    'need_intents', 'offer_intents', 'interests', 'industry', 'job_function',
+  ]);
   for (const m of body2.members) {
     for (const key of Object.keys(m)) {
       assert.ok(allowed.has(key), `unexpected field in directory response: ${key}`);
@@ -143,6 +164,7 @@ test('directory: member sees only visible active members; strict field allowlist
   assert.equal(raw.includes('contact'), false);
   assert.equal(raw.includes('encrypted'), false);
   assert.equal(raw.includes('account'), false);
+  assert.equal(raw.includes('keyword'), false);
 });
 
 test('directory: blocks suppress visibility in both directions', async () => {

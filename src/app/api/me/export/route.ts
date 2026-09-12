@@ -21,7 +21,9 @@ async function postRoute(req: NextRequest) {
     const key = requireEncryptionKey();
 
     const [profileRows, contactRows, consentRows, membershipRows, noteRows, blockRows, reportRows, introductionRows] = await Promise.all([
-      sql`SELECT public_slug, display_name, headline, company, short_bio, languages, offer_tags, need_tags, revision, created_at
+      sql`SELECT public_slug, display_name, headline, company, short_bio, languages, offer_tags, need_tags,
+                 need_intents, offer_intents, interests, industry, job_function, keywords,
+                 revision, created_at
           FROM profiles WHERE account_id = ${auth.accountId}`,
       sql<{ kind: string; encrypted_value: string; public_enabled: boolean; updated_at: Date }[]>`
         SELECT cf.kind, cf.encrypted_value, cf.public_enabled, cf.updated_at
@@ -30,7 +32,9 @@ async function postRoute(req: NextRequest) {
       sql`SELECT purpose, scope_type, scope_id, field_set, policy_version, action, created_at
           FROM consent_events WHERE account_id = ${auth.accountId} ORDER BY created_at ASC`,
       sql`SELECT e.id AS event_id, e.name AS event_name, m.state, m.directory_visible, m.matching_enabled,
-                 m.offer_tags, m.need_tags, m.attendance_source, m.created_at
+                 m.offer_tags, m.need_tags,
+                 m.need_intents, m.offer_intents, m.interests, m.industry, m.job_function, m.keywords,
+                 m.attendance_source, m.created_at
           FROM event_memberships m JOIN events e ON e.id = m.event_id
           JOIN profiles p ON p.id = m.profile_id
           WHERE p.account_id = ${auth.accountId}`,
