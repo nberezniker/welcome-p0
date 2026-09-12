@@ -41,6 +41,9 @@ const env = {
   APP_BASE_URL: 'http://localhost:3000',
   TELEGRAM_WEBHOOK_SECRET: 'integration-telegram-webhook-secret',
   TELEGRAM_BOT_USERNAME: 'WELCOME_test_bot',
+  // Enrichment: offline mock provider. A real Vertex call never happens in CI —
+  // the live check is gated behind ENRICHMENT_LIVE=1 and run by hand.
+  ENRICHMENT_PROVIDER: 'mock',
 };
 
 const result = spawnSync(
