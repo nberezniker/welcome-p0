@@ -171,3 +171,9 @@ Post-report deployment executed with the owner present (zero spend):
 ## Real-user email login verified end-to-end — 2026-09-10
 
 - OTP request → email delivered (Resend, owner address) → code verified (user-provided) → **200 session issued** → authed profile API + GDPR export both 200. This closes the last functional gap of the auth flow on production: real (non-demo) users can now sign up and log in, subject to the Resend test-mode address restriction (domain verification pending for arbitrary recipients).
+
+## Telegram live round trip CLOSED + latency fix — 2026-09-12
+
+- **AC-38 closed with a real user**: web session → deep link → Telegram `/start` → `channel_bindings: active` (real chat) → bot confirmation "Telegram linked" delivered. All four inbound updates processed; binding + 3 replies sent.
+- **telegram_link TTL 10m → 24h** (two-sided binding is the real gate; ADR-0001 precedent). Verified live: challenge expiry now +24h.
+- **Latency fix**: `/api/webhooks/telegram` now processes the update right after the response via Next `after()` (bounded drain 3×5, `tickOnce` reuse; cron stays as backstop). Live-verified: webhook 200 in 1.49s, update `delivered` + reply `sent` with no manual tick.
