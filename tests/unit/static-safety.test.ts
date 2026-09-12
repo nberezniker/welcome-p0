@@ -10,14 +10,24 @@ import { fileURLToPath } from 'node:url';
  *  - server-side fetch to non-allowlisted hosts: P0 must never fetch remote
  *    URLs (SSRF, spec 04 §9) — outbound hosts are allowed ONLY inside their
  *    dedicated transport file under integrations/ (telegram Bot API; Resend
- *    email API, F-01).
+ *    email API, F-01; Vertex AI enrichment, TAXONOMY v3).
  * Tripwire limitation: fetch targets spanning multiple lines are not parsed;
  * every current call site is single-line. */
 
 const SRC_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'src');
-const OUTBOUND_ALLOWLIST: { file: string; host: string }[] = [
+
+/**
+ * Approved outbound hosts. `file: null` reserves a host that has been reviewed
+ * and approved but has no call site yet — such an entry can NEVER authorize a
+ * fetch (only an entry naming the exact file can), the next provider still has
+ * to add its own file entry.
+ */
+const OUTBOUND_ALLOWLIST: { file: string | null; host: string }[] = [
   { file: 'integrations/telegram/transport.ts', host: 'api.telegram.org' },
   { file: 'integrations/email/transport.ts', host: 'api.resend.com' },
+  { file: 'integrations/enrichment/transport.ts', host: 'aiplatform.googleapis.com' },
+  // Pre-approved for a future Vertex AI Search (Discovery Engine) provider.
+  { file: null, host: 'discoveryengine.googleapis.com' },
 ];
 
 function listSourceFiles(dir: string): string[] {
@@ -72,13 +82,14 @@ test('static safety: fetch( targets stay within the outbound allowlist', () => {
   assert.deepEqual(offenders, []);
 
   // 2. Client fetches must use relative paths — no http literal in the call line.
-  const allowlistedFiles = new Set(OUTBOUND_ALLOWLIST.map((a) => a.file));
+  const allowlistedFiles = new Set(OUTBOUND_ALLOWLIST.map((a) => a.file).filter((f): f is string => f !== null));
   const clientWithHttp = scan(/\bfetch\(/, (relFile, lineText) =>
     !allowlistedFiles.has(relFile) && /http:\/\//.test(lineText));
   assert.deepEqual(clientWithHttp, []);
 
-  // 3. Every allowlisted transport must actually pin its host.
+  // 3. Every allowlisted transport that names a file must actually pin its host.
   for (const a of OUTBOUND_ALLOWLIST) {
+    if (a.file === null) continue; // reserved host, no call site yet
     const transport = readFileSync(path.join(SRC_DIR, ...a.file.split('/')), 'utf8');
     assert.ok(transport.includes(`https://${a.host}`), `${a.file} must call https://${a.host} explicitly`);
   }
