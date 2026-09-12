@@ -69,3 +69,33 @@ Sections (mobile-first, EN/RU/ES):
 5. Data migration: теги → interests/keywords; демо-профили получают намерения.
 6. Tests: taxonomy integrity, complement gate, scoring+reasons, link validation (allowlist,
    no SSRF), GitHub-prefill не публикует без подтверждения, публичная проекция без приватного.
+
+---
+
+## Enrichment provider: Google Vertex AI (Gemini + Google Search grounding) — DECISION
+
+**Verified 2026-09-12 (live):** with the machine's existing gcloud credentials
+(`nberezniker@gmail.com`, project `colmobeat-content-factory`, `aiplatform.googleapis.com` enabled),
+a grounded `gemini-2.5-flash` call returned a sourced answer (5 sources). Model id note:
+`gemini-3.1-flash` → 404 in this project; `gemini-2.5-flash` works (choose model via env).
+
+**Costs (verified from Google pricing pages):** 5,000 free grounded search requests/month for
+Gemini 3.x (shared); afterwards ~$14/1k; classic Search Grounding $35/1k after free tier.
+At 1 call per user enrichment this is effectively free at our scale.
+
+**Why Vertex over LinkedIn-enrichment APIs:** LinkedIn sued Proxycurl (Jan 2025) → shut down
+Jul 2025. Grounded LLM search over the open web + the user's own links is the defensible path.
+
+**Design (adapter, provider-agnostic):**
+- `src/integrations/enrichment/` — providers: `vertex-gemini` (primary), `gemini-api-key`,
+  `tavily`, `exa`; selected by `ENRICHMENT_PROVIDER` env; disabled-provider fallback (honest 503),
+  same pattern as email/telegram transports.
+- Auth: local dev = ADC; production = service account JSON in env (`GCP_SA_JSON`) with
+  `roles/aiplatform.user` (least privilege) — to be created on the owner's project with consent.
+- Flow: authenticated user clicks «Заполнить из интернета» → we send ONLY their own identifiers
+  (name, company, their own links) → grounded draft + **source list** → user confirms line by line
+  → only confirmed fields are published. Provenance stored (source URLs) and shown.
+- Rules: user-initiated, own data only, no bulk/third-party enrichment, no LinkedIn scraping,
+  free-tier-first (paid provider only with explicit owner approval).
+- Known limitation (observed): thin public footprint → grounding may return nothing; then the
+  user's own links (site, GitHub, Telegram) are the main source.
