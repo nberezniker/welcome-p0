@@ -1,4 +1,12 @@
 import { normalTags } from './matching';
+import {
+  validateIndustry,
+  validateInterests,
+  validateJobFunction,
+  validateKeywords,
+  validateNeedIntents,
+  validateOfferIntents,
+} from './taxonomy';
 
 /** Pure profile input validation + optimistic-concurrency logic.
  * DB access stays in route handlers; this module is unit-testable. */
@@ -11,6 +19,13 @@ export interface ProfileInput {
   languages: string[];
   offerTags: string[];
   needTags: string[];
+  /** Taxonomy v3 axes (additive; legacy tags stay for the frozen tag core). */
+  needIntents: string[];
+  offerIntents: string[];
+  interests: string[];
+  industry: string | null;
+  jobFunction: string | null;
+  keywords: string[];
 }
 
 export type Validated<T> = { ok: true; value: T } | { ok: false; code: string; message: string };
@@ -69,6 +84,21 @@ export function validateProfileInput(body: unknown): Validated<ProfileInput> {
     return { ok: false, code: 'invalid_tags', message: 'offer_tags/need_tags must be an array of strings, each up to 80 chars' };
   }
 
+  // Taxonomy v3 axes. Absent fields default to empty/null so existing clients and
+  // pre-v3 rows keep validating unchanged; unknown catalogue ids are an error.
+  const needIntents = validateNeedIntents(b.need_intents);
+  if (!needIntents.ok) return { ok: false, code: needIntents.code, message: needIntents.message };
+  const offerIntents = validateOfferIntents(b.offer_intents);
+  if (!offerIntents.ok) return { ok: false, code: offerIntents.code, message: offerIntents.message };
+  const interests = validateInterests(b.interests);
+  if (!interests.ok) return { ok: false, code: interests.code, message: interests.message };
+  const keywords = validateKeywords(b.keywords);
+  if (!keywords.ok) return { ok: false, code: keywords.code, message: keywords.message };
+  const industry = validateIndustry(b.industry);
+  if (!industry.ok) return { ok: false, code: industry.code, message: industry.message };
+  const jobFunction = validateJobFunction(b.job_function);
+  if (!jobFunction.ok) return { ok: false, code: jobFunction.code, message: jobFunction.message };
+
   return {
     ok: true,
     value: {
@@ -79,6 +109,12 @@ export function validateProfileInput(body: unknown): Validated<ProfileInput> {
       languages,
       offerTags,
       needTags,
+      needIntents: needIntents.value,
+      offerIntents: offerIntents.value,
+      interests: interests.value,
+      industry: industry.value,
+      jobFunction: jobFunction.value,
+      keywords: keywords.value,
     },
   };
 }

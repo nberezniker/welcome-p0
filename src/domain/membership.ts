@@ -1,4 +1,12 @@
 import type { Sql, TransactionSql } from 'postgres';
+import {
+  validateIndustry,
+  validateInterests,
+  validateJobFunction,
+  validateKeywords,
+  validateNeedIntents,
+  validateOfferIntents,
+} from './taxonomy';
 
 /** Own-membership resolution for /api/me/memberships/*.
  * A member may only change their OWN membership; anything else is 403. */
@@ -13,6 +21,12 @@ export interface OwnMembership {
   matching_enabled: boolean;
   offer_tags: string[];
   need_tags: string[];
+  need_intents: string[];
+  offer_intents: string[];
+  interests: string[];
+  industry: string | null;
+  job_function: string | null;
+  keywords: string[];
 }
 
 export async function requireOwnMembership(
@@ -24,7 +38,8 @@ export async function requireOwnMembership(
   if (!uuidRe.test(membershipId) || !uuidRe.test(accountId)) return null;
   const rows = await sql<OwnMembership[]>`
     SELECT m.id, m.event_id, m.profile_id, m.state, m.directory_visible, m.attendance_source,
-           m.matching_enabled, m.offer_tags, m.need_tags
+           m.matching_enabled, m.offer_tags, m.need_tags,
+           m.need_intents, m.offer_intents, m.interests, m.industry, m.job_function, m.keywords
     FROM event_memberships m
     JOIN profiles p ON p.id = m.profile_id
     WHERE m.id = ${membershipId} AND p.account_id = ${accountId}
@@ -38,6 +53,12 @@ export interface MembershipPatchInput {
   matchingEnabled?: boolean;
   offerTags?: string[];
   needTags?: string[];
+  needIntents?: string[];
+  offerIntents?: string[];
+  interests?: string[];
+  industry?: string | null;
+  jobFunction?: string | null;
+  keywords?: string[];
   leave?: boolean;
 }
 
@@ -78,6 +99,39 @@ export function validateMembershipPatch(body: unknown): MembershipPatchValidatio
     }
   }
 
+  // Taxonomy v3 axes — catalogue-validated, per-axis limits enforced. Only keys
+  // present in the body are patched (same merge semantics as the tag arrays).
+  if ('need_intents' in b) {
+    const r = validateNeedIntents(b.need_intents);
+    if (!r.ok) return r;
+    value.needIntents = r.value;
+  }
+  if ('offer_intents' in b) {
+    const r = validateOfferIntents(b.offer_intents);
+    if (!r.ok) return r;
+    value.offerIntents = r.value;
+  }
+  if ('interests' in b) {
+    const r = validateInterests(b.interests);
+    if (!r.ok) return r;
+    value.interests = r.value;
+  }
+  if ('keywords' in b) {
+    const r = validateKeywords(b.keywords);
+    if (!r.ok) return r;
+    value.keywords = r.value;
+  }
+  if ('industry' in b) {
+    const r = validateIndustry(b.industry);
+    if (!r.ok) return r;
+    value.industry = r.value;
+  }
+  if ('job_function' in b) {
+    const r = validateJobFunction(b.job_function);
+    if (!r.ok) return r;
+    value.jobFunction = r.value;
+  }
+
   if ('state' in b) {
     if (b.state !== 'left') {
       return { ok: false, code: 'invalid_state', message: "state may only be set to 'left'; re-join via the join endpoint" };
@@ -87,9 +141,16 @@ export function validateMembershipPatch(body: unknown): MembershipPatchValidatio
 
   if (
     value.directoryVisible === undefined && value.matchingEnabled === undefined &&
-    value.offerTags === undefined && value.needTags === undefined && !value.leave
+    value.offerTags === undefined && value.needTags === undefined &&
+    value.needIntents === undefined && value.offerIntents === undefined &&
+    value.interests === undefined && value.industry === undefined &&
+    value.jobFunction === undefined && value.keywords === undefined && !value.leave
   ) {
-    return { ok: false, code: 'nothing_to_update', message: 'Provide directory_visible, matching_enabled, offer_tags, need_tags and/or state' };
+    return {
+      ok: false,
+      code: 'nothing_to_update',
+      message: 'Provide directory_visible, matching_enabled, offer_tags, need_tags, need_intents, offer_intents, interests, industry, job_function, keywords and/or state',
+    };
   }
 
   return { ok: true, value };
