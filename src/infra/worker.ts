@@ -37,6 +37,10 @@ export interface WorkerDeps {
   transport?: ChannelTransport;
   /** Test hook: set false to skip the cleanup due-gate. */
   cleanup?: boolean;
+  /** Max jobs claimed by this tick (default BATCH_LIMIT). Callers that must stay
+   * short — the webhook post-response fast path — pass a small cap instead of
+   * getting their own copy of the claim/process logic. */
+  batchLimit?: number;
 }
 
 export interface TickReport {
@@ -51,7 +55,9 @@ export interface TickReport {
 const BATCH_LIMIT = 10;
 
 /** One worker tick: heartbeat → requeue expired leases → claim → process →
- * cleanup pass when due (F-06). */
+ * cleanup pass when due (F-06). The claim batch is overridable via
+ * deps.batchLimit — the webhook post-response path (infra/post-response-tick)
+ * reuses this exact tick with a small cap instead of duplicating the pipeline. */
 export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   const sql = deps.sql ?? getSql();
 
@@ -62,7 +68,7 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   `;
   const requeuedLeases = await requeueExpiredLeases(sql);
 
-  const jobs = await claimJobs(sql, BATCH_LIMIT);
+  const jobs = await claimJobs(sql, deps.batchLimit ?? BATCH_LIMIT);
   const results: TickReport['results'] = [];
   for (const job of jobs) {
     const outcome = await processJob(sql, deps.transport ?? null, job);

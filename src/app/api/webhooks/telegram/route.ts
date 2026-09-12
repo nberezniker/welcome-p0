@@ -5,6 +5,7 @@ import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../.
 import { secureSecretEqual } from '../../../../lib/crypto';
 import { validateTelegramUpdate } from '../../../../integrations/telegram/updates';
 import { enqueueOutbox } from '../../../../infra/outbox';
+import { schedulePostResponseTick } from '../../../../infra/post-response-tick';
 
 /**
  * POST /api/webhooks/telegram — durable accept point for Bot API updates.
@@ -20,6 +21,10 @@ import { enqueueOutbox } from '../../../../infra/outbox';
  *   4. Enqueue one outbox job (kind 'telegram_update') in the same
  *      transaction — durable accept now, async processing later; the webhook
  *      responds 200 immediately.
+ *   5. Latency: hand the bounded tick to Next's after() so the response goes
+ *      out FIRST and processing follows immediately (no waiting for the cron
+ *      tick). Purely an accelerator — an unprocessed job stays 'pending' and
+ *      is claimed by the cron / /api/internal/worker-tick backstop.
  */
 
 const SECRET_HEADER = 'x-telegram-bot-api-secret-token';
@@ -55,14 +60,14 @@ async function postRoute(req: NextRequest) {
     // 3+4. Durable accept + outbox enqueue, deduped by update_id.
     const sql: Sql = getSql();
     const updateIdStr = String(parsed.value.updateId);
-    const accepted = await sql.begin(async (tx) => {
+    const result = await sql.begin(async (tx) => {
       const inserted = await tx<{ id: number }[]>`
         INSERT INTO inbox_events (provider, external_event_id, event_type, minimal_payload)
         VALUES ('telegram', ${updateIdStr}, ${parsed.value.eventType}, ${tx.json(parsed.value.minimalPayload)})
         ON CONFLICT (provider, external_event_id) DO NOTHING
         RETURNING id
       `;
-      if (!inserted[0]) return false; // replay: one business operation only (AC-37)
+      if (!inserted[0]) return { accepted: false, enqueued: false }; // replay: one business operation only (AC-37)
       if (parsed.value.eventType === 'message') {
         // subject_id is uuid-typed (business subjects); the inbox event id is a
         // bigserial, so it travels in the payload instead.
@@ -74,12 +79,19 @@ async function postRoute(req: NextRequest) {
           purpose: 'service_channel',
           payload: { ...parsed.value.minimalPayload, inbox_event_id: inserted[0].id },
         });
+        return { accepted: true, enqueued: true };
       }
-      return true;
+      return { accepted: true, enqueued: false };
     });
 
+    // 5. Register the fast path BEFORE responding: after() defers the tick until
+    //    this response has been sent, so Telegram gets its 200 first and the
+    //    just-queued update is still processed within this invocation. Only a
+    //    freshly enqueued job (not a replay, not a jobless event) triggers it.
+    if (result.enqueued) schedulePostResponseTick();
+
     // Replays get the same 200 — the provider must not retry on dedupe.
-    return jsonOk({ ok: true, accepted });
+    return jsonOk({ ok: true, accepted: result.accepted });
   } catch (err) {
     return internalError(err);
   }
