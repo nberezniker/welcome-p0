@@ -21,6 +21,31 @@ import {
 const alice: MatchProfileInput = { id: 'a', eligible: true, needs: ['frontend', 'design'], offers: ['mentoring'] };
 const bob: MatchProfileInput = { id: 'b', eligible: true, needs: ['mentoring'], offers: ['frontend', 'design'] };
 
+// Real demo geometry (scripts/seed-demo-event.mts): the owner profile needs 4
+// tags of which the partner offers 2, while the partner needs 2 tags the owner
+// offers in full. Asymmetric coverage: dAB = 0.5, dBA = 1.0.
+const demoOwner: MatchProfileInput = {
+  id: 'owner',
+  eligible: true,
+  offers: [
+    'ai-transformation',
+    'applied-ai',
+    'automation',
+    'sales-leadership',
+    'process-design',
+    'product-discovery',
+    'rag',
+    'mcp',
+  ],
+  needs: ['b2b-clients', 'ai-pilots', 'sales-growth', 'partnerships'],
+};
+const demoPartner: MatchProfileInput = {
+  id: 'partner',
+  eligible: true,
+  offers: ['b2b-clients', 'ai-pilots'],
+  needs: ['ai-transformation', 'automation'],
+};
+
 test('AC-27 core: complementary needs/offers produce a mutual score', () => {
   const m = scorePair(alice, bob);
   assert.ok(m);
@@ -59,6 +84,22 @@ test('core: partial overlap computes the frozen formula exactly', () => {
   const dAB = 1 / 2;
   const dBA = 1 / 2;
   assert.equal(m.score, Math.round(100 * (0.6 * Math.min(dAB, dBA) + (0.4 * (dAB + dBA)) / 2)));
+});
+
+test('core: asymmetric coverage (0.5/1.0) computes the frozen formula exactly', () => {
+  const m = scorePair(demoOwner, demoPartner)!;
+  const dAB = 2 / 4;
+  const dBA = 2 / 2;
+  assert.equal(m.score, Math.round(100 * (0.6 * Math.min(dAB, dBA) + (0.4 * (dAB + dBA)) / 2)));
+  assert.equal(m.score, 60); // 0.6*0.5 + 0.4*1.5/2 = 0.60
+  assert.deepEqual(m.reasonsForA, ['b2b-clients', 'ai-pilots']); // owner needs covered by partner offers
+  assert.deepEqual(m.reasonsForB, ['ai-transformation', 'automation']); // partner needs covered by owner offers
+
+  // Score is symmetric; only the reasons swap sides.
+  const back = scorePair(demoPartner, demoOwner)!;
+  assert.equal(back.score, 60);
+  assert.deepEqual(back.reasonsForA, m.reasonsForB);
+  assert.deepEqual(back.reasonsForB, m.reasonsForA);
 });
 
 test('core: self, ineligible and blocked pairs are rejected', () => {
@@ -134,6 +175,8 @@ test('canRevealPrivate: contract shape (mutually_accepted + policy version match
 const parityPairs: [MatchProfileInput, MatchProfileInput][] = [
   [alice, bob],
   [bob, alice],
+  [demoOwner, demoPartner],
+  [demoPartner, demoOwner],
   [
     { id: 'p1', eligible: true, needs: ['a', 'b', 'c'], offers: ['x'] },
     { id: 'p2', eligible: true, needs: ['x', 'y'], offers: ['b', 'c'] },

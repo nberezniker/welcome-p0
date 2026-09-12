@@ -4,11 +4,18 @@
 // registrations, directory+recommendation memberships for demo1/demo2 and one
 // mutual event-context introduction between them (reveal both ways).
 //
+// It also seeds a synthetic demo partner (Marta Ruiz, is_demo) whose membership
+// tags match the REAL owner profile ("Nikita Berezniker") two-way, so the owner
+// account has a genuine explainable match + intro to demo. The owner's own
+// profile/membership is only READ + verified here — never written: the script
+// fails loudly if that real membership is missing or not match-eligible.
+//
 // All seeded rows are demo data (is_demo accounts, synthetic guests under
-// demo-csv-N@welcome.test). The script prints what it created / updated /
-// skipped and is idempotent: re-running upserts by event slug,
-// (event_id, provider, external_guest_id) and the canonical introduction pair —
-// never duplicates.
+// demo-csv-N@welcome.test, synthetic partner under marta.demo@welcome.test).
+// The script prints what it created / updated / skipped and is idempotent:
+// re-running upserts by event slug, (event_id, provider, external_guest_id),
+// the synthetic email lookup hash / account_id and the canonical introduction
+// pair — never duplicates.
 //
 // Safety: refuses to run against APP_ENV=production OR a non-local database
 // unless --allow-production-demo is passed (staging-test only; data is_demo).
@@ -17,7 +24,7 @@
 // with DATABASE_URL (or NEON_CONN_DIRECT from .env.deploy.secrets), HASH_PEPPER,
 // ENCRYPTION_KEY in the environment.
 import postgres from 'postgres';
-import { emailLookupHash, encryptValue } from '../src/lib/crypto.ts';
+import { emailLookupHash, encryptValue, generatePublicSlug } from '../src/lib/crypto.ts';
 import { isProduction } from '../src/lib/env.ts';
 import { canonicalPair, eventContextKey } from '../src/domain/introductions.ts';
 import { scorePair } from '../src/domain/matching.ts';
@@ -80,6 +87,59 @@ const GUESTS = [
   { n: 'Nuria Bosch', role: 'Customer Success', company: 'Loopmetrics', tags: ['feedback', 'pilot users'] },
   { n: 'Óscar Feliu', role: 'Design Director', company: 'Forma Digital', tags: ['ux', 'product design'] },
 ];
+
+// ---------------------------------------------------------------------------
+// Synthetic demo partner for the REAL owner account
+// ---------------------------------------------------------------------------
+// Marta is a full demo member (account + profile + contacts + membership) so
+// the owner sees an explainable two-way match and a mutual introduction in the
+// event. Her membership tag override is the matching surface:
+//   Marta offers {b2b-clients, ai-pilots}          -> owner needs, 2 of 4 covered
+//   Marta needs  {ai-transformation, automation}   -> owner offers, 2 of 2 covered
+// Frozen formula (src/domain/matching.ts):
+//   d(owner→partner) = 2/4 = 0.5, d(partner→owner) = 2/2 = 1.0
+//   score = round(100 * (0.6*min(0.5,1.0) + 0.4*(0.5+1.0)/2)) = 60
+const PARTNER_EMAIL = 'marta.demo@welcome.test'; // stable synthetic email = idempotency key
+const PARTNER = {
+  display_name: 'Marta Ruiz',
+  headline: 'COO, retail chain · looking for AI automation',
+  company: 'Iberia Retail Group (demo)',
+  short_bio:
+    'Ищу подрядчика по AI-трансформации процессов: готова дать пилот и честную обратную связь.',
+  languages: ['spanish', 'english'],
+  offer_tags: ['b2b-clients', 'ai-pilots'],
+  need_tags: ['ai-transformation', 'automation'],
+  contacts: [
+    { kind: 'telegram_username', value: '@marta_demo', public_enabled: true },
+    { kind: 'whatsapp', value: '+34600000000', public_enabled: true },
+  ],
+} as const;
+
+// The real owner profile the demo partner must match with (never modified).
+const OWNER_DISPLAY_NAME = 'Nikita Berezniker';
+const OWNER_EXPECTED_OFFERS = [
+  'ai-transformation',
+  'applied-ai',
+  'automation',
+  'sales-leadership',
+  'process-design',
+  'product-discovery',
+  'rag',
+  'mcp',
+];
+const OWNER_EXPECTED_NEEDS = ['b2b-clients', 'ai-pilots', 'sales-growth', 'partnerships'];
+
+// Documented expectation for the owner<->partner geometry (see comment above).
+const OWNER_PAIR_EXPECTED_SCORE = 60;
+const OWNER_PAIR_EXPECTED_REASONS_FOR_OWNER = ['b2b-clients', 'ai-pilots'];
+const OWNER_PAIR_EXPECTED_REASONS_FOR_PARTNER = ['ai-transformation', 'automation'];
+
+/** Order-insensitive array equality (tag sets). */
+function sameTags(a: readonly string[], b: readonly string[]): boolean {
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.length === sb.length && sa.every((x, i) => x === sb[i]);
+}
 
 // ---------------------------------------------------------------------------
 // Europe/Madrid wall-clock -> UTC (DST-correct via Intl)
@@ -256,8 +316,8 @@ async function upsertRegistration(eventId: string, guestNo: number, guest: { n: 
 async function upsertDemoMembership(
   eventId: string,
   profile: { id: string; display_name: string },
-  offers: string[],
-  needs: string[],
+  offers: readonly string[],
+  needs: readonly string[],
 ) {
   const existing = await sql<{ id: string }[]>`
     SELECT id FROM event_memberships WHERE event_id = ${eventId} AND profile_id = ${profile.id} LIMIT 1
@@ -282,8 +342,143 @@ async function upsertDemoMembership(
 }
 
 // ---------------------------------------------------------------------------
+// Demo partner upserts (synthetic account/profile/contacts)
+// ---------------------------------------------------------------------------
+async function ensurePartnerAccount(): Promise<{ id: string; created: boolean }> {
+  const lookupHash = emailLookupHash(PARTNER_EMAIL, pepper);
+  const existing = await sql<{ id: string }[]>`
+    SELECT id FROM accounts WHERE email_lookup_hash = ${lookupHash} LIMIT 1
+  `;
+  if (existing[0]) return { id: existing[0].id, created: false };
+
+  const rows = await sql<{ id: string }[]>`
+    INSERT INTO accounts (auth_subject, email_lookup_hash, is_demo)
+    VALUES (${'email:' + lookupHash}, ${lookupHash}, true)
+    ON CONFLICT (auth_subject) DO UPDATE SET is_demo = true
+    RETURNING id
+  `;
+  return { id: rows[0]!.id, created: true };
+}
+
+async function ensurePartnerProfile(
+  accountId: string,
+): Promise<{ id: string; public_slug: string; created: boolean }> {
+  const existing = await sql<{ id: string; public_slug: string }[]>`
+    SELECT id, public_slug FROM profiles WHERE account_id = ${accountId} LIMIT 1
+  `;
+  if (existing[0]) {
+    await sql`
+      UPDATE profiles SET
+        display_name = ${PARTNER.display_name},
+        headline = ${PARTNER.headline},
+        company = ${PARTNER.company},
+        short_bio = ${PARTNER.short_bio},
+        languages = ${PARTNER.languages},
+        offer_tags = ${PARTNER.offer_tags},
+        need_tags = ${PARTNER.need_tags},
+        updated_at = now()
+      WHERE id = ${existing[0].id}
+    `;
+    return { id: existing[0].id, public_slug: existing[0].public_slug, created: false };
+  }
+
+  const rows = await sql<{ id: string; public_slug: string }[]>`
+    INSERT INTO profiles (account_id, public_slug, display_name, headline, company, short_bio,
+                          languages, offer_tags, need_tags)
+    VALUES (${accountId}, ${generatePublicSlug()}, ${PARTNER.display_name}, ${PARTNER.headline},
+            ${PARTNER.company}, ${PARTNER.short_bio}, ${PARTNER.languages},
+            ${PARTNER.offer_tags}, ${PARTNER.need_tags})
+    RETURNING id, public_slug
+  `;
+  return { id: rows[0]!.id, public_slug: rows[0]!.public_slug, created: true };
+}
+
+/** Contacts are AES-256-GCM ciphertext at rest; upsert per (profile_id, kind). */
+async function upsertPartnerContacts(profileId: string): Promise<string[]> {
+  const outcomes: string[] = [];
+  for (const c of PARTNER.contacts) {
+    const rows = await sql<{ inserted: boolean }[]>`
+      INSERT INTO contact_fields (profile_id, kind, encrypted_value, public_enabled)
+      VALUES (${profileId}, ${c.kind}, ${encryptValue(c.value, encKey)}, ${c.public_enabled})
+      ON CONFLICT (profile_id, kind)
+        DO UPDATE SET encrypted_value = EXCLUDED.encrypted_value,
+                      public_enabled = EXCLUDED.public_enabled,
+                      verified_at = NULL,
+                      updated_at = now()
+      RETURNING (xmax = 0) AS inserted
+    `;
+    outcomes.push(`${c.kind}:${rows[0]!.inserted ? 'created' : 'updated'}`);
+  }
+  return outcomes;
+}
+
+// ---------------------------------------------------------------------------
+// Real owner lookup + read-only membership checks
+// ---------------------------------------------------------------------------
+async function findOwnerProfile() {
+  const rows = await sql<{ id: string; account_id: string; display_name: string }[]>`
+    SELECT pr.id, pr.account_id, pr.display_name
+    FROM profiles pr
+    JOIN accounts a ON a.id = pr.account_id
+    WHERE pr.display_name = ${OWNER_DISPLAY_NAME} AND a.is_demo = false
+    ORDER BY pr.created_at ASC
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** Effective (membership override else profile) matching view of a membership. */
+async function readMembershipView(eventId: string, profileId: string) {
+  const rows = await sql<
+    { state: string; directory_visible: boolean; matching_enabled: boolean; needs: string[]; offers: string[] }[]
+  >`
+    SELECT m.state, m.directory_visible, m.matching_enabled,
+           COALESCE(NULLIF(m.need_tags, '{}'), pr.need_tags) AS needs,
+           COALESCE(NULLIF(m.offer_tags, '{}'), pr.offer_tags) AS offers
+    FROM event_memberships m
+    JOIN profiles pr ON pr.id = m.profile_id
+    WHERE m.event_id = ${eventId} AND m.profile_id = ${profileId}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+// ---------------------------------------------------------------------------
 // Matching proof + the mutual introduction
 // ---------------------------------------------------------------------------
+/** Upsert one canonical event-context pair as mutual with accept consents on both sides. */
+async function upsertMutualIntro(
+  eventId: string,
+  profileA: string,
+  profileB: string,
+  reason: { reasons_for_a: string[]; reasons_for_b: string[]; algorithm: string },
+): Promise<string> {
+  const inserted = await sql<{ id: string; inserted: boolean }[]>`
+    INSERT INTO introductions (event_id, profile_a, profile_b, context_key, reason, state)
+    VALUES (${eventId}, ${profileA}, ${profileB}, ${eventContextKey(eventId)}, ${sql.json(reason)}, 'mutual')
+    ON CONFLICT (context_key, profile_a, profile_b)
+      DO UPDATE SET state = 'mutual', reason = EXCLUDED.reason, event_id = EXCLUDED.event_id
+    RETURNING id, (xmax = 0) AS inserted
+  `;
+  const introId = inserted[0]!.id;
+
+  const consents = await sql`
+    INSERT INTO introduction_consents (introduction_id, profile_id, decision, reveal_fields, version)
+    VALUES
+      (${introId}, ${profileA}, 'accept', ARRAY['telegram_username', 'whatsapp'], 1),
+      (${introId}, ${profileB}, 'accept', ARRAY['telegram_username', 'whatsapp'], 1)
+    ON CONFLICT (introduction_id, profile_id)
+      DO UPDATE SET decision = 'accept', reveal_fields = EXCLUDED.reveal_fields, version = introduction_consents.version + 1,
+                    updated_at = now()
+    RETURNING profile_id
+  `;
+  console.log(
+    `mutual introduction ${inserted[0]!.inserted ? 'created' : 'updated'} (id ${introId}); ` +
+      `consents accept on ${consents.length} side(s), reveal ['telegram_username','whatsapp'] both ways`,
+  );
+  return introId;
+}
+
 async function verifyAndUpsertIntro(
   eventId: string,
   demo1: { id: string; profile: { id: string; display_name: string } },
@@ -334,30 +529,114 @@ async function verifyAndUpsertIntro(
   }
 
   const reason = { reasons_for_a: match.reasonsForA, reasons_for_b: match.reasonsForB, algorithm: match.algorithm };
-  const inserted = await sql<{ id: string; inserted: boolean }[]>`
-    INSERT INTO introductions (event_id, profile_a, profile_b, context_key, reason, state)
-    VALUES (${eventId}, ${pair.profileA}, ${pair.profileB}, ${ctx}, ${sql.json(reason)}, 'mutual')
-    ON CONFLICT (context_key, profile_a, profile_b)
-      DO UPDATE SET state = 'mutual', reason = EXCLUDED.reason, event_id = EXCLUDED.event_id
-    RETURNING id, (xmax = 0) AS inserted
-  `;
-  const introId = inserted[0]!.id;
+  return upsertMutualIntro(eventId, pair.profileA, pair.profileB, reason);
+}
 
-  const consents = await sql`
-    INSERT INTO introduction_consents (introduction_id, profile_id, decision, reveal_fields, version)
-    VALUES
-      (${introId}, ${pair.profileA}, 'accept', ARRAY['telegram_username', 'whatsapp'], 1),
-      (${introId}, ${pair.profileB}, 'accept', ARRAY['telegram_username', 'whatsapp'], 1)
-    ON CONFLICT (introduction_id, profile_id)
-      DO UPDATE SET decision = 'accept', reveal_fields = EXCLUDED.reveal_fields, version = introduction_consents.version + 1,
-                    updated_at = now()
-    RETURNING profile_id
-  `;
-  console.log(
-    `mutual introduction ${inserted[0]!.inserted ? 'created' : 'updated'} (id ${introId}); ` +
-      `consents accept on ${consents.length} side(s), reveal ['telegram_username','whatsapp'] both ways`,
+// ---------------------------------------------------------------------------
+// Real-owner <-> demo-partner proof + intro
+// ---------------------------------------------------------------------------
+/**
+ * Verifies the owner<->partner geometry against the frozen formula, then (while
+ * no pair exists yet) against the live server-side recommendation path, and
+ * finally stores the mutual intro. The owner's profile/membership is read-only:
+ * a missing or non-eligible membership is a hard error, not something we patch.
+ */
+async function verifyAndUpsertOwnerIntro(
+  eventId: string,
+  owner: { account_id: string; profile_id: string; display_name: string; membership: { needs: string[]; offers: string[] } },
+  partnerProfileId: string,
+) {
+  const pair = canonicalPair(owner.profile_id, partnerProfileId);
+  const ctx = eventContextKey(eventId);
+
+  // Viewer-oriented match: owner as A, partner as B.
+  const match = scorePair(
+    { id: owner.profile_id, eligible: true, needs: owner.membership.needs, offers: owner.membership.offers },
+    { id: partnerProfileId, eligible: true, needs: PARTNER.need_tags, offers: PARTNER.offer_tags },
   );
-  return introId;
+  if (!match) {
+    throw new Error(
+      `owner<->partner tag geometry must produce a mutual match (owner offers=[${owner.membership.offers.join(', ')}] ` +
+        `needs=[${owner.membership.needs.join(', ')}])`,
+    );
+  }
+
+  const dAB = match.reasonsForA.length / Math.max(1, owner.membership.needs.length);
+  const dBA = match.reasonsForB.length / Math.max(1, PARTNER.need_tags.length);
+  console.log(
+    `scorePair ${owner.display_name}<->${PARTNER.display_name} = ${match.score} ` +
+      `(d(owner→partner)=${dAB}, d(partner→owner)=${dBA}; ` +
+      `reasons_for_owner: ${match.reasonsForA.join(', ') || '-'}; reasons_for_partner: ${match.reasonsForB.join(', ') || '-'})`,
+  );
+
+  if (!sameTags(owner.membership.offers, OWNER_EXPECTED_OFFERS) || !sameTags(owner.membership.needs, OWNER_EXPECTED_NEEDS)) {
+    throw new Error(
+      `owner effective event tags differ from the demo expectation: ` +
+        `offers=[${owner.membership.offers.join(', ')}] (expected [${OWNER_EXPECTED_OFFERS.join(', ')}]), ` +
+        `needs=[${owner.membership.needs.join(', ')}] (expected [${OWNER_EXPECTED_NEEDS.join(', ')}])`,
+    );
+  }
+  if (
+    match.score !== OWNER_PAIR_EXPECTED_SCORE ||
+    !sameTags(match.reasonsForA, OWNER_PAIR_EXPECTED_REASONS_FOR_OWNER) ||
+    !sameTags(match.reasonsForB, OWNER_PAIR_EXPECTED_REASONS_FOR_PARTNER)
+  ) {
+    throw new Error(
+      `owner<->partner score geometry drifted: got score ${match.score} ` +
+        `(reasons_for_owner: ${match.reasonsForA.join(', ') || '-'}; reasons_for_partner: ${match.reasonsForB.join(', ') || '-'}), ` +
+        `expected score ${OWNER_PAIR_EXPECTED_SCORE} ` +
+        `(reasons_for_owner: ${OWNER_PAIR_EXPECTED_REASONS_FOR_OWNER.join(', ')}; ` +
+        `reasons_for_partner: ${OWNER_PAIR_EXPECTED_REASONS_FOR_PARTNER.join(', ')})`,
+    );
+  }
+  console.log(
+    `owner<->partner geometry ok: score ${match.score} (0.6*min(${dAB},${dBA}) + 0.4*(${dAB}+${dBA})/2 = ${match.score / 100})`,
+  );
+
+  // Live recommendation proof (only meaningful before the pair exists — an
+  // existing pair is excluded by the event intro cooldown rule).
+  const existingIntro = await sql<{ id: string }[]>`
+    SELECT id FROM introductions
+    WHERE context_key = ${ctx} AND profile_a = ${pair.profileA} AND profile_b = ${pair.profileB}
+    LIMIT 1
+  `;
+  if (!existingIntro[0]) {
+    const recs = await recommendForEvent(sql, { accountId: owner.account_id, profileId: owner.profile_id }, eventId);
+    const hit = recs.find((r) => r.profile_id === partnerProfileId);
+    if (!hit) {
+      throw new Error(
+        `recommendForEvent did not return ${PARTNER.display_name} for ${owner.display_name}; ` +
+          `got: ${recs.map((r) => `${r.display_name}=${r.score}`).join(', ') || '(none)'}`,
+      );
+    }
+    if (
+      hit.score !== match.score ||
+      !sameTags(hit.reasons_for_me, match.reasonsForA) ||
+      !sameTags(hit.reasons_for_them, match.reasonsForB)
+    ) {
+      throw new Error(
+        `recommendForEvent disagrees with scorePair for ${PARTNER.display_name}: ` +
+          `recommendation score ${hit.score} (for_me: ${hit.reasons_for_me.join(', ') || '-'}; for_them: ${hit.reasons_for_them.join(', ') || '-'})`,
+      );
+    }
+    console.log(
+      `recommendations for ${owner.display_name}: ${hit.display_name} score ${hit.score} ` +
+        `(for_me: ${hit.reasons_for_me.join(', ')}; for_them: ${hit.reasons_for_them.join(', ')})`,
+    );
+  } else {
+    console.log(
+      `owner<->partner intro already exists — recommendation check skipped (pair excluded by cooldown rule); ` +
+        `scorePair above is the proof`,
+    );
+  }
+
+  const aIsOwner = pair.profileA === owner.profile_id;
+  const reason = {
+    reasons_for_a: aIsOwner ? match.reasonsForA : match.reasonsForB,
+    reasons_for_b: aIsOwner ? match.reasonsForB : match.reasonsForA,
+    algorithm: match.algorithm,
+  };
+  return upsertMutualIntro(eventId, pair.profileA, pair.profileB, reason);
 }
 
 // ---------------------------------------------------------------------------
@@ -396,6 +675,55 @@ console.log(
 );
 
 await verifyAndUpsertIntro(eventId, { ...demo1Account, profile: demo1Profile }, { ...demo2Account, profile: demo2Profile });
+
+// ---------------------------------------------------------------------------
+// Synthetic demo partner for the REAL owner account (match + intro demo)
+// ---------------------------------------------------------------------------
+const partnerAccount = await ensurePartnerAccount();
+const partnerProfile = await ensurePartnerProfile(partnerAccount.id);
+const contactOutcomes = await upsertPartnerContacts(partnerProfile.id);
+const pMembership = await upsertDemoMembership(eventId, partnerProfile, PARTNER.offer_tags, PARTNER.need_tags);
+console.log(
+  `demo partner ${PARTNER.display_name}: account ${partnerAccount.created ? 'created' : 'reused'} ` +
+    `(is_demo, ${PARTNER_EMAIL}); profile ${partnerProfile.created ? 'created' : 'updated'} ` +
+    `(/p/${partnerProfile.public_slug}, ${partnerProfile.id}); contacts [${contactOutcomes.join(', ')}]; ` +
+    `membership ${pMembership} (directory_visible, matching_enabled, offers=${PARTNER.offer_tags.join(',')}, ` +
+    `needs=${PARTNER.need_tags.join(',')})`,
+);
+
+const ownerProfile = await findOwnerProfile();
+if (!ownerProfile) {
+  console.error(
+    `REFUSED: real owner profile "${OWNER_DISPLAY_NAME}" not found (is_demo = false). The demo partner exists only ` +
+      `to match the real owner account — create/rename it first, or set the expected name in this seeder.`,
+  );
+  process.exit(1);
+}
+const ownerMembership = await readMembershipView(eventId, ownerProfile.id);
+if (!ownerMembership) {
+  console.error(
+    `REFUSED: "${ownerProfile.display_name}" is not a member of ${EVENT_SLUG}. Join the event with the owner ` +
+      `account first (this seeder never writes to the real profile/membership).`,
+  );
+  process.exit(1);
+}
+if (ownerMembership.state !== 'active' || !ownerMembership.directory_visible || !ownerMembership.matching_enabled) {
+  console.error(
+    `REFUSED: owner membership in ${EVENT_SLUG} is not match-eligible (state=${ownerMembership.state}, ` +
+      `directory_visible=${ownerMembership.directory_visible}, matching_enabled=${ownerMembership.matching_enabled}).`,
+  );
+  process.exit(1);
+}
+await verifyAndUpsertOwnerIntro(
+  eventId,
+  {
+    account_id: ownerProfile.account_id,
+    profile_id: ownerProfile.id,
+    display_name: ownerProfile.display_name,
+    membership: { needs: ownerMembership.needs, offers: ownerMembership.offers },
+  },
+  partnerProfile.id,
+);
 
 console.log(`seed-demo-event done: event ${eventCreated ? 'created' : 'updated'} (${EVENT_SLUG}, id ${eventId})`);
 await sql.end({ timeout: 5 });
