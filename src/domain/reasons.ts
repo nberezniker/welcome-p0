@@ -61,6 +61,18 @@ function fill(template: string, vars: Record<string, string>): string {
   return template.replace(/\{(\w+)\}/g, (match, key: string) => vars[key] ?? match);
 }
 
+/**
+ * Interpolates, but only when every placeholder has a non-blank value: a sentence
+ * built on a missing fact ("Shared interests: ") is worse than no sentence, so it
+ * collapses to an empty string and the caller drops the reason.
+ */
+function fillOrBlank(template: string, vars: Record<string, string>): string {
+  for (const value of Object.values(vars)) {
+    if (value.trim().length === 0) return '';
+  }
+  return fill(template, vars);
+}
+
 function paramString(reason: Reason, key: string): string | null {
   const value = reason.params[key];
   return typeof value === 'string' ? value : null;
@@ -78,30 +90,33 @@ export function formatReason(
   labelOf: ReasonLabelOf,
 ): string {
   const template = templates[audience][reason.code] ?? '';
+  if (template.length === 0) return '';
   switch (reason.code) {
     case 'intent_need_covered':
     case 'intent_offer_match': {
       const need = paramString(reason, 'need');
-      return fill(template, { need: need ? labelOf('need', need) : '' });
+      return fillOrBlank(template, { need: need ? labelOf('need', need) : '' });
     }
     case 'shared_interests': {
       const ids = reason.params['interests'];
       const list = Array.isArray(ids) ? ids : [];
       const names = list.map((id) => labelOf('interest', id)).join(', ');
-      return fill(template, { interests: names });
+      return fillOrBlank(template, { interests: names });
     }
     case 'shared_function': {
       const id = paramString(reason, 'function');
-      return fill(template, { function: id ? labelOf('function', id) : '' });
+      return fillOrBlank(template, { function: id ? labelOf('function', id) : '' });
     }
     case 'same_industry': {
       const id = paramString(reason, 'industry');
-      return fill(template, { industry: id ? labelOf('industry', id) : '' });
+      return fillOrBlank(template, { industry: id ? labelOf('industry', id) : '' });
     }
     case 'shared_tag': {
       const tag = paramString(reason, 'tag');
-      return fill(template, { tag: tag ?? '' });
+      return fillOrBlank(template, { tag: tag ?? '' });
     }
+    default:
+      return '';
   }
 }
 
@@ -112,7 +127,5 @@ export function formatReasons(
   templates: ReasonTemplates,
   labelOf: ReasonLabelOf,
 ): string[] {
-  return reasons
-    .map((reason) => formatReason(reason, audience, templates, labelOf))
-    .filter((line) => line.length > 0 && !/^\{\w+\}$/.test(line));
+  return reasons.map((reason) => formatReason(reason, audience, templates, labelOf)).filter((line) => line.length > 0);
 }

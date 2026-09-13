@@ -90,7 +90,8 @@ export function validateLink(rawValue: string, kind: LinkKind): LinkValidation {
 
   switch (kind) {
     case 'telegram_username': {
-      const match = /^(?:https?:\/\/(?:t\.me|telegram\.me)\/)?@?([A-Za-z0-9_]{3,32})\/?$/.exec(value);
+      // Accepts "@user", "user", "t.me/user" and the full https://t.me/user URL.
+      const match = /^(?:(?:https?:\/\/)?(?:t\.me|telegram\.me)\/)?@?([A-Za-z0-9_]{3,32})\/?$/.exec(value);
       if (!match) return { ok: false, reason: 'invalid' };
       return { ok: true, kind, normalized: `@${match[1]}` };
     }

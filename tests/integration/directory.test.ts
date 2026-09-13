@@ -288,3 +288,170 @@ test('attendance: self-report sets attendance_source; foreign membership → 403
   );
   assertStatus(invalid, 400);
 });
+
+// ---------------------------------------------------------------------------
+// Pass B: free-text search (q) and the `function` alias of job_function
+// ---------------------------------------------------------------------------
+
+/** Login with a full v3 profile body (the shared `login` helper only sets tags). */
+async function loginWith(prefix: string, body: Record<string, unknown>): Promise<User> {
+  const cookie = await loginViaOtp(requestOtp, verifyOtp, uniqueEmail(prefix));
+  const accountId = await accountIdFromCookie(cookie);
+  const res = await createProfileRoute(
+    makeRequest('/api/me/profile', {
+      body: { display_name: `Search ${prefix}`, languages: ['en'], offer_tags: [], need_tags: [], ...body },
+      cookie,
+    }),
+  );
+  assertStatus(res, 200);
+  const sql = getSql();
+  const rows = await sql<{ id: string }[]>`SELECT id FROM profiles WHERE account_id = ${accountId}`;
+  return { cookie, accountId, profileId: rows[0]!.id };
+}
+
+async function directoryQuery(user: User, idOrSlug: string, query: string): Promise<Response> {
+  return directoryRoute(
+    makeRequest(`/api/events/${idOrSlug}/directory?${query}`, { cookie: user.cookie }),
+    { params: Promise.resolve({ eventIdOrSlug: idOrSlug }) },
+  );
+}
+
+async function visible(user: User, eventId: string): Promise<void> {
+  const mid = await membershipId(user.profileId, eventId);
+  const res = await membershipPatchRoute(
+    makeRequest(`/api/me/memberships/${mid}`, { body: { directory_visible: true }, cookie: user.cookie }),
+    { params: Promise.resolve({ membershipId: mid }) },
+  );
+  assertStatus(res, 200);
+}
+
+test('directory: q searches name, headline, company and the member keywords — but never projects them', async () => {
+  const { cookie: org } = await login('dirq-org');
+  const e = await createEvent(org);
+  const viewer = await loginWith('dirq-viewer', {});
+  const alice = await loginWith('dirq-alice', {
+    headline: 'Building solar analytics',
+    company: 'Sunbeam Labs',
+    keywords: ['solartech'],
+    interests: ['ai-ml'],
+  });
+  const bob = await loginWith('dirq-bob', {
+    headline: 'Beauty retail operator',
+    company: 'Glow Retail',
+    keywords: ['skincare-routine'],
+    interests: ['beauty-industry'],
+  });
+  for (const u of [viewer, alice, bob]) await join(u.cookie, e.id);
+  for (const u of [viewer, alice, bob]) await visible(u, e.id);
+
+  const all = await directoryQuery(viewer, e.id, 'mode=all');
+  assertStatus(all, 200);
+  assert.equal(((await all.json()) as { members: unknown[] }).members.length, 3);
+
+  const byName = await directoryQuery(viewer, e.id, 'mode=all&q=alice');
+  assert.deepEqual(
+    ((await byName.json()) as { members: { profile_id: string }[] }).members.map((m) => m.profile_id),
+    [alice.profileId],
+  );
+
+  const byCompany = await directoryQuery(viewer, e.id, 'mode=all&q=glow');
+  assert.deepEqual(
+    ((await byCompany.json()) as { members: { profile_id: string }[] }).members.map((m) => m.profile_id),
+    [bob.profileId],
+  );
+
+  const byHeadline = await directoryQuery(viewer, e.id, 'mode=all&q=solar');
+  assert.deepEqual(
+    ((await byHeadline.json()) as { members: { profile_id: string }[] }).members.map((m) => m.profile_id),
+    [alice.profileId],
+  );
+
+  // Matching a keyword must not leak the keyword itself into the projection.
+  const byKeyword = await directoryQuery(viewer, e.id, 'mode=all&q=skincare');
+  const keywordBody = (await byKeyword.json()) as { members: { profile_id: string }[] };
+  assert.deepEqual(keywordBody.members.map((m) => m.profile_id), [bob.profileId]);
+  assert.equal(JSON.stringify(keywordBody).includes('skincare-routine'), false);
+  assert.equal(JSON.stringify(keywordBody).includes('keyword'), false);
+
+  // No match is an empty list, not an error.
+  const none = await directoryQuery(viewer, e.id, 'mode=all&q=nobody-has-this');
+  assertStatus(none, 200);
+  assert.deepEqual(((await none.json()) as { members: unknown[] }).members, []);
+
+  // A LIKE wildcard in the input is treated as a literal, not as a pattern.
+  const wildcard = await directoryQuery(viewer, e.id, 'mode=all&q=%25');
+  assertStatus(wildcard, 200);
+  assert.deepEqual(((await wildcard.json()) as { members: unknown[] }).members, []);
+});
+
+test('directory: `function` is an accepted alias of job_function, and contradictions are rejected', async () => {
+  const { cookie: org } = await login('dirf-org');
+  const e = await createEvent(org);
+  const viewer = await loginWith('dirf-viewer', {});
+  const founder = await loginWith('dirf-founder', { job_function: 'founder-ceo', industry: 'ai-saas' });
+  const designer = await loginWith('dirf-designer', { job_function: 'design', industry: 'ai-saas' });
+  for (const u of [viewer, founder, designer]) await join(u.cookie, e.id);
+  for (const u of [viewer, founder, designer]) await visible(u, e.id);
+
+  const alias = await directoryQuery(viewer, e.id, 'mode=all&function=founder-ceo');
+  assertStatus(alias, 200);
+  assert.deepEqual(
+    ((await alias.json()) as { members: { profile_id: string }[] }).members.map((m) => m.profile_id),
+    [founder.profileId],
+  );
+
+  const canonical = await directoryQuery(viewer, e.id, 'mode=all&job_function=design');
+  assert.deepEqual(
+    ((await canonical.json()) as { members: { profile_id: string }[] }).members.map((m) => m.profile_id),
+    [designer.profileId],
+  );
+
+  const both = await directoryQuery(viewer, e.id, 'mode=all&function=design&job_function=founder-ceo');
+  assert.equal(both.status, 400);
+  assert.equal(((await both.json()) as { code: string }).code, 'invalid_job_function');
+
+  const agreed = await directoryQuery(viewer, e.id, 'mode=all&function=design&job_function=design');
+  assertStatus(agreed, 200);
+
+  const unknown = await directoryQuery(viewer, e.id, 'mode=all&function=astronaut');
+  assert.equal(unknown.status, 400);
+  assert.equal(((await unknown.json()) as { code: string }).code, 'invalid_job_function');
+});
+
+test('directory: q composes with modes and facets', async () => {
+  const { cookie: org } = await login('dirc-org');
+  const e = await createEvent(org);
+  const viewer = await loginWith('dirc-viewer', { offer_intents: ['offering-services'], interests: ['ai-ml'] });
+  const match = await loginWith('dirc-match', {
+    need_intents: ['seeking-clients'],
+    interests: ['ai-ml'],
+    headline: 'Needs a vendor',
+  });
+  const other = await loginWith('dirc-other', {
+    need_intents: ['seeking-clients'],
+    interests: ['beauty-industry'],
+    headline: 'Also needs a vendor',
+  });
+  for (const u of [viewer, match, other]) await join(u.cookie, e.id);
+  for (const u of [viewer, match, other]) await visible(u, e.id);
+
+  // intent mode: both seekers match the viewer's offer…
+  const intent = await directoryQuery(viewer, e.id, 'mode=intent');
+  const intentIds = ((await intent.json()) as { members: { profile_id: string }[] }).members.map((m) => m.profile_id);
+  assert.ok(intentIds.includes(match.profileId) && intentIds.includes(other.profileId));
+
+  // …adding q narrows to one, and the interest facet narrows further.
+  const narrowed = await directoryQuery(viewer, e.id, 'mode=intent&q=needs+a+vendor&interest=ai-ml');
+  assert.deepEqual(
+    ((await narrowed.json()) as { members: { profile_id: string }[] }).members.map((m) => m.profile_id),
+    [match.profileId],
+  );
+
+  // The same query with the other interest facet returns only the other member:
+  // the facets filter, they never widen.
+  const beauty = await directoryQuery(viewer, e.id, 'mode=intent&q=needs+a+vendor&interest=beauty-industry');
+  assert.deepEqual(
+    ((await beauty.json()) as { members: { profile_id: string }[] }).members.map((m) => m.profile_id),
+    [other.profileId],
+  );
+});

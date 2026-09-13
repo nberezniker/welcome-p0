@@ -7,6 +7,13 @@ import { fill } from '../../../../../components/fill';
 import { ReasonList } from '../../../../../components/reason-list';
 import { useTaxonomyCatalog } from '../../../../../components/taxonomy-catalog';
 import type { Reason, ReasonTemplates } from '../../../../../domain/reasons';
+import {
+  filtersToApiQuery,
+  filtersToQuery,
+  hasActiveFilters,
+  type DirectoryFilters,
+  type DirectoryMode,
+} from '../../../../../domain/directory-filters';
 import { labelFor, type TaxonomyCatalog, type UiLocale } from '../../../../../domain/picker';
 // Contact kinds (what an introduction can reveal) — not link kinds: phone is
 // revealable but is not a card link.
@@ -31,16 +38,6 @@ export interface RecommendationItem extends DirectoryMember {
   /** Structural reasons — rendered by ReasonList, never shown raw. */
   reasons_for_me: Reason[];
   reasons_for_them: Reason[];
-}
-
-export type DirectoryMode = 'intent' | 'interest' | 'all';
-
-export interface DirectoryFilters {
-  mode: DirectoryMode;
-  interest: string | null;
-  jobFunction: string | null;
-  industry: string | null;
-  q: string;
 }
 
 type Strings = {
@@ -88,35 +85,8 @@ const ALL_KINDS: readonly ContactKind[] = [
 
 const MODES: readonly DirectoryMode[] = ['intent', 'interest', 'all'];
 
-/** Serializes filter state into the URL contract (?mode=&interest=&function=&industry=&q=). */
-export function filtersToQuery(filters: DirectoryFilters): string {
-  const params = new URLSearchParams();
-  if (filters.mode !== 'all') params.set('mode', filters.mode);
-  if (filters.interest) params.set('interest', filters.interest);
-  if (filters.jobFunction) params.set('function', filters.jobFunction);
-  if (filters.industry) params.set('industry', filters.industry);
-  if (filters.q.trim().length > 0) params.set('q', filters.q.trim());
-  return params.toString();
-}
-
-/** Inverse of filtersToQuery; the server page uses it to seed the panel. */
-export function filtersFromQuery(search: {
-  mode?: string;
-  interest?: string;
-  function?: string;
-  industry?: string;
-  q?: string;
-}): DirectoryFilters {
-  const mode: DirectoryMode =
-    search.mode === 'intent' || search.mode === 'interest' || search.mode === 'all' ? search.mode : 'intent';
-  return {
-    mode,
-    interest: search.interest ?? null,
-    jobFunction: search.function ?? null,
-    industry: search.industry ?? null,
-    q: search.q ?? '',
-  };
-}
+// The URL/API query contract lives in src/domain/directory-filters.ts
+// (pure, unit-tested) — this component only renders and applies it.
 
 /**
  * Event directory: three modes (intent / interest / all) with facet filters and a
@@ -168,16 +138,10 @@ export function DirectoryPanel({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const params = new URLSearchParams();
-      params.set('mode', mode);
-      if (interest) params.set('interest', interest);
-      if (jobFunction) params.set('function', jobFunction);
-      if (industry) params.set('industry', industry);
-      if (q.trim().length > 0) params.set('q', q.trim());
-
+      const apiQuery = filtersToApiQuery({ mode, interest, jobFunction, industry, q });
       try {
         const [dirRes, recRes] = await Promise.all([
-          fetch(`/api/events/${eventId}/directory?${params.toString()}`),
+          fetch(`/api/events/${eventId}/directory?${apiQuery}`),
           fetch(`/api/events/${eventId}/recommendations`),
         ]);
         if (cancelled) return;
@@ -240,7 +204,7 @@ export function DirectoryPanel({
 
   if (closed) return <p className="text-sm text-muted">{strings.closed}</p>;
 
-  const hasFilters = Boolean(interest || jobFunction || industry || q.trim().length > 0);
+  const hasFilters = hasActiveFilters({ mode, interest, jobFunction, industry, q });
 
   return (
     <div className="flex flex-col gap-8">

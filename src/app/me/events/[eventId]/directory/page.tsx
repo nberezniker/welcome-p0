@@ -4,7 +4,8 @@ import { notFound } from 'next/navigation';
 import { getSql } from '../../../../../lib/db';
 import { requireAccountId } from '../../../../../lib/session-page';
 import { getT } from '../../../../../i18n';
-import { DirectoryPanel, filtersFromQuery } from './directory-panel';
+import { DirectoryPanel } from './directory-panel';
+import { filtersFromQuery } from '../../../../../domain/directory-filters';
 import type { ReasonTemplates } from '../../../../../domain/reasons';
 
 export const metadata: Metadata = { title: 'Каталог', robots: { index: false, follow: false } };
