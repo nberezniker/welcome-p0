@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getSql } from '../../lib/db';
 import { requireAccountId } from '../../lib/session-page';
@@ -60,17 +61,9 @@ export default async function DashboardPage() {
   const { t } = await getT();
   const { profile, publicContacts, telegramHandle } = await loadDashboard(accountId);
 
-  if (!profile) {
-    return (
-      <div className="card mx-auto max-w-xl text-center">
-        <h1 className="text-2xl font-extrabold tracking-tight">{t('me.dashboard.title')}</h1>
-        <p className="mt-2 text-sm text-muted">{t('me.dashboard.createProfilePrompt')}</p>
-        <Link href="/me/profile" className="btn-accent mt-6" data-testid="create-profile-cta">
-          {t('me.dashboard.createProfileCta')}
-        </Link>
-      </div>
-    );
-  }
+  // No profile yet → the onboarding wizard is the only entrance to the product
+  // (and /onboarding bounces back here once a profile exists).
+  if (!profile) redirect('/onboarding');
 
   const publicUrl = `${appBaseUrl()}/p/${profile.public_slug}`;
   const qrUrl = `/api/public/profiles/${encodeURIComponent(profile.public_slug)}/qr.svg`;

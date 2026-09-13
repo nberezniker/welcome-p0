@@ -882,8 +882,11 @@ export function taxonomyPayload(): Record<string, unknown> {
     },
     intents: INTENTS.map((pair) => ({
       id: pair.id,
-      need: { id: pair.need.id, label: pair.need.label },
-      offer: { id: pair.offer.id, label: pair.offer.label },
+      // `label` is the chip text ("Ищу со-фаундера"); `goal` is the sentence
+      // fragment the reason templates need ("со-фаундера"), so the UI can render
+      // "you are looking for …" without a second vocabulary of its own.
+      need: { id: pair.need.id, label: pair.need.label, goal: pair.need.goal },
+      offer: { id: pair.offer.id, label: pair.offer.label, goal: pair.offer.goal },
     })),
     interests: INTERESTS.map((i) => ({ id: i.id, group: i.group, label: i.label })),
     interest_groups: INTEREST_GROUPS.map((g) => ({ id: g.id, label: g.label })),

@@ -41,8 +41,7 @@ export const ENRICHMENT_REQUEST_TIMEOUT_MS = 30_000;
  * an empty answer is a retryable failure, never a fake success.
  */
 export const ENRICHMENT_MAX_OUTPUT_TOKENS = 8192;
-/** Cap on the caller's own links handed to the provider. */
-export const MAX_ENRICHMENT_LINKS = 5;
+export { MAX_ENRICHMENT_LINKS } from '../../domain/enrichment-limits';
 /** Cap on the returned free-form links. */
 const MAX_DRAFT_LINKS = 5;
 const MAX_HEADLINE = 200;

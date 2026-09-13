@@ -5,14 +5,16 @@ import { decryptValue } from '../../../../lib/crypto';
 import { requireEncryptionKey } from '../../../../lib/env';
 import { internalError, jsonError, jsonOk, privateCacheHeaders, withApi } from '../../../../lib/http';
 import { checkRateLimit } from '../../../../lib/ratelimit';
+import { selectEnrichmentProvider } from '../../../../integrations/enrichment';
 import {
+  ENRICHMENT_RATE_LIMIT_PER_HOUR,
   MAX_ENRICHMENT_LINKS,
-  selectEnrichmentProvider,
-} from '../../../../integrations/enrichment';
+} from '../../../../domain/enrichment-limits';
 
 /** Rate limit: 5 enrichment calls per account per hour (DB-backed, same
- * fact-row pattern as otp_verify_failures / mfa_verify_failures). */
-export const ENRICHMENT_RATE_LIMIT_PER_HOUR = 5;
+ * fact-row pattern as otp_verify_failures / mfa_verify_failures).
+ * The number lives in src/domain/enrichment-limits.ts so the UI can quote it. */
+export { ENRICHMENT_RATE_LIMIT_PER_HOUR };
 
 /** Contacts that may be handed to the provider as the user's OWN links. */
 function ownLinks(contacts: { kind: string; value: string }[]): string[] {

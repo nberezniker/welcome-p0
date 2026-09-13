@@ -25,12 +25,10 @@
 import {
   COMPLEMENTARY_FUNCTIONS,
   complementOf,
-  INDUSTRIES,
   INTENTS,
   interestOrder,
   isIndustryId,
   isJobFunctionId,
-  JOB_FUNCTIONS,
   normalizeIntentTag,
   normalizeInterest,
 } from './taxonomy';
