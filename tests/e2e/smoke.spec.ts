@@ -31,7 +31,9 @@ async function loginViaOtp(page: Page, email: string): Promise<string> {
   if (!body.devCode) throw new Error('devCode missing from OTP request response');
   await page.getByTestId('login-code').fill(body.devCode);
   await page.getByTestId('login-verify').click();
-  await page.waitForURL('**/me');
+  // A profile-less account is redirected from /me into the onboarding wizard
+  // (pass B); an account that already has a profile stays on /me.
+  await page.waitForURL(/\/(me|onboarding)$/, { timeout: 30_000 });
   return body.devCode;
 }
 
@@ -85,9 +87,10 @@ test.describe('WELCOME P0 smoke', () => {
     // ── 2. Account A: OTP login ─────────────────────────────────────────────
     await page.setViewportSize({ width: 1280, height: 900 });
     await loginViaOtp(page, A_EMAIL);
-    await expect(page.getByTestId('create-profile-cta')).toBeVisible();
+    // No profile yet → the wizard owns the first-run path (pass B).
+    await expect(page).toHaveURL(/\/onboarding$/);
 
-    // ── 3. Account A creates profile ────────────────────────────────────────
+    // ── 3. Account A creates profile through the editor ─────────────────────
     await createProfile(page, 'Alice Nova', 'Backend engineer', 'pilot-integrations', 'saas-distribution');
     await expect(page.locator('#pf-name')).toHaveValue('Alice Nova');
 
@@ -147,6 +150,11 @@ test.describe('WELCOME P0 smoke', () => {
 
     // ── 7. B opens the directory and proposes an intro to A ────────────────
     await pageB.goto(`/me/events/${eventId}/directory`);
+    // Pass B: the directory defaults to intent mode ("they seek what I offer"),
+    // which is honestly empty for these tag-only profiles — switch to "Everyone".
+    await waitHydrated(pageB);
+    await pageB.getByTestId('dir-mode-all').click();
+    await expect(pageB.getByTestId('member-list')).toBeVisible({ timeout: 15_000 });
     const memberCard = pageB.getByTestId('member-list').locator('li').first();
     await memberCard.getByRole('button').first().click(); // propose intro
     await pageB.locator('input[type=checkbox]').first().check(); // reveal whatsapp

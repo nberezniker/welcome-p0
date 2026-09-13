@@ -122,18 +122,17 @@ export function DirectoryPanel({
   const { catalog } = useTaxonomyCatalog();
   const { mode, interest, jobFunction, industry, q } = filters;
 
-  /** Applies new filters: URL first (shareable state), then the refetch effect runs. */
-  const apply = useCallback(
-    (patch: Partial<DirectoryFilters>) => {
-      setFilters((prev) => {
-        const next = { ...prev, ...patch };
-        const query = filtersToQuery(next);
-        router.replace(`/me/events/${eventId}/directory${query ? `?${query}` : ''}`, { scroll: false });
-        return next;
-      });
-    },
-    [eventId, router],
-  );
+  /** Applies new filters; the URL mirror below keeps the link shareable. */
+  const apply = useCallback((patch: Partial<DirectoryFilters>) => {
+    setFilters((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  // URL mirroring is an effect, not a side effect inside the state updater:
+  // updaters must stay pure, and the refetch below reacts to the same state.
+  useEffect(() => {
+    const query = filtersToQuery(filters);
+    router.replace(`/me/events/${eventId}/directory${query ? `?${query}` : ''}`, { scroll: false });
+  }, [filters, eventId, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -389,7 +388,9 @@ export function DirectoryPanel({
             </p>
             {members.length === 0 ? (
               <p className="mt-2 text-sm text-muted" data-testid="directory-empty">
-                {strings.empty}
+                {/* An empty intent/interest result means "nobody matches the
+                    viewer's own axes", not "the event is empty" — say which. */}
+                {mode === 'all' ? strings.empty : strings.modeHints[mode]}
               </p>
             ) : (
               <ul className="mt-3 grid gap-3 md:grid-cols-2" data-testid="member-list">
