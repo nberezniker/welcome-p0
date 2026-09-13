@@ -102,30 +102,33 @@ export async function loadPublicProfile(slug: string): Promise<PublicProfile | n
 }
 
 /**
- * The event (if any) where the signed-in viewer and the card owner are BOTH
- * active members — the landing page's "propose an introduction" affordance only
- * exists in a shared-event context (personal-context introductions are not
- * reachable from a public card). Returns null for anonymous viewers, for the
- * owner's own card, and when there is no shared event.
+ * The shared-event context of a card, if any: the event where the signed-in
+ * viewer AND the card owner are both active members.
+ *
+ * Used for ONE thing — deciding whether the card offers "propose an
+ * introduction". That flow is event-scoped and mutual-consent, so the card only
+ * offers it to a viewer who already shares an event, and the ids it needs
+ * (event id + target profile id) are ones that viewer can already see in that
+ * event's directory. Anonymous visitors get null and never receive an id.
  */
-export async function findSharedEventId(
+export async function findSharedEvent(
+  slug: string,
   viewerAccountId: string,
-  targetProfileId: string,
-): Promise<string | null> {
+): Promise<{ eventId: string; targetProfileId: string } | null> {
   const sql = getSql();
-  const rows = await sql<{ event_id: string }[]>`
-    SELECT mine.event_id
-    FROM event_memberships mine
+  const rows = await sql<{ event_id: string; profile_id: string }[]>`
+    SELECT mine.event_id, theirs.profile_id
+    FROM profiles target
+    JOIN accounts target_account ON target_account.id = target.account_id AND target_account.status = 'active'
+    JOIN event_memberships theirs ON theirs.profile_id = target.id AND theirs.state = 'active'
+    JOIN event_memberships mine ON mine.event_id = theirs.event_id AND mine.state = 'active'
     JOIN profiles viewer ON viewer.id = mine.profile_id
-    JOIN event_memberships theirs ON theirs.event_id = mine.event_id
-    WHERE viewer.account_id = ${viewerAccountId}
-      AND mine.state = 'active'
-      AND theirs.profile_id = ${targetProfileId}
-      AND theirs.state = 'active'
+    WHERE target.public_slug = ${slug} AND viewer.account_id = ${viewerAccountId}
     ORDER BY mine.event_id ASC
     LIMIT 1
   `;
-  return rows[0]?.event_id ?? null;
+  const row = rows[0];
+  return row ? { eventId: row.event_id, targetProfileId: row.profile_id } : null;
 }
 
 /** Minimal response headers for public endpoints. */

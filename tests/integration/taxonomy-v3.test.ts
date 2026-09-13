@@ -393,9 +393,9 @@ test('recommendations: v3 intent match comes with a localized reason, legacy tag
   assert.equal(body.recommendations[0]!.algorithm, 'welcome_intent_interest_v1');
   assert.ok(
     body.recommendations[0]!.reasons_for_me.some(
-      (r) => r.code === 'intent_offer_match' && r.params['need'] === 'seeking-cofounder',
+      (r) => r.code === 'intent_need_covered' && r.params['need'] === 'seeking-cofounder',
     ),
-    `expected a co-founder reason, got ${JSON.stringify(body.recommendations[0]!.reasons_for_me)}`,
+    `expected the viewer's co-founder need to be covered, got ${JSON.stringify(body.recommendations[0]!.reasons_for_me)}`,
   );
 
   const legacyItem = body.recommendations.find((r) => r.profile_id === legacy.profileId);
@@ -404,7 +404,7 @@ test('recommendations: v3 intent match comes with a localized reason, legacy tag
   assert.deepEqual(legacyItem!.reasons_for_me, [{ code: 'shared_tag', params: { tag: 'frontend' } }]);
 });
 
-test('recommendations: EN locale reasons when the viewer prefers English', async () => {
+test('recommendations: the payload is locale-neutral (codes, not sentences)', async () => {
   const org = await login('v3-rec-en-org');
   const event = await createEvent(org.cookie);
   const viewer = await login('v3-rec-en-viewer', { need_intents: ['seeking-cofounder'] });
@@ -420,9 +420,12 @@ test('recommendations: EN locale reasons when the viewer prefers English', async
     recommendations: { reasons_for_me: { code: string; params: Record<string, string> }[] }[];
   };
   // Locale is no longer baked into the payload: the code is language-neutral and
-  // the UI resolves the label, so the same response serves EN/RU/ES.
+  // the UI resolves the label, so the same response serves EN/RU/ES. The cookie
+  // in the request above deliberately changes nothing.
   assert.ok(
-    body.recommendations[0]!.reasons_for_me.some((r) => r.code === 'intent_offer_match'),
+    body.recommendations[0]!.reasons_for_me.some(
+      (r) => r.code === 'intent_need_covered' && r.params['need'] === 'seeking-cofounder',
+    ),
   );
 });
 
