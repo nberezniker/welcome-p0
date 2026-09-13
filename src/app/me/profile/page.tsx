@@ -31,7 +31,8 @@ export default async function ProfileEditorPage() {
     hidden_fields: string[];
     revision: number;
   }[]>`SELECT public_slug, display_name, headline, company, short_bio, languages, offer_tags, need_tags,
-             need_intents, offer_intents, interests, keywords, industry, job_function, hidden_fields, revision
+             need_intents, offer_intents, interests, keywords, industry, job_function, hidden_fields,
+             revision::int AS revision
     FROM profiles WHERE account_id = ${accountId} LIMIT 1`;
   const profile = rows[0] ?? null;
 

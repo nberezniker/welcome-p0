@@ -129,7 +129,9 @@ export function ProfileEditor({
 }) {
   const router = useRouter();
   const [values, setValues] = useState<ProfileFormValues>(initial);
-  const [revision, setRevision] = useState<number | null>(initialRevision);
+  // revision is a SQL bigint; a driver that hands it back as a string would make
+  // every save fail with revision_required, so the value is coerced once here.
+  const [revision, setRevision] = useState<number | null>(toRevisionOrNull(initialRevision));
   const [busy, setBusy] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [conflict, setConflict] = useState<{ mine: number; current: number } | null>(null);
@@ -159,7 +161,7 @@ export function ProfileEditor({
         industry: values.industry,
         hidden_fields: values.hidden_fields,
       };
-      if (useRevision !== null) body['revision'] = useRevision;
+      if (useRevision !== null) body['revision'] = toRevisionOrNull(useRevision);
       const res = await fetch('/api/me/profile', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -170,7 +172,7 @@ export function ProfileEditor({
         | null;
 
       if (res.ok && payload?.profile) {
-        setRevision(payload.profile.revision ?? null);
+        setRevision(toRevisionOrNull(payload.profile.revision));
         setConflict(null);
         toast.show(strings.savedToast);
         router.refresh();
@@ -237,7 +239,7 @@ export function ProfileEditor({
           industry: p.industry ?? null,
           hidden_fields: p.hidden_fields ?? [],
         });
-        setRevision(p.revision ?? null);
+        setRevision(toRevisionOrNull(p.revision));
       }
       setConflict(null);
     } catch {
@@ -562,4 +564,11 @@ export function ProfileEditor({
       <Toast message={toast.message} kind={toast.kind} onDone={toast.clear} />
     </form>
   );
+}
+
+/** Coerces a driver value into the integer the API requires (null = create path). */
+function toRevisionOrNull(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) return value;
+  if (typeof value === 'string' && /^\d+$/.test(value)) return Number(value);
+  return null;
 }
