@@ -32,8 +32,11 @@ function contactHref(contact: PublicContact): string | null {
     case "telegram_username":
       return `https://t.me/${contact.value.replace(/^@/, "")}`;
     case "linkedin_url":
+    case "github_url":
     case "website":
       return safeHref(contact.value);
+    default:
+      return null;
   }
 }
 
@@ -51,6 +54,7 @@ export default async function PublicProfilePage({
     whatsapp: "WhatsApp",
     telegram_username: "Telegram",
     linkedin_url: "LinkedIn",
+    github_url: "GitHub",
     website: t("contacts.kind.website"),
     phone: t("contacts.kind.phone"),
   };

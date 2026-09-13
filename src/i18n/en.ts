@@ -228,6 +228,7 @@ export const en = {
   'contacts.kind.whatsapp': 'WhatsApp number',
   'contacts.kind.telegram_username': 'Telegram username',
   'contacts.kind.linkedin_url': 'LinkedIn profile URL',
+  'contacts.kind.github_url': 'GitHub profile URL',
   'contacts.kind.website': 'Website',
   'contacts.kind.phone': 'Phone number',
   'contacts.valueLabel': 'Value',

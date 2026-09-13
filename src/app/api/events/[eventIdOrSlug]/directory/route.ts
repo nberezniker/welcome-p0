@@ -23,7 +23,10 @@ export const dynamic = 'force-dynamic';
  *   mode=intent          — «ищут то же, что могу я»: members seeking what the
  *                          viewer offers (need_intents ∩ complement(viewer offers))
  *   mode=interest        — people sharing at least one interest with the viewer
- * plus explicit `interest` / `job_function` / `industry` facet filters. */
+ * plus explicit `interest` / `job_function` (alias `function`) / `industry`
+ * facet filters and `q` — a free-text search over name / headline / company and
+ * the member's own keywords. Keyword VALUES are matched but never projected:
+ * the member object keeps its strict allowlist. */
 
 const MODES = ['all', 'intent', 'interest'] as const;
 type Mode = (typeof MODES)[number];
@@ -53,7 +56,14 @@ export async function GET(
       const check = validateInterests([interestParam]);
       if (!check.ok) return jsonError(400, check.code, check.message);
     }
-    const functionParam = sp.get('job_function');
+    // `job_function` is the canonical param; `function` is the alias the
+    // directory UI writes into the URL. Sending both is contradictory.
+    const functionCanonical = sp.get('job_function');
+    const functionAlias = sp.get('function');
+    if (functionCanonical !== null && functionAlias !== null && functionCanonical !== functionAlias) {
+      return jsonError(400, 'invalid_job_function', 'job_function and function disagree; send only one');
+    }
+    const functionParam = functionCanonical ?? functionAlias;
     if (functionParam !== null) {
       const check = validateJobFunction(functionParam);
       if (!check.ok) return jsonError(400, check.code, check.message);
@@ -63,6 +73,12 @@ export async function GET(
       const check = validateIndustry(industryParam);
       if (!check.ok) return jsonError(400, check.code, check.message);
     }
+    // Free-text search over the member's name / role / company and their own
+    // keywords. Keyword VALUES are matched but never projected back — the member
+    // list stays free of the keywords field (allowlist test).
+    const qRaw = sp.get('q');
+    const q = qRaw === null ? null : qRaw.trim().slice(0, 80);
+    const qPattern = q === null || q.length === 0 ? null : `%${q.replace(/[%_\\]/g, (m) => `\\${m}`)}%`;
 
     const eventRows = await sql<{ id: string; directory_close_at: Date | null }[]>`
       SELECT id, directory_close_at FROM events
@@ -147,6 +163,15 @@ export async function GET(
         AND (${interestFacet === null} OR COALESCE(NULLIF(m.interests, '{}'), pr.interests) @> ${interestFacet ?? []}::text[])
         AND (${functionParam === null} OR COALESCE(m.job_function, pr.job_function) = ${functionParam})
         AND (${industryParam === null} OR COALESCE(m.industry, pr.industry) = ${industryParam})
+        AND (${qPattern === null} OR (
+          pr.display_name ILIKE ${qPattern} ESCAPE '\'
+          OR pr.headline ILIKE ${qPattern} ESCAPE '\'
+          OR pr.company ILIKE ${qPattern} ESCAPE '\'
+          OR EXISTS (
+            SELECT 1 FROM unnest(COALESCE(NULLIF(m.keywords, '{}'), pr.keywords)) AS kw
+            WHERE kw ILIKE ${qPattern} ESCAPE '\'
+          )
+        ))
       ORDER BY pr.display_name ASC, pr.id ASC
     `;
 

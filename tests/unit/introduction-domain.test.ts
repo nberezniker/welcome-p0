@@ -26,7 +26,7 @@ test('context keys: event:<uuid> | personal:<min uuid> (interpretation ②)', ()
 });
 
 test('reveal fields allowlist: contact kinds only, no email (login email is never stored)', () => {
-  assert.deepEqual(REVEAL_FIELDS, ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone']);
+  assert.deepEqual(REVEAL_FIELDS, ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone', 'github_url']);
 });
 
 test('validateCreateIntroInput: valid with event and reveal fields', () => {

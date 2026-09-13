@@ -24,7 +24,11 @@ after(async () => {
 
 const PUBLIC_FIELDS = [
   'slug', 'display_name', 'headline', 'company', 'short_bio',
-  'languages', 'offer_tags', 'need_tags', 'contacts',
+  'languages', 'offer_tags', 'need_tags',
+  // Taxonomy v3 axes + the owner's keywords travel with the card (migration 008);
+  // anything the owner unticked in `hidden_fields` is dropped by the projection.
+  'need_intents', 'offer_intents', 'interests', 'keywords',
+  'contacts',
 ];
 
 interface Ctx {

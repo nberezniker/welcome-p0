@@ -26,6 +26,8 @@ export interface ProfileInput {
   industry: string | null;
   jobFunction: string | null;
   keywords: string[];
+  /** Card fields withheld from the public mini-landing (empty = all public). */
+  hiddenFields: string[];
 }
 
 export type Validated<T> = { ok: true; value: T } | { ok: false; code: string; message: string };
@@ -99,6 +101,10 @@ export function validateProfileInput(body: unknown): Validated<ProfileInput> {
   const jobFunction = validateJobFunction(b.job_function);
   if (!jobFunction.ok) return { ok: false, code: jobFunction.code, message: jobFunction.message };
 
+  // Mini-landing card opt-outs (migration 008). Absent → empty = everything public.
+  const hiddenFields = validateHiddenFields(b.hidden_fields);
+  if (!hiddenFields.ok) return { ok: false, code: hiddenFields.code, message: hiddenFields.message };
+
   return {
     ok: true,
     value: {
@@ -115,6 +121,7 @@ export function validateProfileInput(body: unknown): Validated<ProfileInput> {
       industry: industry.value,
       jobFunction: jobFunction.value,
       keywords: keywords.value,
+      hiddenFields: hiddenFields.value,
     },
   };
 }
@@ -142,9 +149,60 @@ export function checkRevision(
   return { ok: true, nextRevision: current + 1 };
 }
 
-/** Contacts: allowed kinds per P0 brief. Values are encrypted at rest. */
-export const CONTACT_KINDS = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone'] as const;
+/** Contacts: allowed kinds per P0 brief. Values are encrypted at rest.
+ * `github_url` was added with the mini-landing (migration 008) — the design doc
+ * lists GitHub as one of the link kinds the user confirms by hand. */
+export const CONTACT_KINDS = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone', 'github_url'] as const;
 export type ContactKind = (typeof CONTACT_KINDS)[number];
+
+/**
+ * Profile fields that appear in the public mini-landing (migration 008
+ * `profiles.hidden_fields`). A field listed there is withheld from the public
+ * projection; contacts have their own per-row `public_enabled` flag and are NOT
+ * part of this list.
+ */
+export const PUBLIC_FIELD_IDS = [
+  'headline',
+  'company',
+  'short_bio',
+  'languages',
+  'offer_tags',
+  'need_tags',
+  'need_intents',
+  'offer_intents',
+  'interests',
+  'keywords',
+] as const;
+export type PublicFieldId = (typeof PUBLIC_FIELD_IDS)[number];
+
+export const MAX_HIDDEN_FIELDS = PUBLIC_FIELD_IDS.length;
+
+/** Deny list of card fields: catalogue-validated ids, deduped, capped. */
+export function validateHiddenFields(raw: unknown): Validated<string[]> {
+  if (raw === undefined || raw === null) return { ok: true, value: [] };
+  if (!Array.isArray(raw)) {
+    return { ok: false, code: 'invalid_hidden_fields', message: 'hidden_fields must be an array of field ids' };
+  }
+  if (raw.length > MAX_HIDDEN_FIELDS) {
+    return {
+      ok: false,
+      code: 'invalid_hidden_fields',
+      message: `at most ${MAX_HIDDEN_FIELDS} hidden_fields values are allowed`,
+    };
+  }
+  const out: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string' || !(PUBLIC_FIELD_IDS as readonly string[]).includes(item)) {
+      return {
+        ok: false,
+        code: 'invalid_hidden_fields',
+        message: `hidden_fields must be a subset of: ${PUBLIC_FIELD_IDS.join(', ')}`,
+      };
+    }
+    if (!out.includes(item)) out.push(item);
+  }
+  return { ok: true, value: out };
+}
 
 export interface ContactInput {
   kind: ContactKind;

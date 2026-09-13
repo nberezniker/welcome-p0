@@ -216,6 +216,7 @@ export const es: Partial<Dictionary> = {
   'contacts.kind.whatsapp': 'Número de WhatsApp',
   'contacts.kind.telegram_username': 'Usuario de Telegram',
   'contacts.kind.linkedin_url': 'URL del perfil de LinkedIn',
+  'contacts.kind.github_url': 'URL del perfil de GitHub',
   'contacts.kind.website': 'Sitio web',
   'contacts.kind.phone': 'Teléfono',
   'contacts.valueLabel': 'Valor',

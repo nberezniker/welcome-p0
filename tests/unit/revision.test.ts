@@ -55,7 +55,7 @@ test('profile validation: rejects bad bodies', () => {
 test('contact validation: whitelisted kinds, boolean public_enabled', () => {
   const ok = validateContactInput({ kind: 'telegram_username', value: '@user', public_enabled: true });
   assert.equal(ok.ok, true);
-  for (const kind of ['whatsapp', 'phone', 'website', 'linkedin_url']) {
+  for (const kind of ['whatsapp', 'phone', 'website', 'linkedin_url', 'github_url']) {
     assert.equal(validateContactInput({ kind, value: 'x', public_enabled: false }).ok, true);
   }
   assert.equal(validateContactInput({ kind: 'email', value: 'a@b.c', public_enabled: true }).ok, false);
@@ -78,6 +78,10 @@ test('vcard: header/footer, CRLF endings, public contacts only', () => {
     languages: ['ru', 'en'],
     offer_tags: ['design'],
     need_tags: ['pilot'],
+    need_intents: [],
+    offer_intents: ['open-to-cofound'],
+    interests: ['design-systems'],
+    keywords: [],
     contacts: [
       { kind: 'telegram_username', value: '@anna' },
       { kind: 'phone', value: '+79000000000' },
@@ -92,6 +96,8 @@ test('vcard: header/footer, CRLF endings, public contacts only', () => {
   assert.ok(v.includes('NOTE:bio\r\n'));
   assert.ok(v.includes('LANG:ru\r\n'));
   assert.ok(v.includes('X-SOCIALPROFILE;TYPE=telegram:https://t.me/anna\r\n'));
+  assert.ok(v.includes('X-WELCOME-OFFER-INTENT:open-to-cofound\r\n'));
+  assert.ok(v.includes('X-WELCOME-INTEREST:design-systems\r\n'));
   assert.ok(v.includes('TEL;TYPE=CELL:+79000000000\r\n'));
 });
 
@@ -105,6 +111,10 @@ test('vcard: multi-line display name cannot inject properties', () => {
     languages: [],
     offer_tags: [],
     need_tags: [],
+    need_intents: [],
+    offer_intents: [],
+    interests: [],
+    keywords: [],
     contacts: [],
   });
   const lines = v.split('\r\n');

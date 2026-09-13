@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { Modal, Toast, useToast } from '../../../components/modal';
 import { fill } from '../../../components/fill';
 
-export type ContactKind = 'whatsapp' | 'telegram_username' | 'linkedin_url' | 'website' | 'phone';
-export const ALL_KINDS: ContactKind[] = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone'];
+export type ContactKind = 'whatsapp' | 'telegram_username' | 'linkedin_url' | 'website' | 'phone' | 'github_url';
+export const ALL_KINDS: ContactKind[] = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone', 'github_url'];
 
 interface IntroDetail {
   introduction: {

@@ -18,6 +18,17 @@ export function buildVCard(profile: PublicProfile): string {
   for (const tag of profile.need_tags) {
     lines.push(`X-WELCOME-NEED:${escapeVCard(tag)}`);
   }
+  // Taxonomy v3 axes travel with the card (public fields only — the projection
+  // already dropped anything the owner unticked).
+  for (const intent of profile.offer_intents) {
+    lines.push(`X-WELCOME-OFFER-INTENT:${escapeVCard(intent)}`);
+  }
+  for (const intent of profile.need_intents) {
+    lines.push(`X-WELCOME-NEED-INTENT:${escapeVCard(intent)}`);
+  }
+  for (const interest of profile.interests) {
+    lines.push(`X-WELCOME-INTEREST:${escapeVCard(interest)}`);
+  }
   for (const contact of profile.contacts) {
     switch (contact.kind) {
       case 'phone':
@@ -31,6 +42,9 @@ export function buildVCard(profile: PublicProfile): string {
         break;
       case 'linkedin_url':
         lines.push(`X-SOCIALPROFILE;TYPE=linkedin:${escapeVCard(contact.value)}`);
+        break;
+      case 'github_url':
+        lines.push(`X-SOCIALPROFILE;TYPE=github:${escapeVCard(contact.value)}`);
         break;
       case 'telegram_username':
         lines.push(`X-SOCIALPROFILE;TYPE=telegram:${escapeVCard(toTelegramUrl(contact.value))}`);

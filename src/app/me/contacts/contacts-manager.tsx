@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Toast, useToast } from '../../../components/modal';
 
-export const CONTACT_KINDS = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone'] as const;
+export const CONTACT_KINDS = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone', 'github_url'] as const;
 export type ContactKind = (typeof CONTACT_KINDS)[number];
 
 export interface ContactRow {

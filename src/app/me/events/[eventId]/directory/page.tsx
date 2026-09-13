@@ -53,6 +53,7 @@ export default async function EventDirectoryPage({
             whatsapp: t('contacts.kind.whatsapp'),
             telegram_username: t('contacts.kind.telegram_username'),
             linkedin_url: t('contacts.kind.linkedin_url'),
+            github_url: t('contacts.kind.github_url'),
             website: t('contacts.kind.website'),
             phone: t('contacts.kind.phone'),
           }}

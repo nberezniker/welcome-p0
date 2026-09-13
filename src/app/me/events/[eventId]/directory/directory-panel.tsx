@@ -43,7 +43,7 @@ type Strings = {
   errorGeneric: string;
 };
 
-const ALL_KINDS = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone'] as const;
+const ALL_KINDS = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone', 'github_url'] as const;
 type Kind = (typeof ALL_KINDS)[number];
 
 /** Directory list + recommendations strip. Data via the existing APIs. */
