@@ -177,3 +177,14 @@ Post-report deployment executed with the owner present (zero spend):
 - **AC-38 closed with a real user**: web session → deep link → Telegram `/start` → `channel_bindings: active` (real chat) → bot confirmation "Telegram linked" delivered. All four inbound updates processed; binding + 3 replies sent.
 - **telegram_link TTL 10m → 24h** (two-sided binding is the real gate; ADR-0001 precedent). Verified live: challenge expiry now +24h.
 - **Latency fix**: `/api/webhooks/telegram` now processes the update right after the response via Next `after()` (bounded drain 3×5, `tickOnce` reuse; cron stays as backstop). Live-verified: webhook 200 in 1.49s, update `delivered` + reply `sent` with no manual tick.
+
+## v3 demo run on production — 2026-09-13 (live)
+
+Verified live (real API calls against prod, sessions via demo accounts):
+
+- **Directory modes**: `mode=intent` → 3 members, `mode=interest` → 2, `mode=all` → 4 (event has 4 members).
+- **Recommendations v3**: Anna → Nikita, score 45, structured reasons `intent_need_covered` + `intent_offer_match` (params: need=seeking-clients, offer=offering-services) — reasons are now codes+params, localized in UI (EN/RU/ES).
+- **Enrichment (Vertex, live)**: `POST /api/me/enrich` → HTTP 200, provider `vertex_gemini`.
+- **Introductions**: fresh propose (Anna→Marta) → `pending`; counterpart accept (Marta) → still `pending` — **mutual requires BOTH sides to accept explicitly, including the initiator** (verified in `introduction_consents`: initiator row stays `pending` until they respond).
+- **Proactive notifications**: `intro_requested_notice` jobs for the fresh intros were **suppressed** — `suppressed:consent_revoked` (recipient has no `service_channel` consent) and `suppressed:no_channel` (no Telegram binding). This is the purpose-scoped consent engine working as designed: the bot does not send proactive messages without explicit consent.
+- Note: repeated OTP logins for the same demo account hit the OTP rate limit (expected; the run resumed after the window).
