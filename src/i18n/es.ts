@@ -758,4 +758,5 @@ export const es: Partial<Dictionary> = {
   'member.overrideInterests': 'Intereses (en este evento)',
   'member.overrideFunction': 'Función (en este evento)',
   'member.overrideIndustry': 'Sector (en este evento)',
+  'member.overrideKeywords': 'Palabras clave (en este evento)',
 };

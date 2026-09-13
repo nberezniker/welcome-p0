@@ -110,6 +110,7 @@ export default async function OnboardingPage() {
               failed: t('enrich.failed'),
               retry: t('enrich.retry'),
               privacyNote: t('enrich.privacyNote'),
+              errorNetwork: t('common.errorNetwork'),
             },
             picker: pickerStrings,
             pick: {

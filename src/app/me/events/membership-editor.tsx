@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TagInput } from '../../../components/tag-input';
 import { Toast, useToast } from '../../../components/modal';
+import { FacetSelect, KeywordInput, TaxonomyPicker, type PickerStrings } from '../../../components/taxonomy-picker';
+import type { TaxonomyCatalog, UiLocale } from '../../../domain/picker';
 
 export interface MembershipItem {
   membershipId: string;
@@ -16,6 +18,13 @@ export interface MembershipItem {
   matchingEnabled: boolean;
   offerTags: string[];
   needTags: string[];
+  /** Per-event taxonomy overrides; empty/absent = inherit the profile value. */
+  needIntents: string[];
+  offerIntents: string[];
+  interests: string[];
+  industry: string | null;
+  jobFunction: string | null;
+  keywords: string[];
 }
 
 type Strings = {
@@ -38,13 +47,44 @@ type Strings = {
   tagPlaceholder: string;
   errorNetwork: string;
   errorGeneric: string;
+  overrideTitle: string;
+  overrideHint: string;
+  inheritHint: string;
+  overrideNeed: string;
+  overrideOffer: string;
+  overrideInterests: string;
+  overrideFunction: string;
+  overrideIndustry: string;
+  overrideKeywords: string;
+  picker: PickerStrings;
+  pick: {
+    needHint: string;
+    offerHint: string;
+    interestsHint: string;
+    keywordsHint: string;
+    functionHint: string;
+    industryHint: string;
+  };
 };
 
-/** Per-event membership editor: intent tags, visibility, matching, leave. */
-export function MembershipEditor({ membership, strings }: { membership: MembershipItem; strings: Strings }) {
+export interface MembershipEditorProps {
+  membership: MembershipItem;
+  strings: Strings;
+  catalog: TaxonomyCatalog;
+  locale: UiLocale;
+}
+
+/** Per-event membership editor: taxonomy overrides, intent tags, visibility, matching, leave. */
+export function MembershipEditor({ membership, strings, catalog, locale }: MembershipEditorProps) {
   const router = useRouter();
   const [offerTags, setOfferTags] = useState(membership.offerTags);
   const [needTags, setNeedTags] = useState(membership.needTags);
+  const [needIntents, setNeedIntents] = useState<string[]>(membership.needIntents);
+  const [offerIntents, setOfferIntents] = useState<string[]>(membership.offerIntents);
+  const [interests, setInterests] = useState<string[]>(membership.interests);
+  const [keywords, setKeywords] = useState<string[]>(membership.keywords);
+  const [jobFunction, setJobFunction] = useState<string | null>(membership.jobFunction);
+  const [industry, setIndustry] = useState<string | null>(membership.industry);
   const [directoryVisible, setDirectoryVisible] = useState(membership.directoryVisible);
   const [matchingEnabled, setMatchingEnabled] = useState(membership.matchingEnabled);
   const [busy, setBusy] = useState(false);
@@ -104,11 +144,105 @@ export function MembershipEditor({ membership, strings }: { membership: Membersh
             onChange={setNeedTags}
             placeholder={strings.tagPlaceholder}
           />
+          {/* Taxonomy v3 overrides: empty means "inherit my profile" (the API
+              treats an empty membership array as "fall back to the profile"). */}
+          <div className="rounded-xl border border-line bg-paper p-3">
+            <p className="text-sm font-bold">{strings.overrideTitle}</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted">{strings.overrideHint}</p>
+            <p className="mt-1 text-xs font-semibold text-pine">{strings.inheritHint}</p>
+            <div className="mt-3 flex flex-col gap-5">
+              <TaxonomyPicker
+                axis="need_intents"
+                catalog={catalog}
+                locale={locale}
+                value={needIntents}
+                onChange={setNeedIntents}
+                strings={strings.picker}
+                title={strings.overrideNeed}
+                hint={strings.pick.needHint.replace('{max}', String(catalog.limits.need_intents))}
+                testId={`member-needs-${membership.eventId}`}
+                compact
+              />
+              <TaxonomyPicker
+                axis="offer_intents"
+                catalog={catalog}
+                locale={locale}
+                value={offerIntents}
+                onChange={setOfferIntents}
+                strings={strings.picker}
+                title={strings.overrideOffer}
+                hint={strings.pick.offerHint.replace('{max}', String(catalog.limits.offer_intents))}
+                testId={`member-offers-${membership.eventId}`}
+                compact
+              />
+              <TaxonomyPicker
+                axis="interests"
+                catalog={catalog}
+                locale={locale}
+                value={interests}
+                onChange={setInterests}
+                strings={strings.picker}
+                title={strings.overrideInterests}
+                hint={strings.pick.interestsHint.replace('{max}', String(catalog.limits.interests))}
+                testId={`member-interests-${membership.eventId}`}
+                compact
+              />
+              <KeywordInput
+                id={`member-keywords-${membership.membershipId}`}
+                title={strings.overrideKeywords}
+                hint={strings.pick.keywordsHint
+                  .replace('{max}', String(catalog.limits.keywords))
+                  .replace('{length}', String(catalog.limits.keyword_length))}
+                values={keywords}
+                onChange={setKeywords}
+                strings={strings.picker}
+                max={catalog.limits.keywords}
+                maxLength={catalog.limits.keyword_length}
+                testId={`member-keywords-${membership.eventId}`}
+              />
+              <FacetSelect
+                id={`member-function-${membership.membershipId}`}
+                title={strings.overrideFunction}
+                hint={strings.pick.functionHint}
+                catalog={catalog}
+                locale={locale}
+                kind="functions"
+                value={jobFunction}
+                onChange={setJobFunction}
+                strings={strings.picker}
+                testId={`member-function-${membership.eventId}`}
+              />
+              <FacetSelect
+                id={`member-industry-${membership.membershipId}`}
+                title={strings.overrideIndustry}
+                hint={strings.pick.industryHint}
+                catalog={catalog}
+                locale={locale}
+                kind="industries"
+                value={industry}
+                onChange={setIndustry}
+                strings={strings.picker}
+                testId={`member-industry-${membership.eventId}`}
+              />
+            </div>
+          </div>
+
           <button
             type="button"
             className="btn-primary btn-small self-start"
             disabled={busy}
-            onClick={() => void patch({ offer_tags: offerTags, need_tags: needTags })}
+            onClick={() =>
+              void patch({
+                offer_tags: offerTags,
+                need_tags: needTags,
+                need_intents: needIntents,
+                offer_intents: offerIntents,
+                interests,
+                keywords,
+                job_function: jobFunction,
+                industry,
+              })
+            }
             data-testid={`save-intent-${membership.eventId}`}
           >
             {busy ? strings.saving : strings.save}

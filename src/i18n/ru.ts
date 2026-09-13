@@ -758,4 +758,5 @@ export const ru: Partial<Dictionary> = {
   'member.overrideInterests': 'Интересы (на этом событии)',
   'member.overrideFunction': 'Функция (на этом событии)',
   'member.overrideIndustry': 'Отрасль (на этом событии)',
+  'member.overrideKeywords': 'Ключевые слова (на этом событии)',
 };

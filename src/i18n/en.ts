@@ -772,6 +772,7 @@ export const en = {
   'member.overrideInterests': 'Interests (at this event)',
   'member.overrideFunction': 'Function (at this event)',
   'member.overrideIndustry': 'Industry (at this event)',
+  'member.overrideKeywords': 'Keywords (at this event)',
 } as const;
 
 export type Dictionary = Record<keyof typeof en, string>;

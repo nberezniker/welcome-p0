@@ -5,34 +5,11 @@ import { useRouter } from 'next/navigation';
 import { FacetSelect, KeywordInput, TaxonomyPicker, type PickerStrings } from '../../components/taxonomy-picker';
 import { Toast, useToast } from '../../components/modal';
 import { fill } from '../../components/fill';
-import { detectLinkKind, linkHref, LINK_EXAMPLES, validateLink, type LinkKind } from '../../domain/links';
+import { detectLinkKind, LINK_EXAMPLES, validateLink, type LinkKind } from '../../domain/links';
 import { hiddenFromPublish, parseDraft, serializeDraft, ONBOARDING_DRAFT_KEY, ONBOARDING_STEPS, type OnboardingDraftValues } from '../../domain/onboarding-draft';
 import { labelFor, type TaxonomyCatalog, type UiLocale } from '../../domain/picker';
-import {
-  MAX_ENRICHMENT_LINKS,
-  ENRICHMENT_RATE_LIMIT_PER_HOUR,
-} from '../../domain/enrichment-limits';
-
-/** Enrichment draft as returned by POST /api/me/enrich. */
-interface EnrichDraft {
-  headline: string | null;
-  short_bio: string | null;
-  company: string | null;
-  links: string[];
-  suggested_interests: string[];
-  suggested_intents: string[];
-}
-
-interface EnrichSource {
-  title: string;
-  uri: string;
-}
-
-type EnrichState =
-  | { kind: 'idle' }
-  | { kind: 'busy' }
-  | { kind: 'ready'; draft: EnrichDraft; sources: EnrichSource[] }
-  | { kind: 'error'; reason: 'rate_limited' | 'disabled' | 'failed' | 'network' };
+import { MAX_ENRICHMENT_LINKS } from '../../domain/enrichment-limits';
+import { EnrichPanel, type EnrichDraft, type EnrichRow, type EnrichStrings } from '../../components/enrich-panel';
 
 export interface OnboardingStrings {
   title: string;
@@ -63,21 +40,7 @@ export interface OnboardingStrings {
   publishing: string;
   saveError: string;
   contactSaveError: string;
-  enrich: {
-    cta: string;
-    busy: string;
-    hint: string;
-    sources: string;
-    suggested: string;
-    apply: string;
-    applied: string;
-    noDraft: string;
-    rateLimited: string;
-    disabled: string;
-    failed: string;
-    retry: string;
-    privacyNote: string;
-  };
+  enrich: EnrichStrings;
   picker: PickerStrings;
   pick: {
     needTitle: string;
@@ -150,8 +113,6 @@ export function OnboardingFlow({
   const [links, setLinks] = useState<Partial<Record<LinkKind, string>>>({});
   const [linkErrors, setLinkErrors] = useState<Partial<Record<LinkKind, string>>>({});
   const [publish, setPublish] = useState<Record<string, boolean>>(() => defaultPublish());
-  const [enrich, setEnrich] = useState<EnrichState>({ kind: 'idle' });
-  const [applied, setApplied] = useState<Record<string, boolean>>({});
   const [publishing, setPublishing] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
@@ -232,74 +193,67 @@ export function OnboardingFlow({
   const setPublishFlag = (field: string, published: boolean) =>
     setPublish((p) => ({ ...p, [field]: published }));
 
-  // ── enrichment ─────────────────────────────────────────────────────────────
-  const runEnrich = async () => {
-    setEnrich({ kind: 'busy' });
-    try {
-      const res = await fetch('/api/me/enrich', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({}),
-      });
-      const body = (await res.json().catch(() => null)) as
-        | { draft?: EnrichDraft; sources?: EnrichSource[]; code?: string }
-        | null;
-      if (res.ok && body?.draft) {
-        setEnrich({ kind: 'ready', draft: body.draft, sources: body.sources ?? [] });
+  /** One draft row applied by hand. The panel never writes to the form itself. */
+  const applyRow = (row: EnrichRow, draft: EnrichDraft) => {
+    switch (row.key) {
+      case 'headline':
+        if (draft.headline) set('headline', draft.headline);
+        return;
+      case 'short_bio':
+        if (draft.short_bio) set('short_bio', draft.short_bio);
+        return;
+      case 'company':
+        if (draft.company) set('company', draft.company);
+        return;
+      case 'interests': {
+        set('interests', mergeCapped(values.interests, draft.suggested_interests, catalog.limits.interests));
         return;
       }
-      if (res.status === 429) setEnrich({ kind: 'error', reason: 'rate_limited' });
-      else if (res.status === 503) setEnrich({ kind: 'error', reason: 'disabled' });
-      else setEnrich({ kind: 'error', reason: 'failed' });
-    } catch {
-      setEnrich({ kind: 'error', reason: 'network' });
-    }
-  };
-
-  const enrichMessage = (state: EnrichState): string | null => {
-    if (state.kind !== 'error') return null;
-    switch (state.reason) {
-      case 'rate_limited':
-        return fill(strings.enrich.rateLimited, { max: ENRICHMENT_RATE_LIMIT_PER_HOUR });
-      case 'disabled':
-        return strings.enrich.disabled;
-      case 'network':
-        return strings.errorNetwork;
+      case 'intents': {
+        const needs = draft.suggested_intents.filter((id) => catalog.intents.some((p) => p.need.id === id));
+        const offers = draft.suggested_intents.filter((id) => catalog.intents.some((p) => p.offer.id === id));
+        set('need_intents', mergeCapped(values.need_intents, needs, catalog.limits.need_intents));
+        set('offer_intents', mergeCapped(values.offer_intents, offers, catalog.limits.offer_intents));
+        return;
+      }
+      case 'links': {
+        const next = { ...links };
+        for (const url of draft.links.slice(0, MAX_ENRICHMENT_LINKS)) {
+          const kind = detectLinkKind(url);
+          if (!next[kind]) next[kind] = url;
+        }
+        setLinks(next);
+        for (const [kind, value] of Object.entries(next)) {
+          if (typeof value === 'string') setLink(kind as LinkKind, value);
+        }
+        return;
+      }
       default:
-        return strings.enrich.failed;
+        return;
     }
   };
 
-  /** Applies one draft value. Every apply is an explicit, per-field action. */
-  const applyField = (key: string) => {
-    if (enrich.kind !== 'ready') return;
-    const draft = enrich.draft;
-    if (key === 'headline' && draft.headline) set('headline', draft.headline);
-    if (key === 'short_bio' && draft.short_bio) set('short_bio', draft.short_bio);
-    if (key === 'company' && draft.company) set('company', draft.company);
-    if (key === 'interests' && draft.suggested_interests.length > 0) {
-      const limit = catalog.limits.interests;
-      set('interests', mergeCapped(values.interests, draft.suggested_interests, limit));
-    }
-    if (key === 'intents') {
-      const needs = draft.suggested_intents.filter((id) => catalog.intents.some((p) => p.need.id === id));
-      const offers = draft.suggested_intents.filter((id) => catalog.intents.some((p) => p.offer.id === id));
-      set('need_intents', mergeCapped(values.need_intents, needs, catalog.limits.need_intents));
-      set('offer_intents', mergeCapped(values.offer_intents, offers, catalog.limits.offer_intents));
-    }
-    if (key === 'links') {
-      const next = { ...links };
-      for (const url of draft.links.slice(0, MAX_ENRICHMENT_LINKS)) {
-        const kind = detectLinkKind(url);
-        if (!next[kind]) next[kind] = url;
-      }
-      setLinks(next);
-      for (const [kind, value] of Object.entries(next)) {
-        if (typeof value === 'string') setLink(kind as LinkKind, value);
-      }
-    }
-    setApplied((a) => ({ ...a, [key]: true }));
-  };
+  /** Draft → rows. The parent owns the labels, so the panel stays catalogue-free. */
+  const buildRows = (draft: EnrichDraft): EnrichRow[] => [
+    { key: 'headline', label: strings.headlineLabel, value: draft.headline ?? '' },
+    { key: 'short_bio', label: strings.bioLabel, value: draft.short_bio ?? '' },
+    { key: 'company', label: strings.companyLabel, value: draft.company ?? '' },
+    {
+      key: 'interests',
+      label: strings.pick.interestsTitle,
+      value: draft.suggested_interests
+        .map((id) => catalog.interests.find((i) => i.id === id))
+        .map((i) => (i ? labelFor(i.label, locale) : null))
+        .filter((x): x is string => x !== null)
+        .join(', '),
+    },
+    {
+      key: 'intents',
+      label: `${strings.pick.needTitle} / ${strings.pick.offerTitle}`,
+      value: draft.suggested_intents.join(', '),
+    },
+    { key: 'links', label: strings.linksTitle, value: draft.links.join(', ') },
+  ];
 
   // ── publish ────────────────────────────────────────────────────────────────
   const publishCard = async () => {
@@ -586,85 +540,14 @@ export function OnboardingFlow({
               {strings.step4Title}
             </h2>
 
-            <div className="mt-4 rounded-xl border border-line bg-paper p-4">
-              <button
-                type="button"
-                className="btn-primary btn-small"
-                disabled={enrich.kind === 'busy'}
-                onClick={() => void runEnrich()}
-                data-testid="ob-enrich"
-              >
-                {enrich.kind === 'busy' ? strings.enrich.busy : strings.enrich.cta}
-              </button>
-              <p className="mt-2 text-xs leading-relaxed text-muted">{strings.enrich.hint}</p>
-              <p className="mt-1 text-xs font-semibold text-pine">{strings.enrich.privacyNote}</p>
-              {enrichMessage(enrich) ? (
-                <div className="mt-2 flex flex-wrap items-center gap-2" role="alert">
-                  <p className="text-sm text-red-700">{enrichMessage(enrich)}</p>
-                  <button type="button" className="btn-light btn-small" onClick={() => void runEnrich()} data-testid="ob-enrich-retry">
-                    {strings.enrich.retry}
-                  </button>
-                </div>
-              ) : null}
+            <div className="mt-4">
+              <EnrichPanel
+                strings={strings.enrich}
+                buildRows={buildRows}
+                onApply={applyRow}
+                testId="ob-enrich"
+              />
             </div>
-
-            {enrich.kind === 'ready' ? (
-              <div className="mt-4" data-testid="ob-enrich-draft">
-                <p className="text-sm font-bold">{strings.enrich.suggested}</p>
-                <ul className="mt-2 flex flex-col gap-2">
-                  {enrichRow('headline', strings.fieldLabels['headline'] ?? '', enrich.draft.headline, applied, applyField, strings)}
-                  {enrichRow('short_bio', strings.fieldLabels['short_bio'] ?? '', enrich.draft.short_bio, applied, applyField, strings)}
-                  {enrichRow('company', strings.fieldLabels['company'] ?? '', enrich.draft.company, applied, applyField, strings)}
-                  {enrichRow(
-                    'interests',
-                    strings.pick.interestsTitle,
-                    enrich.draft.suggested_interests
-                      .map((id) => catalog.interests.find((i) => i.id === id))
-                      .map((i) => (i ? labelFor(i.label, locale) : null))
-                      .filter((x): x is string => x !== null)
-                      .join(', '),
-                    applied,
-                    applyField,
-                    strings,
-                  )}
-                  {enrichRow(
-                    'intents',
-                    `${strings.pick.needTitle} / ${strings.pick.offerTitle}`,
-                    enrich.draft.suggested_intents.join(', '),
-                    applied,
-                    applyField,
-                    strings,
-                  )}
-                  {enrichRow('links', strings.linksTitle, enrich.draft.links.join(', '), applied, applyField, strings)}
-                </ul>
-                {enrich.sources.length > 0 ? (
-                  <div className="mt-3">
-                    <p className="text-xs font-bold uppercase tracking-wide text-muted">{strings.enrich.sources}</p>
-                    <ul className="mt-1 flex flex-col gap-1">
-                      {enrich.sources.map((source) => {
-                        const href = linkHref('website', source.uri);
-                        return (
-                          <li key={source.uri} className="text-xs">
-                            {href ? (
-                              <a
-                                className="break-all font-medium underline underline-offset-2"
-                                href={href}
-                                target="_blank"
-                                rel="noopener noreferrer nofollow"
-                              >
-                                {source.title}
-                              </a>
-                            ) : (
-                              <span className="break-all">{source.title}</span>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
 
             <div className="mt-6">
               <p className="text-sm font-bold">{strings.linksTitle}</p>
@@ -774,34 +657,6 @@ export function OnboardingFlow({
         <Toast message={toast.message} kind={toast.kind} onDone={toast.clear} />
       </div>
     </div>
-  );
-}
-
-/** One draft row: value preview + an explicit per-field Apply button. */
-function enrichRow(
-  key: string,
-  label: string,
-  value: string | null,
-  applied: Record<string, boolean>,
-  applyField: (key: string) => void,
-  strings: OnboardingStrings,
-) {
-  if (!value) return null;
-  return (
-    <li className="flex flex-wrap items-start justify-between gap-2 rounded-lg border border-line bg-white px-3 py-2">
-      <div className="min-w-0">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-muted">{label}</p>
-        <p className="break-words text-sm">{value}</p>
-      </div>
-      <button
-        type="button"
-        className="btn-light btn-small"
-        onClick={() => applyField(key)}
-        data-testid={`ob-apply-${key}`}
-      >
-        {applied[key] ? strings.enrich.applied : strings.enrich.apply}
-      </button>
-    </li>
   );
 }
 
