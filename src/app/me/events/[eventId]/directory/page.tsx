@@ -4,19 +4,55 @@ import { notFound } from 'next/navigation';
 import { getSql } from '../../../../../lib/db';
 import { requireAccountId } from '../../../../../lib/session-page';
 import { getT } from '../../../../../i18n';
-import { DirectoryPanel } from './directory-panel';
+import { DirectoryPanel, filtersFromQuery } from './directory-panel';
+import type { ReasonTemplates } from '../../../../../domain/reasons';
 
 export const metadata: Metadata = { title: 'Каталог', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
 
 export default async function EventDirectoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ eventId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { eventId } = await params;
   const accountId = await requireAccountId(`/me/events/${eventId}/directory`);
-  const { t } = await getT();
+  const { locale, t } = await getT();
+  // Filter state lives in the URL; the server seeds the client panel from it so
+  // a shared link opens the same narrowed view.
+  const rawSearch = await searchParams;
+  const single = (key: string): string | undefined => {
+    const value = rawSearch[key];
+    return typeof value === 'string' ? value : undefined;
+  };
+  const initialFilters = filtersFromQuery({
+    mode: single('mode'),
+    interest: single('interest'),
+    function: single('function'),
+    industry: single('industry'),
+    q: single('q'),
+  });
+  // Reason sentences are built from i18n here; the API only returns codes.
+  const reasonTemplates: ReasonTemplates = {
+    me: {
+      intent_need_covered: t('reason.me.intent_need_covered'),
+      intent_offer_match: t('reason.me.intent_offer_match'),
+      shared_interests: t('reason.me.shared_interests'),
+      shared_function: t('reason.me.shared_function'),
+      same_industry: t('reason.me.same_industry'),
+      shared_tag: t('reason.me.shared_tag'),
+    },
+    them: {
+      intent_need_covered: t('reason.them.intent_need_covered'),
+      intent_offer_match: t('reason.them.intent_offer_match'),
+      shared_interests: t('reason.them.shared_interests'),
+      shared_function: t('reason.them.shared_function'),
+      same_industry: t('reason.them.same_industry'),
+      shared_tag: t('reason.them.shared_tag'),
+    },
+  };
   const sql = getSql();
 
   // The event must exist; directory access itself is enforced by the API.
@@ -49,7 +85,11 @@ export default async function EventDirectoryPage({
       <div className="mt-6">
         <DirectoryPanel
           eventId={event.id}
+          initialFilters={initialFilters}
+          locale={locale}
+          reasonTemplates={reasonTemplates}
           kindLabels={{
+            // Revealable contact kinds include phone (no card link for it).
             whatsapp: t('contacts.kind.whatsapp'),
             telegram_username: t('contacts.kind.telegram_username'),
             linkedin_url: t('contacts.kind.linkedin_url'),
@@ -73,12 +113,30 @@ export default async function EventDirectoryPage({
             recommendationsTitle: t('directory.recommendationsTitle'),
             recommendationsEmpty: t('directory.recommendationsEmpty'),
             scoreTemplate: t('directory.score'),
-            reasonsForMeTemplate: t('directory.reasonsForMe'),
-            reasonsForThemTemplate: t('directory.reasonsForThem'),
             notVisibleNote: t('directory.notVisibleNote'),
             cancel: t('common.cancel'),
             errorNetwork: t('common.errorNetwork'),
             errorGeneric: t('common.errorGeneric'),
+            modes: {
+              intent: t('dir.modeIntent'),
+              interest: t('dir.modeInterest'),
+              all: t('dir.modeAll'),
+            },
+            modeHints: {
+              intent: t('dir.modeHintIntent'),
+              interest: t('dir.modeHintInterest'),
+              all: t('dir.modeHintAll'),
+            },
+            filterInterest: t('dir.filterInterest'),
+            filterFunction: t('dir.filterFunction'),
+            filterIndustry: t('dir.filterIndustry'),
+            searchLabel: t('dir.searchLabel'),
+            searchPlaceholder: t('dir.searchPlaceholder'),
+            clearFilters: t('dir.clearFilters'),
+            resultCount: t('dir.resultCount'),
+            looksFor: t('dir.looksFor'),
+            canOffer: t('dir.canOffer'),
+            unspecified: t('pick.unspecified'),
           }}
         />
       </div>

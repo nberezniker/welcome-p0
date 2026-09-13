@@ -1,8 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Modal, Toast, useToast } from '../../../../../components/modal';
 import { fill } from '../../../../../components/fill';
+import { ReasonList } from '../../../../../components/reason-list';
+import { useTaxonomyCatalog } from '../../../../../components/taxonomy-catalog';
+import type { Reason, ReasonTemplates } from '../../../../../domain/reasons';
+import { labelFor, type TaxonomyCatalog, type UiLocale } from '../../../../../domain/picker';
+// Contact kinds (what an introduction can reveal) — not link kinds: phone is
+// revealable but is not a card link.
+import type { ContactKind } from '../../../../../domain/profile';
 
 export interface DirectoryMember {
   profile_id: string;
@@ -11,12 +19,28 @@ export interface DirectoryMember {
   company: string | null;
   offer_tags: string[];
   need_tags: string[];
+  need_intents: string[];
+  offer_intents: string[];
+  interests: string[];
+  industry: string | null;
+  job_function: string | null;
 }
 
 export interface RecommendationItem extends DirectoryMember {
   score: number;
-  reasons_for_me: string[];
-  reasons_for_them: string[];
+  /** Structural reasons — rendered by ReasonList, never shown raw. */
+  reasons_for_me: Reason[];
+  reasons_for_them: Reason[];
+}
+
+export type DirectoryMode = 'intent' | 'interest' | 'all';
+
+export interface DirectoryFilters {
+  mode: DirectoryMode;
+  interest: string | null;
+  jobFunction: string | null;
+  industry: string | null;
+  q: string;
 }
 
 type Strings = {
@@ -35,63 +59,143 @@ type Strings = {
   recommendationsTitle: string;
   recommendationsEmpty: string;
   scoreTemplate: string;
-  reasonsForMeTemplate: string;
-  reasonsForThemTemplate: string;
   notVisibleNote: string;
   cancel: string;
   errorNetwork: string;
   errorGeneric: string;
+  modes: Record<DirectoryMode, string>;
+  modeHints: Record<DirectoryMode, string>;
+  filterInterest: string;
+  filterFunction: string;
+  filterIndustry: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  clearFilters: string;
+  resultCount: string;
+  looksFor: string;
+  canOffer: string;
+  unspecified: string;
 };
 
-const ALL_KINDS = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone', 'github_url'] as const;
-type Kind = (typeof ALL_KINDS)[number];
+const ALL_KINDS: readonly ContactKind[] = [
+  'whatsapp',
+  'telegram_username',
+  'linkedin_url',
+  'website',
+  'phone',
+  'github_url',
+];
 
-/** Directory list + recommendations strip. Data via the existing APIs. */
+const MODES: readonly DirectoryMode[] = ['intent', 'interest', 'all'];
+
+/** Serializes filter state into the URL contract (?mode=&interest=&function=&industry=&q=). */
+export function filtersToQuery(filters: DirectoryFilters): string {
+  const params = new URLSearchParams();
+  if (filters.mode !== 'all') params.set('mode', filters.mode);
+  if (filters.interest) params.set('interest', filters.interest);
+  if (filters.jobFunction) params.set('function', filters.jobFunction);
+  if (filters.industry) params.set('industry', filters.industry);
+  if (filters.q.trim().length > 0) params.set('q', filters.q.trim());
+  return params.toString();
+}
+
+/** Inverse of filtersToQuery; the server page uses it to seed the panel. */
+export function filtersFromQuery(search: {
+  mode?: string;
+  interest?: string;
+  function?: string;
+  industry?: string;
+  q?: string;
+}): DirectoryFilters {
+  const mode: DirectoryMode =
+    search.mode === 'intent' || search.mode === 'interest' || search.mode === 'all' ? search.mode : 'intent';
+  return {
+    mode,
+    interest: search.interest ?? null,
+    jobFunction: search.function ?? null,
+    industry: search.industry ?? null,
+    q: search.q ?? '',
+  };
+}
+
+/**
+ * Event directory: three modes (intent / interest / all) with facet filters and a
+ * free-text search, plus the recommendations strip. All filter state lives in the
+ * URL so a narrowed view can be shared or bookmarked, and the directory API stays
+ * the only data source — no client-side filtering of a truncated list.
+ */
 export function DirectoryPanel({
   eventId,
+  initialFilters,
   kindLabels,
+  locale,
+  reasonTemplates,
   strings,
 }: {
   eventId: string;
-  kindLabels: Record<Kind, string>;
+  initialFilters: DirectoryFilters;
+  kindLabels: Record<ContactKind, string>;
+  locale: UiLocale;
+  reasonTemplates: ReasonTemplates;
   strings: Strings;
 }) {
+  const router = useRouter();
+  const [filters, setFilters] = useState<DirectoryFilters>(initialFilters);
   const [members, setMembers] = useState<DirectoryMember[] | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationItem[] | null>(null);
   const [closed, setClosed] = useState(false);
   const [chooserMember, setChooserMember] = useState<DirectoryMember | null>(null);
-  const [revealKinds, setRevealKinds] = useState<Kind[]>([]);
+  const [revealKinds, setRevealKinds] = useState<ContactKind[]>([]);
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState<Set<string>>(new Set());
   const toast = useToast();
+  const { catalog } = useTaxonomyCatalog();
+  const { mode, interest, jobFunction, industry, q } = filters;
+
+  /** Applies new filters: URL first (shareable state), then the refetch effect runs. */
+  const apply = useCallback(
+    (patch: Partial<DirectoryFilters>) => {
+      setFilters((prev) => {
+        const next = { ...prev, ...patch };
+        const query = filtersToQuery(next);
+        router.replace(`/me/events/${eventId}/directory${query ? `?${query}` : ''}`, { scroll: false });
+        return next;
+      });
+    },
+    [eventId, router],
+  );
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
+      const params = new URLSearchParams();
+      params.set('mode', mode);
+      if (interest) params.set('interest', interest);
+      if (jobFunction) params.set('function', jobFunction);
+      if (industry) params.set('industry', industry);
+      if (q.trim().length > 0) params.set('q', q.trim());
+
       try {
         const [dirRes, recRes] = await Promise.all([
-          fetch(`/api/events/${eventId}/directory`),
+          fetch(`/api/events/${eventId}/directory?${params.toString()}`),
           fetch(`/api/events/${eventId}/recommendations`),
         ]);
-        if (!cancelled) {
-          if (dirRes.status === 403) {
-            const body = (await dirRes.json().catch(() => null)) as { code?: string } | null;
-            if (body?.code === 'directory_closed') setClosed(true);
-            setMembers([]);
-          } else if (dirRes.ok) {
-            const body = (await dirRes.json().catch(() => null)) as { members?: DirectoryMember[] } | null;
-            setMembers(body?.members ?? []);
-          } else {
-            setMembers([]);
-          }
+        if (cancelled) return;
+        if (dirRes.status === 403) {
+          const body = (await dirRes.json().catch(() => null)) as { code?: string } | null;
+          if (body?.code === 'directory_closed') setClosed(true);
+          setMembers([]);
+        } else if (dirRes.ok) {
+          const body = (await dirRes.json().catch(() => null)) as { members?: DirectoryMember[] } | null;
+          setMembers(body?.members ?? []);
+        } else {
+          setMembers([]);
         }
-        if (!cancelled) {
-          if (recRes.ok) {
-            const body = (await recRes.json().catch(() => null)) as { recommendations?: RecommendationItem[] } | null;
-            setRecommendations(body?.recommendations ?? []);
-          } else {
-            setRecommendations([]);
-          }
+        if (recRes.ok) {
+          const body = (await recRes.json().catch(() => null)) as { recommendations?: RecommendationItem[] } | null;
+          setRecommendations(body?.recommendations ?? []);
+        } else {
+          setRecommendations([]);
         }
       } catch {
         if (!cancelled) {
@@ -103,7 +207,7 @@ export function DirectoryPanel({
     return () => {
       cancelled = true;
     };
-  }, [eventId]);
+  }, [eventId, mode, interest, jobFunction, industry, q]);
 
   const propose = async () => {
     if (!chooserMember) return;
@@ -135,7 +239,8 @@ export function DirectoryPanel({
   };
 
   if (closed) return <p className="text-sm text-muted">{strings.closed}</p>;
-  if (members === null || recommendations === null) return <p className="text-sm text-muted">{strings.loading}</p>;
+
+  const hasFilters = Boolean(interest || jobFunction || industry || q.trim().length > 0);
 
   return (
     <div className="flex flex-col gap-8">
@@ -144,7 +249,9 @@ export function DirectoryPanel({
         <h2 id="recs-heading" className="text-lg font-bold tracking-tight">
           {strings.recommendationsTitle}
         </h2>
-        {recommendations.length === 0 ? (
+        {recommendations === null ? (
+          <p className="mt-2 text-sm text-muted">{strings.loading}</p>
+        ) : recommendations.length === 0 ? (
           <p className="mt-2 text-sm text-muted" data-testid="recommendations-empty">
             {strings.recommendationsEmpty}
           </p>
@@ -157,12 +264,26 @@ export function DirectoryPanel({
                   <span className="chip">{fill(strings.scoreTemplate, { score: rec.score })}</span>
                 </div>
                 <p className="text-xs text-muted">{rec.headline ?? rec.company ?? ''}</p>
-                {rec.reasons_for_me.length > 0 ? (
-                  <p className="mt-2 text-xs text-pine">{fill(strings.reasonsForMeTemplate, { reasons: rec.reasons_for_me.join(', ') })}</p>
-                ) : null}
-                {rec.reasons_for_them.length > 0 ? (
-                  <p className="mt-1 text-xs text-muted">{fill(strings.reasonsForThemTemplate, { reasons: rec.reasons_for_them.join(', ') })}</p>
-                ) : null}
+                {/* Two audiences, two templates: "what this means for me" vs
+                    "what I mean to them" can never render the same sentence. */}
+                <ReasonList
+                  reasons={rec.reasons_for_me}
+                  audience="me"
+                  templates={reasonTemplates}
+                  catalog={catalog}
+                  locale={locale}
+                  className="mt-2 flex flex-col gap-0.5 text-xs text-pine"
+                  testId={`reasons-me-${rec.profile_id}`}
+                />
+                <ReasonList
+                  reasons={rec.reasons_for_them}
+                  audience="them"
+                  templates={reasonTemplates}
+                  catalog={catalog}
+                  locale={locale}
+                  className="mt-1 flex flex-col gap-0.5 text-xs text-muted"
+                  testId={`reasons-them-${rec.profile_id}`}
+                />
                 <button
                   type="button"
                   className="btn-light btn-small mt-3 w-full"
@@ -180,49 +301,187 @@ export function DirectoryPanel({
         )}
       </section>
 
-      {/* Member list */}
+      {/* Modes + filters + member list */}
       <section aria-labelledby="dir-heading">
-        <h2 id="dir-heading" className="text-lg font-bold tracking-tight">{strings.membersTitle}</h2>
-        {members.length === 0 ? (
-          <p className="mt-2 text-sm text-muted" data-testid="directory-empty">
-            {strings.empty}
-          </p>
-        ) : (
-          <ul className="mt-3 grid gap-3 md:grid-cols-2" data-testid="member-list">
-            {members.map((m) => (
-              <li key={m.profile_id} className="card-tight" data-testid={`member-${m.profile_id}`}>
-                <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h3 className="text-sm font-bold">{m.display_name}</h3>
-                  <span className="text-xs text-muted">{m.company ?? ''}</span>
-                </div>
-                {m.headline ? <p className="text-xs text-muted">{m.headline}</p> : null}
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {m.offer_tags.map((tag) => (
-                    <span key={`o-${tag}`} className="chip-offer">
-                      {tag}
-                    </span>
-                  ))}
-                  {m.need_tags.map((tag) => (
-                    <span key={`n-${tag}`} className="chip-need">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+        <h2 id="dir-heading" className="text-lg font-bold tracking-tight">
+          {strings.membersTitle}
+        </h2>
+
+        <div role="tablist" aria-label={strings.membersTitle} className="mt-3 flex flex-wrap gap-2">
+          {MODES.map((m) => (
+            <button
+              key={m}
+              type="button"
+              role="tab"
+              aria-selected={mode === m}
+              className={mode === m ? 'btn-primary btn-small' : 'btn-light btn-small'}
+              onClick={() => apply({ mode: m })}
+              data-testid={`dir-mode-${m}`}
+            >
+              {strings.modes[m]}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-muted" data-testid="dir-mode-hint">
+          {strings.modeHints[mode]}
+        </p>
+
+        <div className="mt-4 flex flex-col gap-3 rounded-xl border border-line bg-white p-3">
+          <div>
+            <label className="label" htmlFor="dir-q">
+              {strings.searchLabel}
+            </label>
+            <input
+              id="dir-q"
+              className="input"
+              type="search"
+              value={q}
+              placeholder={strings.searchPlaceholder}
+              onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
+              onBlur={(e) => apply({ q: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') apply({ q: (e.target as HTMLInputElement).value });
+              }}
+              data-testid="dir-search"
+            />
+          </div>
+
+          {catalog ? (
+            <div className="flex flex-wrap gap-2">
+              <label className="sr-only" htmlFor="dir-interest">
+                {strings.filterInterest}
+              </label>
+              <select
+                id="dir-interest"
+                className="input max-w-xs"
+                value={interest ?? ''}
+                onChange={(e) => apply({ interest: e.target.value === '' ? null : e.target.value })}
+                data-testid="dir-filter-interest"
+              >
+                <option value="">{`${strings.filterInterest}: ${strings.unspecified}`}</option>
+                {catalog.interests.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {labelFor(item.label, locale)}
+                  </option>
+                ))}
+              </select>
+
+              <label className="sr-only" htmlFor="dir-function">
+                {strings.filterFunction}
+              </label>
+              <select
+                id="dir-function"
+                className="input max-w-xs"
+                value={jobFunction ?? ''}
+                onChange={(e) => apply({ jobFunction: e.target.value === '' ? null : e.target.value })}
+                data-testid="dir-filter-function"
+              >
+                <option value="">{`${strings.filterFunction}: ${strings.unspecified}`}</option>
+                {catalog.functions.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {labelFor(item.label, locale)}
+                  </option>
+                ))}
+              </select>
+
+              <label className="sr-only" htmlFor="dir-industry">
+                {strings.filterIndustry}
+              </label>
+              <select
+                id="dir-industry"
+                className="input max-w-xs"
+                value={industry ?? ''}
+                onChange={(e) => apply({ industry: e.target.value === '' ? null : e.target.value })}
+                data-testid="dir-filter-industry"
+              >
+                <option value="">{`${strings.filterIndustry}: ${strings.unspecified}`}</option>
+                {catalog.industries.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {labelFor(item.label, locale)}
+                  </option>
+                ))}
+              </select>
+
+              {hasFilters ? (
                 <button
                   type="button"
-                  className="btn-primary btn-small mt-3"
-                  disabled={busy || sentTo.has(m.profile_id)}
-                  onClick={() => {
-                    setChooserMember(m);
-                    setRevealKinds([]);
-                  }}
-                  data-testid={`propose-${m.profile_id}`}
+                  className="btn-light btn-small"
+                  onClick={() => apply({ interest: null, jobFunction: null, industry: null, q: '' })}
+                  data-testid="dir-clear-filters"
                 >
-                  {sentTo.has(m.profile_id) ? strings.proposed : strings.proposeIntro}
+                  {strings.clearFilters}
                 </button>
-              </li>
-            ))}
-          </ul>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+
+        {members === null ? (
+          <p className="mt-3 text-sm text-muted">{strings.loading}</p>
+        ) : (
+          <>
+            <p className="mt-3 text-xs text-muted" data-testid="dir-result-count">
+              {fill(strings.resultCount, { n: members.length })}
+            </p>
+            {members.length === 0 ? (
+              <p className="mt-2 text-sm text-muted" data-testid="directory-empty">
+                {strings.empty}
+              </p>
+            ) : (
+              <ul className="mt-3 grid gap-3 md:grid-cols-2" data-testid="member-list">
+                {members.map((m) => (
+                  <li key={m.profile_id} className="card-tight" data-testid={`member-${m.profile_id}`}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <h3 className="text-sm font-bold">{m.display_name}</h3>
+                      <span className="text-xs text-muted">{m.company ?? ''}</span>
+                    </div>
+                    {m.headline ? <p className="text-xs text-muted">{m.headline}</p> : null}
+                    <div className="mt-2 flex flex-col gap-1">
+                      <MemberAxes
+                        label={strings.canOffer}
+                        ids={m.offer_intents}
+                        legacy={m.offer_tags}
+                        axis="offer_intents"
+                        catalog={catalog}
+                        locale={locale}
+                        className="chip-offer"
+                      />
+                      <MemberAxes
+                        label={strings.looksFor}
+                        ids={m.need_intents}
+                        legacy={m.need_tags}
+                        axis="need_intents"
+                        catalog={catalog}
+                        locale={locale}
+                        className="chip-need"
+                      />
+                      <MemberAxes
+                        label={strings.filterInterest}
+                        ids={m.interests}
+                        legacy={[]}
+                        axis="interests"
+                        catalog={catalog}
+                        locale={locale}
+                        className="chip"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="btn-primary btn-small mt-3"
+                      disabled={busy || sentTo.has(m.profile_id)}
+                      onClick={() => {
+                        setChooserMember(m);
+                        setRevealKinds([]);
+                      }}
+                      data-testid={`propose-${m.profile_id}`}
+                    >
+                      {sentTo.has(m.profile_id) ? strings.proposed : strings.proposeIntro}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
       </section>
 
@@ -255,7 +514,13 @@ export function DirectoryPanel({
           <button type="button" className="btn-light btn-small" onClick={() => setChooserMember(null)}>
             {strings.cancel}
           </button>
-          <button type="button" className="btn-accent btn-small" disabled={busy} onClick={() => void propose()} data-testid="send-intro">
+          <button
+            type="button"
+            className="btn-accent btn-small"
+            disabled={busy}
+            onClick={() => void propose()}
+            data-testid="send-intro"
+          >
             {busy ? strings.sending : strings.sendRequest}
           </button>
         </div>
@@ -263,4 +528,62 @@ export function DirectoryPanel({
       <Toast message={toast.message} kind={toast.kind} onDone={toast.clear} />
     </div>
   );
+}
+
+/** One axis row on a member card: catalogue labels, with legacy tags as fallback. */
+function MemberAxes({
+  label,
+  ids,
+  legacy,
+  axis,
+  catalog,
+  locale,
+  className,
+}: {
+  label: string;
+  ids: string[];
+  legacy: string[];
+  axis: 'need_intents' | 'offer_intents' | 'interests';
+  catalog: TaxonomyCatalog | null;
+  locale: UiLocale;
+  className: string;
+}) {
+  const labels = memberLabels(catalog, axis, ids, legacy, locale);
+  if (labels.length === 0) return null;
+  return (
+    <p className="flex flex-wrap items-baseline gap-1.5">
+      <span className="text-[11px] font-bold uppercase tracking-wide text-muted">{label}</span>
+      {labels.map((item, index) => (
+        <span key={`${item}-${index}`} className={className}>
+          {item}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** Catalogue label for a stored id; raw id for stale values; tags when no v3 data. */
+function memberLabels(
+  catalog: TaxonomyCatalog | null,
+  axis: 'need_intents' | 'offer_intents' | 'interests',
+  ids: string[],
+  legacy: string[],
+  locale: UiLocale,
+): string[] {
+  if (ids.length === 0) return legacy;
+  if (!catalog) return ids;
+  if (axis === 'interests') {
+    return ids.map((id) => {
+      const hit = catalog.interests.find((i) => i.id === id);
+      return hit ? labelFor(hit.label, locale) : id;
+    });
+  }
+  const kind = axis === 'need_intents' ? 'need' : 'offer';
+  return ids.map((id) => {
+    for (const pair of catalog.intents) {
+      const side = kind === 'need' ? pair.need : pair.offer;
+      if (side.id === id) return labelFor(side.goal, locale);
+    }
+    return id;
+  });
 }
