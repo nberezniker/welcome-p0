@@ -4,13 +4,13 @@ import { requireAccount } from '../../../../../lib/auth';
 import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../lib/http';
 import { isUuid } from '../../../../../domain/organizer';
 import { recommendForEvent } from '../../../../../domain/recommendations';
-import { LOCALE_COOKIE } from '../../../../../i18n';
 
 export const dynamic = 'force-dynamic';
 
 /** GET /api/events/[eventIdOrSlug]/recommendations — member-only.
  * An EMPTY list is a normal outcome, never an error. Only allowlisted fields
- * and fact-based reasons leave the server. */
+ * leave the server; reasons are STRUCTURAL (code + catalogue ids) and the UI
+ * renders them in the viewer's language (src/domain/reasons.ts). */
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ eventIdOrSlug: string }> },
@@ -54,8 +54,6 @@ export async function GET(
       { accountId: auth.accountId, profileId: profile.id },
       event.id,
       3,
-      // Human reasons follow the viewer's UI language (ES falls back to EN).
-      req.cookies.get(LOCALE_COOKIE)?.value === 'ru' ? 'ru' : 'en',
     );
 
     return jsonOk({ ok: true, recommendations }, { headers: privateCacheHeaders() });

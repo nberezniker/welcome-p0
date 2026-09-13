@@ -17,16 +17,16 @@
  * the legacy tag path instead of silently scoring it as zero.
  *
  * No LLM, no network, no inferred attributes, no private fields. Reasons are
- * fact-based strings derived only from the two catalog-backed inputs.
+ * STRUCTURAL (see ./reasons): a code plus the catalogue ids the sentence needs.
+ * The domain never renders text — the UI does, through i18n, from the viewer's
+ * point of view and in the viewer's language.
  */
 
 import {
   COMPLEMENTARY_FUNCTIONS,
   complementOf,
-  facetLabel,
   INDUSTRIES,
   INTENTS,
-  interestLabel,
   interestOrder,
   isIndustryId,
   isJobFunctionId,
@@ -34,8 +34,7 @@ import {
   normalizeIntentTag,
   normalizeInterest,
 } from './taxonomy';
-
-export type ReasonLocale = 'ru' | 'en';
+import type { Reason } from './reasons';
 
 export const NETWORKING_ALGORITHM = 'welcome_intent_interest_v1' as const;
 
@@ -65,8 +64,8 @@ export interface NetworkingScoreResult {
   readonly algorithm: typeof NETWORKING_ALGORITHM;
   /** Relevance does not assert actual interest or acceptance by either side. */
   readonly mutualConsent: false;
-  /** Localized, deterministic reasons (see reasonsFor). */
-  readonly reasons: string[];
+  /** Structural reasons, from `a`'s point of view (see reasonsFor). */
+  readonly reasons: readonly Reason[];
 }
 
 interface NormalizedProfile {
@@ -83,11 +82,6 @@ const INTENT_INDEX = new Map<string, number>();
 for (const pair of INTENTS) {
   INTENT_INDEX.set(pair.need.id, INTENT_INDEX.size);
   INTENT_INDEX.set(pair.offer.id, INTENT_INDEX.size);
-}
-const INTENT_GOALS = new Map<string, { ru: string; en: string }>();
-for (const pair of INTENTS) {
-  INTENT_GOALS.set(pair.need.id, pair.need.goal);
-  INTENT_GOALS.set(pair.offer.id, pair.offer.goal);
 }
 
 function byIntentOrder(a: string, b: string): number {
@@ -167,7 +161,6 @@ const EMPTY_RESULT: Omit<NetworkingScoreResult, 'algorithm'> = {
 export function scoreNetworking(
   a: NetworkingProfileInput,
   b: NetworkingProfileInput,
-  locale: ReasonLocale = 'ru',
 ): NetworkingScoreResult | null {
   if (!a || !b || typeof a.id !== 'string' || typeof b.id !== 'string') throw new TypeError('Profile IDs required');
   if (a.id === b.id) return null;
@@ -208,20 +201,23 @@ export function scoreNetworking(
     eligible,
     algorithm: NETWORKING_ALGORITHM,
     mutualConsent: false as const,
-    reasons: reasonsFromNormalized(na, nb, sharedInterests, functionMatch, industryMatch, locale),
+    reasons: reasonsFromNormalized(na, nb, sharedInterests, functionMatch, industryMatch),
   });
 }
 
 /**
- * Human, fact-based reasons for `other` as seen by `viewer`, in a stable order:
- *   1. your intent is covered by them, 2. you can help with their intent,
- *   3. shared interests, 4. shared function / industry context.
+ * Structural reasons for `other` as seen by `viewer`, in a stable order:
+ *   1. your intents that they can cover, 2. their intents you can cover,
+ *   3. shared interests, 4. shared function, 5. same industry.
+ *
+ * Deterministic and perspective-aware: swapping the arguments changes the
+ * sentences (the reason list describes the SECOND argument from the point of
+ * view of the FIRST). Look at reasonCodesFor() when you need codes only.
  */
-export function reasonsFor(
+export function reasonCodesFor(
   viewer: NetworkingProfileInput,
   other: NetworkingProfileInput,
-  locale: ReasonLocale = 'ru',
-): string[] {
+): Reason[] {
   if (!viewer || !other || typeof viewer.id !== 'string' || typeof other.id !== 'string') return [];
   if (viewer.id === other.id) return [];
   const nv = normalizeProfile(viewer);
@@ -230,15 +226,14 @@ export function reasonsFor(
   const sameFunction = nv.jobFunction !== null && nv.jobFunction === no.jobFunction;
   const functionMatch: 0 | 1 = sameFunction || complementaryFunction(nv.jobFunction, no.jobFunction) ? 1 : 0;
   const industryMatch: 0 | 1 = nv.industry !== null && nv.industry === no.industry ? 1 : 0;
-  return reasonsFromNormalized(nv, no, shared, functionMatch, industryMatch, locale);
+  return reasonsFromNormalized(nv, no, shared, functionMatch, industryMatch);
 }
+
+/** Backwards-compatible name: reasons are structural, not localized text. */
+export const reasonsFor = reasonCodesFor;
 
 /** Max intent-level reasons; keeps the list short and predictable. */
 const MAX_INTENT_REASONS = 3;
-
-function goal(intentId: string, locale: ReasonLocale): string {
-  return INTENT_GOALS.get(intentId)?.[locale] ?? intentId;
-}
 
 function reasonsFromNormalized(
   viewer: NormalizedProfile,
@@ -246,47 +241,30 @@ function reasonsFromNormalized(
   sharedInterests: string[],
   functionMatch: 0 | 1,
   industryMatch: 0 | 1,
-  locale: ReasonLocale,
-): string[] {
-  const reasons: string[] = [];
+): Reason[] {
+  const reasons: Reason[] = [];
 
   for (const need of viewer.needs) {
     if (reasons.length >= MAX_INTENT_REASONS) break;
     const offer = complementOf(need);
     if (!offer || !other.offers.includes(offer)) continue;
-    reasons.push(
-      locale === 'ru'
-        ? `Вы ищете ${goal(need, locale)} — есть встречное предложение`
-        : `You are looking for ${goal(need, locale)} — they can offer it`,
-    );
+    reasons.push({ code: 'intent_need_covered', params: { need, offer } });
   }
   for (const need of other.needs) {
     if (reasons.length >= MAX_INTENT_REASONS) break;
     const offer = complementOf(need);
     if (!offer || !viewer.offers.includes(offer)) continue;
-    reasons.push(
-      locale === 'ru'
-        ? `Ищет ${goal(need, locale)} — вы ${goal(offer, locale)}`
-        : `Looking for ${goal(need, locale)} — you are ${goal(offer, locale)}`,
-    );
+    reasons.push({ code: 'intent_offer_match', params: { need, offer } });
   }
 
   if (sharedInterests.length > 0) {
-    const names = sharedInterests.map((id) => interestLabel(id, locale) ?? id).join(', ');
-    reasons.push(locale === 'ru' ? `Общие интересы: ${names}` : `Shared interests: ${names}`);
+    reasons.push({ code: 'shared_interests', params: { interests: [...sharedInterests] } });
   }
-
-  if (functionMatch === 1) {
-    const fnLabel = facetLabel(viewer.jobFunction, JOB_FUNCTIONS, locale) ?? viewer.jobFunction ?? '';
-    reasons.push(
-      locale === 'ru'
-        ? `Общий профессиональный контекст: ${fnLabel}`
-        : `Shared professional context: ${fnLabel}`,
-    );
+  if (functionMatch === 1 && viewer.jobFunction !== null) {
+    reasons.push({ code: 'shared_function', params: { function: viewer.jobFunction } });
   }
-  if (industryMatch === 1) {
-    const indLabel = facetLabel(viewer.industry, INDUSTRIES, locale) ?? viewer.industry ?? '';
-    reasons.push(locale === 'ru' ? `Общая отрасль: ${indLabel}` : `Same industry: ${indLabel}`);
+  if (industryMatch === 1 && viewer.industry !== null) {
+    reasons.push({ code: 'same_industry', params: { industry: viewer.industry } });
   }
 
   return reasons;

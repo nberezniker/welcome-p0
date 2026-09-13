@@ -120,8 +120,10 @@ test('recommendations: complementary pair returned with fact-based reasons only'
   assert.equal(body.recommendations.length, 1);
   const item = body.recommendations[0]!;
   assert.equal(item.profile_id, b.profileId);
-  assert.deepEqual(item.reasons_for_me, ['frontend']);
-  assert.deepEqual(item.reasons_for_them, ['mentoring']);
+  // Reasons are structural (code + params); the UI renders the sentence in the
+  // viewer's language. The legacy tag path uses the shared_tag code.
+  assert.deepEqual(item.reasons_for_me, [{ code: 'shared_tag', params: { tag: 'frontend' } }]);
+  assert.deepEqual(item.reasons_for_them, [{ code: 'shared_tag', params: { tag: 'mentoring' } }]);
   assert.equal(item.algorithm, 'welcome_mutual_tags_v1');
   assert.equal(typeof item.score, 'number');
 
@@ -253,7 +255,7 @@ test('recommendations: per-event tag override is used for matching', async () =>
   assertStatus(patch, 200);
 
   const res = await recommendations(a, e.id);
-  const body = (await res.json()) as { recommendations: Array<{ profile_id: string; reasons_for_me: string[] }> };
+  const body = (await res.json()) as { recommendations: Array<{ profile_id: string; reasons_for_me: { code: string; params: Record<string, string> }[] }> };
   assert.equal(body.recommendations.length, 1);
-  assert.deepEqual(body.recommendations[0]!.reasons_for_me, ['seed-money']);
+  assert.deepEqual(body.recommendations[0]!.reasons_for_me, [{ code: 'shared_tag', params: { tag: 'seed-money' } }]);
 });

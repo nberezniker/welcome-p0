@@ -1,11 +1,7 @@
 import type { Sql } from 'postgres';
 import { scorePair, type ScorePairResult } from './matching';
-import {
-  NETWORKING_ALGORITHM,
-  reasonsFor,
-  scoreNetworking,
-  type ReasonLocale,
-} from './networking-score';
+import { NETWORKING_ALGORITHM, reasonCodesFor, scoreNetworking } from './networking-score';
+import type { Reason } from './reasons';
 
 /** Server-side eligibility + recommendations for one event.
  * The pure scorePair decides the legacy tag score; ALL eligibility is verified
@@ -23,10 +19,10 @@ export interface RecommendationItem {
   headline: string | null;
   company: string | null;
   score: number;
-  /** Viewer's needs covered by the candidate's offers (fact-based). */
-  reasons_for_me: string[];
-  /** Candidate's needs covered by the viewer's offers (fact-based). */
-  reasons_for_them: string[];
+  /** Structural reasons for the VIEWER: what this candidate means to me. */
+  reasons_for_me: Reason[];
+  /** Structural reasons for the CANDIDATE: what I mean to them (mirrored). */
+  reasons_for_them: Reason[];
   algorithm: 'welcome_mutual_tags_v1' | typeof NETWORKING_ALGORITHM;
 }
 
@@ -69,7 +65,6 @@ export async function recommendForEvent(
   viewer: { accountId: string; profileId: string },
   eventId: string,
   limit = 3,
-  locale: ReasonLocale = 'ru',
 ): Promise<RecommendationItem[]> {
   // Cooldown lives on the event; read it once (default 30 per migration default).
   const eventRows = await sql<{ intro_cooldown_days: number }[]>`
@@ -179,7 +174,7 @@ export async function recommendForEvent(
       industry: c.industry,
       jobFunction: c.job_function,
     };
-    const v3 = scoreNetworking(meV3, candidateV3, locale);
+    const v3 = scoreNetworking(meV3, candidateV3);
     if (v3 && v3.eligible) {
       seen.add(c.profile_id);
       v3Items.push({
@@ -190,8 +185,10 @@ export async function recommendForEvent(
           headline: c.headline,
           company: c.company,
           score: v3.score,
-          reasons_for_me: v3.reasons,
-          reasons_for_them: reasonsFor(candidateV3, meV3, locale),
+          reasons_for_me: [...v3.reasons],
+          // Same vocabulary, opposite viewpoint: computed with the candidate as
+          // the viewer, so the list can never duplicate reasons_for_me.
+          reasons_for_them: reasonCodesFor(candidateV3, meV3),
           algorithm: NETWORKING_ALGORITHM,
         },
       });
@@ -225,8 +222,10 @@ export async function recommendForEvent(
       headline: c.headline,
       company: c.company,
       score: match.score,
-      reasons_for_me: match.reasonsForA,
-      reasons_for_them: match.reasonsForB,
+      // Legacy tag path: the frozen tag strings become the same structural
+      // shape, so the UI has exactly one reason renderer.
+      reasons_for_me: match.reasonsForA.map((tag) => ({ code: 'shared_tag' as const, params: { tag } })),
+      reasons_for_them: match.reasonsForB.map((tag) => ({ code: 'shared_tag' as const, params: { tag } })),
       algorithm: match.algorithm,
     });
   }

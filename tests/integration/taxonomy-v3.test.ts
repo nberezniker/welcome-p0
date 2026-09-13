@@ -382,19 +382,26 @@ test('recommendations: v3 intent match comes with a localized reason, legacy tag
   const res = await recommendations(viewer, event.id, 'ru');
   assertStatus(res, 200);
   const body = (await res.json()) as {
-    recommendations: { profile_id: string; score: number; reasons_for_me: string[]; algorithm: string }[];
+    recommendations: {
+      profile_id: string;
+      score: number;
+      reasons_for_me: { code: string; params: Record<string, string> }[];
+      algorithm: string;
+    }[];
   };
   assert.equal(body.recommendations[0]!.profile_id, cofounder.profileId, 'v3 match ranks first');
   assert.equal(body.recommendations[0]!.algorithm, 'welcome_intent_interest_v1');
   assert.ok(
-    body.recommendations[0]!.reasons_for_me.some((r) => r.includes('со-фаундера')),
+    body.recommendations[0]!.reasons_for_me.some(
+      (r) => r.code === 'intent_offer_match' && r.params['need'] === 'seeking-cofounder',
+    ),
     `expected a co-founder reason, got ${JSON.stringify(body.recommendations[0]!.reasons_for_me)}`,
   );
 
   const legacyItem = body.recommendations.find((r) => r.profile_id === legacy.profileId);
   assert.ok(legacyItem, 'the legacy tag pair is still recommended');
   assert.equal(legacyItem!.algorithm, 'welcome_mutual_tags_v1');
-  assert.deepEqual(legacyItem!.reasons_for_me, ['frontend']);
+  assert.deepEqual(legacyItem!.reasons_for_me, [{ code: 'shared_tag', params: { tag: 'frontend' } }]);
 });
 
 test('recommendations: EN locale reasons when the viewer prefers English', async () => {
@@ -409,8 +416,14 @@ test('recommendations: EN locale reasons when the viewer prefers English', async
     makeRequest(`/api/events/${event.id}/recommendations`, { cookie: `${viewer.cookie}; welcome_locale=en` }),
     { params: Promise.resolve({ eventIdOrSlug: event.id }) },
   );
-  const body = (await res.json()) as { recommendations: { reasons_for_me: string[] }[] };
-  assert.ok(body.recommendations[0]!.reasons_for_me.some((r) => r.includes('co-founder')));
+  const body = (await res.json()) as {
+    recommendations: { reasons_for_me: { code: string; params: Record<string, string> }[] }[];
+  };
+  // Locale is no longer baked into the payload: the code is language-neutral and
+  // the UI resolves the label, so the same response serves EN/RU/ES.
+  assert.ok(
+    body.recommendations[0]!.reasons_for_me.some((r) => r.code === 'intent_offer_match'),
+  );
 });
 
 test('recommendations: membership overrides win over profile values for the v3 axes', async () => {

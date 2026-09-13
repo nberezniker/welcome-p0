@@ -161,22 +161,28 @@ test('score: same industry requires both sides to be set', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Reasons
+// Reasons — structural codes, not rendered text
 // ---------------------------------------------------------------------------
 
-test('reasonsFor: RU intent reason matches the documented example', () => {
+test('reasonsFor: an intent the viewer offers becomes intent_offer_match with catalogue ids', () => {
   const viewer = profile({ id: 'me', offerIntents: ['open-to-cofound'] });
   const other = profile({ id: 'them', needIntents: ['seeking-cofounder'] });
-  assert.deepEqual(reasonsFor(viewer, other, 'ru'), ['Ищет со-фаундера — вы открыты к со-фаундерству']);
+  assert.deepEqual(reasonsFor(viewer, other), [
+    { code: 'intent_offer_match', params: { need: 'seeking-cofounder', offer: 'open-to-cofound' } },
+  ]);
 });
 
-test('reasonsFor: EN intent reason and the reverse direction', () => {
+test('reasonsFor: the reverse direction is a different code for the same pair', () => {
   const viewer = profile({ id: 'me', needIntents: ['seeking-cofounder'] });
   const other = profile({ id: 'them', offerIntents: ['open-to-cofound'] });
-  assert.deepEqual(reasonsFor(viewer, other, 'en'), [
-    'You are looking for a co-founder — they can offer it',
+  assert.deepEqual(reasonsFor(viewer, other), [
+    { code: 'intent_need_covered', params: { need: 'seeking-cofounder', offer: 'open-to-cofound' } },
   ]);
-  assert.deepEqual(reasonsFor(viewer, other, 'ru'), ['Вы ищете со-фаундера — есть встречное предложение']);
+  // Mirrored viewpoint: same facts, opposite codes — reasons_for_me and
+  // reasons_for_them can never be the same list.
+  assert.deepEqual(reasonsFor(other, viewer), [
+    { code: 'intent_offer_match', params: { need: 'seeking-cofounder', offer: 'open-to-cofound' } },
+  ]);
 });
 
 test('reasonsFor: interest + context reasons, catalogue-ordered', () => {
@@ -196,12 +202,12 @@ test('reasonsFor: interest + context reasons, catalogue-ordered', () => {
     jobFunction: 'founder-ceo',
     industry: 'ai-saas',
   });
-  assert.deepEqual(reasonsFor(viewer, other, 'ru'), [
-    'Вы ищете со-фаундера — есть встречное предложение',
-    'Ищет инвестиции — вы инвестируете',
-    'Общие интересы: AI и ML, Стартапы',
-    'Общий профессиональный контекст: Основатель / CEO',
-    'Общая отрасль: AI и SaaS',
+  assert.deepEqual(reasonsFor(viewer, other), [
+    { code: 'intent_need_covered', params: { need: 'seeking-cofounder', offer: 'open-to-cofound' } },
+    { code: 'intent_offer_match', params: { need: 'seeking-investment', offer: 'investing' } },
+    { code: 'shared_interests', params: { interests: ['ai-ml', 'startups'] } },
+    { code: 'shared_function', params: { function: 'founder-ceo' } },
+    { code: 'same_industry', params: { industry: 'ai-saas' } },
   ]);
 });
 
@@ -209,25 +215,41 @@ test('reasonsFor: deterministic and independent of input order', () => {
   const a1 = profile({ id: 'me', needIntents: ['seeking-clients', 'seeking-cofounder'], interests: ['saas', 'ai-ml'] });
   const a2 = profile({ id: 'me', needIntents: ['seeking-cofounder', 'seeking-clients'], interests: ['ai-ml', 'saas'] });
   const other = profile({ id: 'them', offerIntents: ['open-to-cofound', 'offering-services'], interests: ['ai-ml', 'saas'] });
-  const first = reasonsFor(a1, other, 'ru');
-  const second = reasonsFor(a2, other, 'ru');
+  const first = reasonsFor(a1, other);
+  const second = reasonsFor(a2, other);
   assert.deepEqual(first, second);
-  assert.deepEqual(reasonsFor(a1, other, 'ru'), reasonsFor(a1, other, 'ru'));
+  assert.deepEqual(reasonsFor(a1, other), reasonsFor(a1, other));
   assert.ok(first.length > 0);
 });
 
 test('reasonsFor: empty for self, unknown ids, and no visible overlap', () => {
-  assert.deepEqual(reasonsFor(profile({ id: 'x' }), profile({ id: 'x' }), 'ru'), []);
-  assert.deepEqual(reasonsFor(profile({ id: 'a' }), profile({ id: 'b' }), 'ru'), []);
+  assert.deepEqual(reasonsFor(profile({ id: 'x' }), profile({ id: 'x' })), []);
+  assert.deepEqual(reasonsFor(profile({ id: 'a' }), profile({ id: 'b' })), []);
   assert.deepEqual(
-    reasonsFor(profile({ id: 'a', interests: ['ai-ml'] }), profile({ id: 'b', interests: ['fashion'] }), 'ru'),
+    reasonsFor(profile({ id: 'a', interests: ['ai-ml'] }), profile({ id: 'b', interests: ['fashion'] })),
     [],
   );
+});
+
+test('reasonsFor: at most 3 intent-level reasons, context reasons never counted in', () => {
+  const viewer = profile({
+    id: 'me',
+    needIntents: ['seeking-cofounder', 'seeking-clients', 'seeking-mentor', 'seeking-venue'],
+    interests: ['ai-ml'],
+  });
+  const other = profile({
+    id: 'them',
+    offerIntents: ['open-to-cofound', 'offering-services', 'mentoring', 'offering-venue'],
+    interests: ['ai-ml'],
+  });
+  const reasons = reasonsFor(viewer, other);
+  assert.equal(reasons.filter((r) => r.code === 'intent_need_covered').length, 3);
+  assert.ok(reasons.some((r) => r.code === 'shared_interests'));
 });
 
 test('score result reasons mirror reasonsFor for the same pair', () => {
   const viewer = profile({ id: 'me', offerIntents: ['open-to-cofound'] });
   const other = profile({ id: 'them', needIntents: ['seeking-cofounder'], interests: ['ai-ml'] });
-  const scored = scoreNetworking(viewer, other, 'ru')!;
-  assert.deepEqual(scored.reasons, reasonsFor(viewer, other, 'ru'));
+  const scored = scoreNetworking(viewer, other)!;
+  assert.deepEqual(scored.reasons, reasonsFor(viewer, other));
 });
