@@ -40,10 +40,20 @@ async function postRoute(req: NextRequest) {
     const emailAllowlisted = otpEmailsEnabled && isEmailAllowlisted(lookupHash, allowDevOtpEmailsRaw(), pepper);
 
     // Create the account if absent (status active). Enumeration-safe: same response either way.
+    //
+    // `ON CONFLICT DO NOTHING` deliberately carries NO arbiter index: `accounts`
+    // has two unique constraints (auth_subject, email_lookup_hash), so naming
+    // only auth_subject left the email_lookup_hash conflict unhandled — any row
+    // holding this email's hash under a different auth_subject (seeded,
+    // admin-provisioned or backfilled account, or a concurrent first request
+    // for the same new address) raised 23505 and surfaced as a 500 instead of a
+    // sign-in. Found by the usage-matrix run (2026-09-14); regression test:
+    // tests/integration/auth.test.ts "otp request: account row under a different
+    // auth_subject …".
     let rows = await sql<{ id: string; is_demo: boolean }[]>`
       INSERT INTO accounts (auth_subject, email_lookup_hash)
       VALUES (${'email:' + lookupHash}, ${lookupHash})
-      ON CONFLICT (auth_subject) DO NOTHING
+      ON CONFLICT DO NOTHING
       RETURNING id, is_demo
     `;
     if (rows.length === 0) {

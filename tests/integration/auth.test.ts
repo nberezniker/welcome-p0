@@ -153,3 +153,26 @@ test('logout: destroys the session server-side and clears the cookie', async () 
   const afterLogout = await meProfile(makeRequest('/api/me/profile', { cookie }));
   assert.equal(afterLogout.status, 401);
 });
+
+test('otp request: account row under a different auth_subject does not 500 (unique-violation regression)', async () => {
+  // Regression for the usage-matrix finding (2026-09-14): `accounts` carries TWO
+  // unique constraints. The route used `ON CONFLICT (auth_subject) DO NOTHING`,
+  // so a row holding this email's lookup hash under another auth_subject
+  // (seeded / admin-provisioned / backfilled account, or a concurrent first
+  // request) violated accounts_email_lookup_hash_key → unhandled 23505 → 500.
+  const email = uniqueEmail('foreign-subject');
+  const sql = getSql();
+  const lookup = emailLookupHash(email, requireHashPepper());
+  await sql`INSERT INTO accounts (auth_subject, email_lookup_hash) VALUES (${`alien:${lookup}`}, ${lookup})`;
+
+  const res = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email } }));
+  assertStatus(res, 200);
+  const body = (await res.json()) as { ok: boolean; devCode?: string };
+  assert.equal(body.ok, true);
+  assert.match(body.devCode ?? '', /^\d{6}$/);
+
+  // …and the request reused the pre-existing row instead of creating a second one.
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM accounts WHERE email_lookup_hash = ${lookup}`;
+  assert.equal(rows[0]?.count, 1);
+});
