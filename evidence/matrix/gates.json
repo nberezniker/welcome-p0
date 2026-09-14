@@ -1,7 +1,8 @@
 {
-  "run_at": "2026-09-14T11:39:16.312Z",
-  "commit": "c92ad88da14344d4723301dd38b3c1129f20f1ea",
+  "run_at": "2026-09-14T12:24:59.100Z",
+  "commit": "0e4d6334080f4885ff1dda5518894d897496b240",
   "command": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:integration && pnpm test:e2e && pnpm build && pnpm scan:secrets && pnpm drill:defect",
+  "note": "Гейты прогнаны последовательно на чистом дереве; логи — evidence/matrix/*.log. drill:defect требует чистого дерева и запускается последним (сам переписывает свои evidence-выходы).",
   "all_green": true,
   "gates": [
     {
@@ -20,25 +21,25 @@
       "id": "test:unit",
       "command": "pnpm test:unit",
       "exit": 0,
-      "summary": "310 pass / 0 fail (node --test + tsx)"
+      "summary": "322 pass / 0 fail (node --test + tsx, 322 tests)"
     },
     {
       "id": "test:integration",
       "command": "pnpm test:integration",
       "exit": 0,
-      "summary": "241 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–008)"
+      "summary": "246 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–008)"
     },
     {
       "id": "test:e2e",
       "command": "pnpm test:e2e",
       "exit": 0,
-      "summary": "6 passed (Playwright chromium, next dev :3111, welcome_e2e)"
+      "summary": "7 passed (28.2s) (Playwright chromium, next dev :3111, welcome_e2e)"
     },
     {
       "id": "build",
       "command": "pnpm build",
       "exit": 0,
-      "summary": "Compiled successfully, 73 routes, undefined static pages, BUILD_ID 7No4J6qQTGH7syXU9gRLc"
+      "summary": "Compiled successfully, 74 routes (73 dynamic, 1 static) + Proxy (Middleware)"
     },
     {
       "id": "scan:secrets",

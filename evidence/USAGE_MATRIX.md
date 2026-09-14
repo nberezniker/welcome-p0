@@ -1,8 +1,9 @@
 # USAGE MATRIX — живой прогон всех режимов
 
-- **BASE:** https://welcome-p0-nikiti4.vercel.app (`--live`=true)
-- **Прогон:** 2026-09-14T11:55:55.852Z → 2026-09-14T11:59:40.483Z
-- **Итог:** 93 PASS / 3 FAIL / 1 SKIP / 0 BLOCKED (всего 97)
+- **BASE:** http://localhost:3300 (`--live`=true)
+- **Цель прогона:** локальный production-билд текущего дерева (`next start`) с теми же прод-секретами, что у деплоя (Neon, Vertex, Telegram, worker-tick). Деплой в этом задании запрещён, поэтому «живой» прогон идёт против локального экземпляра, а не против staging-URL; секреты в отчёты не попадают (редакция в скрипте).
+- **Прогон:** 2026-09-14T12:25:05.810Z → 2026-09-14T12:28:24.043Z
+- **Итог:** 96 PASS / 0 FAIL / 1 SKIP / 0 BLOCKED (всего 97)
 - **Машинный отчёт:** [usage-matrix.json](usage-matrix.json)
 
 ## Часть 1 — автоматические гейты (локально)
@@ -11,14 +12,41 @@
 |---|---|---|---|
 | typecheck | `pnpm typecheck` | **0** | 0 ошибок tsc --noEmit |
 | lint | `pnpm lint` | **0** | eslint clean (0 errors, 0 warnings) |
-| test:unit | `pnpm test:unit` | **0** | 310 pass / 0 fail (node --test + tsx) |
-| test:integration | `pnpm test:integration` | **0** | 241 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–008) |
-| test:e2e | `pnpm test:e2e` | **0** | 6 passed (Playwright chromium, next dev :3111, welcome_e2e) |
-| build | `pnpm build` | **0** | Compiled successfully, 73 routes, undefined static pages, BUILD_ID 7No4J6qQTGH7syXU9gRLc |
+| test:unit | `pnpm test:unit` | **0** | 322 pass / 0 fail (node --test + tsx, 322 tests) |
+| test:integration | `pnpm test:integration` | **0** | 246 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–008) |
+| test:e2e | `pnpm test:e2e` | **0** | 7 passed (28.2s) (Playwright chromium, next dev :3111, welcome_e2e) |
+| build | `pnpm build` | **0** | Compiled successfully, 74 routes (73 dynamic, 1 static) + Proxy (Middleware) |
 | scan:secrets | `pnpm scan:secrets` | **0** | no secrets found in tracked files |
 | drill:defect | `pnpm drill:defect` | **0** | DRILL-OK: инъекция → гейт FAIL (exit 1) → revert → PASS (exit 0), без остатка в src/ |
 
 Сырые логи гейтов: `evidence/matrix/*.log`.
+
+## Исправления в этом прогоне
+
+### BUG-2
+
+- **Фикс:** src/infra/cleanup.ts: новый шаг 6a удаляет claim-челленджи ровно тех registrations, которые удаляет шаг 6b (то же 30-дневное окно, батчи ORDER BY id), до любого DELETE registrations; CHECK не ослаблен, миграции не тронуты.
+- **Тесты:** tests/integration/cleanup.test.ts «cleanup: a live claim challenge never breaks the registration batch (BUG-2 regression)» — без 6a падает с 23514, с 6a проходит; claimed/young контроль не задет, второй проход идемпотентен.
+
+### BUG-3
+
+- **Фикс:** Промпт требует best-effort черновик всегда (в т.ч. из собственных полей) и строго один JSON; транспорт делает РОВНО один внутренний повтор при пустом ответе/неразбираемом теле (тот же запрос, тот же бюджет токенов, общий wall-clock бюджет 30с); маршрут отвечает 200 {ok, draft, sources: [], degraded: true} детерминированным черновиком из полей профиля (industry/job_function резолвятся через каталог), а не 502.
+- **Тесты:** tests/unit/enrichment-degraded.test.ts (повтор ровно один, восстановление на втором ответе, 429/5xx/4xx без повтора, промпт, детерминированный fallback) + tests/integration/enrichment.test.ts «provider answers without a draft twice → 200 + degraded draft» (реальный транспорт против заглушки апстрима).
+
+### BUG-4
+
+- **Фикс:** Оба исхода маршрута enrich теперь пишут одну структурную строку console.error (provider/state/code/retryable) — без PII, без секретов, без тел запросов; клиент по-прежнему не получает деталей провайдера.
+- **Тесты:** tests/integration/enrichment.test.ts «a real provider failure is still a 502 with a server-side trace (BUG-4)» — строка есть, содержит code=upstream_5xx и не содержит токена, имени проекта и имени профиля.
+
+### R1
+
+- **Фикс:** ?lang=en\|ru\|es на публичных страницах (/, /login, /p/*, /legal/*): src/proxy.ts валидирует параметр, форвардит x-welcome-locale и переписанный Cookie текущему рендеру (включая <html lang> в layout) и сохраняет выбор в cookie welcome_locale; невалидное значение игнорируется и не затирает сохранённую локаль. Подписанные разделы остались cookie-only.
+- **Тесты:** tests/unit/locale-query.test.ts (резолвер + контракт прокси) + tests/e2e/smoke.spec.ts «?lang= switches the landing language and is remembered (R1)».
+
+### Отклонения (API)
+
+- **Фикс:** DELETE /api/me/contacts?kind=… (владелец, 400/404/200, значение никогда не эхоится) и GET /api/me (минимальная секретless-обёртка {ok, account}), которых не хватало по списку отклонений отчёта.
+- **Тесты:** tests/integration/authz-negative.test.ts «contacts DELETE is session-scoped…» и «GET /api/me is owner-only, minimal and secretless».
 
 ## Найденные баги
 
@@ -31,24 +59,24 @@
 
 ### BUG-2 — Удаление registration с действующим claim-челленджем падает: ON DELETE SET NULL конфликтует с CHECK link_challenges_claim_shape_check
 
-- **Severity:** medium · **Статус:** open
+- **Severity:** medium · **Статус:** fixed
 - **Repro:** DELETE FROM registrations WHERE id = <registration с link_challenges.purpose='registration_claim'>; → ERROR 23514 "new row for relation \"link_challenges\" violates check constraint \"link_challenges_claim_shape_check\"". Найдено при purge матрицы (первый прогон упал на этом шаге).
-- **Доказательство:** db/migrations/003_link_challenges_claim.sql: CHECK ((purpose='registration_claim' AND registration_id IS NOT NULL AND account_id IS NULL) OR (purpose<>'registration_claim' AND registration_id IS NULL)); FK link_challenges.registration_id → registrations(id) ON DELETE SET NULL. Латентный риск в src/infra/cleanup.ts шаг 6 (DELETE FROM registrations для событий, закончившихся >30 дней назад): шаг 3 удаляет только челленджи, просроченные >30 дней, поэтому «свежий» claim-челлендж старого события ломает весь батч.
-- **Рекомендация:** Перед DELETE FROM registrations удалять связанные claim-челленджи (DELETE FROM link_challenges WHERE registration_id IN (…)) — так же сделано в purge этого скрипта; либо сменить FK на ON DELETE CASCADE.
+- **Доказательство:** db/migrations/003_link_challenges_claim.sql: CHECK ((purpose='registration_claim' AND registration_id IS NOT NULL AND account_id IS NULL) OR (purpose<>'registration_claim' AND registration_id IS NULL)); FK link_challenges.registration_id → registrations(id) ON DELETE SET NULL. Латентный риск в src/infra/cleanup.ts шаг 6 (DELETE FROM registrations для событий, закончившихся >30 дней назад): шаг 3 удаляет только челленджи, просроченные >30 дней, поэтому «свежий» claim-челлендж старого события ломает весь батч. ИСПРАВЛЕНО: шаг 6a (delete link_challenges по тому же предикату, drained до конца) выполняется до 6b; CHECK сохранён, схема не менялась. Регрессионный тест tests/integration/cleanup.test.ts «…(BUG-2 regression)»: без 6a — 23514 и fail, с 6a — pass; claimed/young регистрации и их челленджи не тронуты, повторный проход — no-op.
+- **Рекомендация:** Достаточно 6a; перевод FK на ON DELETE CASCADE не нужен (он бы молча терял привязку челленджа вместо явного удаления).
 
 ### BUG-3 — Живой enrichment нестабилен: 502 enrichment_failed (мода F1 красная)
 
-- **Severity:** medium · **Статус:** open
+- **Severity:** medium · **Статус:** fixed
 - **Repro:** POST /api/me/enrich с сессией аккаунта с профилем → 502 (code: enrichment_failed, retryable:true) за ~6.6с. Профиль БЕЗ своих ссылок — стабильно красный (4 вызова в двух прогонах). Профиль С website-ссылкой — плавающий: FAIL в двух прогонах, PASS (200 + draft) в третьем. Локальный repro тем же ключом/моделью: transport.enrich({links:[]}) → state=failed code=no_draft; transport.enrich({links:[website]}) → state=ok.
-- **Доказательство:** Код провайдера в ответ не попадает (см. BUG-4), поэтому наблюдаемый факт — 502. Локальный прогон VertexEnrichmentTransport с ключом из .env.deploy.secrets: 2 ok / 1 no_draft из 3 вызовов — ответы grounded-модели периодически не парсятся в черновик (no_draft). Итог: draft иногда приходит, но на бедном профиле — надёжно нет.
-- **Рекомендация:** Проверить на деплое GCP_MODEL/GCP_LOCATION (значения env скрыты) и устойчивость парсинга: no_draft = ответ grounded-модели без разбираемого JSON. Добавить серверный лог кода провайдера (BUG-4) и, при необходимости, retry/более строгий контракт ответа в промпте.
+- **Доказательство:** Код провайдера в ответ не попадает (см. BUG-4), поэтому наблюдаемый факт — 502. Прямое измерение живого апстрима тем же ключом/моделью (2026-09-14): HTTP 200, finishReason STOP, grounded=true, но видимых частей нет (textLen=0, thoughts 248–400 и 3307 у трёх вызовов) — то есть бюджет НЕ исчерпан, модель периодически просто возвращает пустой видимый ответ. ИСПРАВЛЕНО в три слоя: (1) промпт требует best-effort черновик всегда и строго один JSON; (2) транспорт повторяет такой ответ ровно один раз с тем же бюджетом токенов (в живом прогоне повтор восстанавливает черновик); (3) если и повтор пуст, маршрут отдаёт 200 с детерминированным degraded-черновиком из полей профиля и флагом degraded:true — UI получает результат всегда, ничего не выдумано и не сохранено. Тесты: tests/unit/enrichment-degraded.test.ts, tests/integration/enrichment.test.ts («provider answers without a draft twice → 200 + degraded draft»).
+- **Рекомендация:** Остаточный риск честно задокументирован: сам провайдер по-прежнему стохастичен (ручной LIVE-тест ENRICHMENT_LIVE=1 может не получить draft с первого-второго раза); контракт ручки теперь от него не зависит.
 
 ### BUG-4 — 502 enrichment_failed не оставляет серверного следа: код провайдера теряется
 
-- **Severity:** low · **Статус:** open
+- **Severity:** low · **Статус:** fixed
 - **Repro:** Сравнить: ответ 502 без кода провайдера + отсутствие записи в Vercel runtime logs с этим кодом (проверено vercel logs).
-- **Доказательство:** src/app/api/me/enrich/route.ts: `return jsonError(502, 'enrichment_failed', …)` без console.error и без кода (`result.code`) — при этом клиенту код и не должен отдаваться (правильно), но в логи он обязан попадать.
-- **Рекомендация:** console.error(`[enrich] provider failed code=${result.code}`) перед ответом 502 — без PII и без утечки деталей клиенту.
+- **Доказательство:** src/app/api/me/enrich/route.ts: `return jsonError(502, 'enrichment_failed', …)` без console.error и без кода (`result.code`) — при этом клиенту код и не должен отдаваться (правильно), но в логи он обязан попадать. ИСПРАВЛЕНО: и degraded-, и failure-ветка пишут одну строку `[enrich] … provider=… state=… code=… retryable=…` (без PII, секретов и тел); тест tests/integration/enrichment.test.ts «…server-side trace (BUG-4)» проверяет наличие строки с code=upstream_5xx и отсутствие токена/имени проекта/имени профиля.
+- **Рекомендация:** Готово; для алертинга по деградации искать `[enrich] degraded fallback`.
 
 ## Режим A
 
@@ -62,7 +90,7 @@
 | A5 | сессия без cookie → 401 на приватных ручках | 401 unauthorized на 4 приватных GET | /api/me/profile:401 /api/me/contacts:401 /api/me/notes:401 /api/events/welcome-demo-meetup/directory:401 | **PASS** | /api/me/profile:401 /api/me/contacts:401 /api/me/notes:401 /api/events/welcome-demo-meetup/directory:401 |
 | A6 | logout инвалидирует сессию | logout 200, затем GET приватной ручки 401 | 200 → logout 200 → GET /api/me/profile 401 | **PASS** | HTTP 200 {"ok":true} \| HTTP 401 {"code":"unauthorized","message":"Sign in required","correlation_id":"«token»","retryable":false} |
 | A7 | CSRF: мутация с Origin: https://evil.example → 403 | 403 csrf_origin | 403 csrf_origin (same-origin 200) | **PASS** | HTTP 403 {"code":"csrf_origin","message":"Cross-origin request rejected","correlation_id":"«token»","retryable":false} \| control HTTP 200 {"ok":true,"action":"grant"} |
-| A8 | enumeration: неизвестный email неотличим от известного | одинаковые ответы, без devCode | оба ответа идентичны: HTTP 503 {"code":"email_send_failed","message":"Email delivery is temporarily u… | **PASS** | unknown: HTTP 503 {"code":"email_send_failed","message":"Email delivery is temporarily unavailable. Please try again.","correlation_id":"«token»","retryable":true}<br>known(matrix-plain@welcome.test): HT… |
+| A8 | enumeration: неизвестный email неотличим от известного | одинаковые ответы, без devCode | оба ответа идентичны: HTTP 503 {"code":"email_channel_disabled","message":"Email delivery is not conf… | **PASS** | unknown: HTTP 503 {"code":"email_channel_disabled","message":"Email delivery is not configured. Please try again later.","correlation_id":"«token»","retryable":false}<br>known(matrix-plain@welcome.test):… |
 
 ## Режим B
 
@@ -93,7 +121,7 @@
 | D1 | мини-лендинг GET /p/<slug>: 200 + имя/оси, без приватного телефона | 200, имя + метки интересов/интентов, не содержит телефон | 200; секции: interests«data-testid="pubcard-interests"> Interes…», needs«data-testid="pubcard-needs"> Looking for…», offers«data-testid="pubcard-offers"> …»; телефон отсутствует | **PASS** | {"interests":"data-testid=\"pubcard-interests\"> Interests AI / ML Dev tools <section class=\"mt-6 border-t border-line pt-5\"","needs":"data-testid=\"pubcard-needs\"> Looking for a co-founder <sectio… |
 | D2 | публичная проекция /api/public/profiles/<slug>: только public-контакты | 200, contacts без phone | contacts=[website] | **PASS** | HTTP 200 {"slug":"«token»","display_name":"MATRIX-Alpha","contacts":[{"kind":"website","value":"https://matrix.example/alpha"}]} |
 | D3 | vCard: 200, public-поля, без телефона, экранирование | text/vcard + escaped FN, без phone | text/vcard, FN экранирован (\, \;), phone отсутствует | **PASS** | FN:MATRIX-Alpha\, Inc.\; "Ltd" \| URL:https://matrix.example/alpha |
-| D4 | QR SVG: 200 image/svg+xml | 200 + <svg | 200 image/svg+xml | **PASS** | HTTP 200 image/svg+xml; charset=utf-8 bytes=2477 |
+| D4 | QR SVG: 200 image/svg+xml | 200 + <svg | 200 image/svg+xml | **PASS** | HTTP 200 image/svg+xml; charset=utf-8 bytes=1980 |
 | D5 | несуществующий slug → 404 (JSON и HTML) | 404 not_found | 404 JSON + 404 HTML + 404 vCard | **PASS** | HTTP 404 {"code":"not_found","message":"Profile not found","correlation_id":"«token»","retryable":false} \| HTML 404 |
 
 ## Режим E
@@ -107,8 +135,8 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| F1 | enrichment: живой Vertex draft (профиль без своих ссылок) | 200 + draft/sources | оба вызова не дали draft (#1: HTTP 502 {"code":"enrichment_failed","message":"Enrichment provider did not return a draft.","corre… \| #2: HTTP 502 {"code":"enrichment_failed","message":"Enrichment provider did not return a draft.","corre…) | **FAIL** | #1: HTTP 502 {"code":"enrichment_failed","message":"Enrichment provider did not return a draft.","corre…<br>#2: HTTP 502 {"code":"enrichment_failed","message":"Enrichment provider did not return a draft.… |
-| F1b | enrichment: живой Vertex draft при наличии ссылки (контроль) | 200 + draft/sources | оба вызова неуспешны: #1: HTTP 502 {"code":"enrichment_failed","message":"Enrichment provider did not return a draft.","corre… \| #2: HTTP 502 {"code":"enrichment_failed","message":"Enrichment provider did not return a draft.","corre… | **FAIL** | #1: HTTP 502 {"code":"enrichment_failed","message":"Enrichment provider did not return a draft.","corre…<br>#2: HTTP 502 {"code":"enrichment_failed","message":"Enrichment provider did not return a draft.… |
+| F1 | enrichment: живой Vertex draft (профиль без своих ссылок) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"Professional Profile of MATRIX-Bravo","short_bio":"This is… |
+| F1b | enrichment: живой Vertex draft при наличии ссылки (контроль) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"Founder & CEO in AI SaaS","short_bio":"MATRIX-Charlie is a… |
 | F2 | enrichment: лимит 5/час → 429 | 6-й запрос → 429 (X-RateLimit-Limit: 5) | 400,400,400,400,400 → 429 (limit 5) | **PASS** | HTTP 429 {"code":"rate_limited","message":"Too many enrichment requests. Try again later.","correlation_id":"«token»","retryable":true} x-ratelimit-limit=5 |
 | F3 | enrichment без сессии → 401 | 401 unauthorized | 401 unauthorized | **PASS** | HTTP 401 {"code":"unauthorized","message":"Sign in required","correlation_id":"«token»","retryable":false} |
 
@@ -118,9 +146,9 @@
 |---|---|---|---|---|---|
 | G1 | публичное событие видно без сессии | GET /api/events/<slug> без cookie → 200 | 200 «WELCOME Demo Meetup — Product & Growth» (access_mode=public), viewer.is_member=false | **PASS** | HTTP 200 {"ok":true,"event":{"id":"«token»","slug":"welcome-demo-meetup","name":"WELCOME Demo Meetup — Product & Growth","mode":"offline","access_mode":"public","status":"active","starts_at":"2026-09-… |
 | G2 | закрытое событие: join с кодом | без кода 403, неверный 403, верный 200, повтор идемпотентен | 403 join_forbidden (без кода) → 403 (неверный) → 200 (верный, state=active) → 200 already_member:true | **PASS** | HTTP 403 {"code":"join_forbidden","message":"This event requires a valid join code or registration claim","correlation_id":"«token»","retryable":false} \| HTTP 403 {"code":"join_forbidden","message":"T… |
-| G3 | закрытое событие: 20 неверных попыток → lockout | после 20 фейлов верный код тоже 429 join_code_locked | 20× 403 join_forbidden (3× придержал per-IP bucket) → верный код 429 join_code_locked | **PASS** | HTTP 429 {"code":"join_code_locked","message":"Too many failed attempts. Try again later.","correlation_id":"«token»","retryable":true} retry-after=900 |
+| G3 | закрытое событие: 20 неверных попыток → lockout | после 20 фейлов верный код тоже 429 join_code_locked | 20× 403 join_forbidden (2× придержал per-IP bucket) → верный код 429 join_code_locked | **PASS** | HTTP 429 {"code":"join_code_locked","message":"Too many failed attempts. Try again later.","correlation_id":"«token»","retryable":true} retry-after=900 |
 | G4 | directory: режимы intent/interest/all + фильтры + поиск q | 200 на все валидные, 400 на невалидные | all/intent/interest/function/industry/q → 200 (q=Bravo нашёл 1); невалидные → 400 invalid_mode / invalid_job_function | **PASS** | HTTP 200 {"ok":true,"mode":"all"} members=4 \| HTTP 400 {"code":"invalid_mode","message":"mode must be one of: all, intent, interest","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"i… |
-| G5 | recommendations: топ-3 + причины (коды и параметры) | 200, ≤3, reasons с code+params, без себя | 3/3: MATRIX-Charlie(88), MATRIX-Delta(80), MATRIX-Bravo(80); первый reason=intent_need_covered {"need":"seeking-cofounder","offer":"open-to-cofound"} | **PASS** | {"profile_id":"«token»","display_name":"MATRIX-Charlie","headline":null,"company":null,"score":88,"reasons_for_me":[{"code":"intent_need_covered","params":{"need":"seeking-cofounder","offer":"open-to-… |
+| G5 | recommendations: топ-3 + причины (коды и параметры) | 200, ≤3, reasons с code+params, без себя | 3/3: MATRIX-Charlie(88), MATRIX-Bravo(80), MATRIX-Delta(80); первый reason=intent_need_covered {"need":"seeking-cofounder","offer":"open-to-cofound"} | **PASS** | {"profile_id":"«token»","display_name":"MATRIX-Charlie","headline":null,"company":null,"score":88,"reasons_for_me":[{"code":"intent_need_covered","params":{"need":"seeking-cofounder","offer":"open-to-… |
 | G6 | attendance self-report | 200 attendance_source=self; чужая membership 403; мусор 400 | 200 attendance_source=self \| 403 forbidden (чужая) \| 400 invalid_present | **PASS** | HTTP 200 {"ok":true,"attendance_source":"self"} \| HTTP 403 {"code":"forbidden","message":"This membership does not belong to you","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"inva… |
 | G7 | non-member → 403 на directory/recommendations | 403 forbidden | 403 forbidden ×2 | **PASS** | HTTP 403 {"code":"forbidden","message":"Only active members can see the event directory","correlation_id":"«token»","retryable":false} \| HTTP 403 {"code":"forbidden","message":"Only active members can… |
 
@@ -132,14 +160,14 @@
 | H2 | import commit | 200 counts{created,updated,skipped,quarantined} | created=3 updated=0 skipped=0 quarantined=1 | **PASS** | {"created":3,"updated":0,"skipped":0,"quarantined":1} |
 | H3 | повторный commit идемпотентен (0 дублей) | created:0, число регистраций не растёт | created=0 updated=3; регистраций 3 → 3 | **PASS** | {"created":0,"updated":3,"skipped":0,"quarantined":1} |
 | H4 | формула в данных безопасна (нейтрализация в экспорте) | экспорт CSV нейтрализует = в начале ячейки | ячейка экспортирована с защитным апострофом: «'=cmd\|' /C calc'!A0,unclaimed,approved» | **PASS** | '=cmd\|' /C calc'!A0,unclaimed,approved |
-| H5 | лимиты импорта: >5000 строк и >5МБ отклоняются | 413 (приложение для строк; платформа для байт) | 5001 строка → 413 payload_too_large; >5МиБ → 413 (уровень платформы: Request Entity Too Large<br><br>«token»<br><br>cdg1::«token»<br>) | **PASS** | HTTP 413 {"code":"payload_too_large","message":"CSV exceeds the 5000-row limit","correlation_id":"«token»","retryable":false} \| HTTP 413 {"_nonJson":"Request Entity Too Large\n\«token»\n\ncdg1::«token… |
+| H5 | лимиты импорта: >5000 строк и >5МБ отклоняются | 413 (приложение для строк; платформа для байт) | 5001 строка → 413 payload_too_large; >5МиБ → 413 (уровень приложения) | **PASS** | HTTP 413 {"code":"payload_too_large","message":"CSV exceeds the 5000-row limit","correlation_id":"«token»","retryable":false} \| HTTP 413 {"code":"payload_too_large","message":"CSV exceeds the 5 MB lim… |
 | H6 | неизвестный approval_status → quarantine (+ приглашение запрещено) | quarantined в БД; invite → 403 claim_not_allowed | approval_status='quarantined' в БД; invite → 403 claim_not_allowed | **PASS** | HTTP 403 {"code":"claim_not_allowed","message":"Quarantined registrations cannot be invited","correlation_id":"«token»","retryable":false} (status=quarantined) |
 
 ## Режим I
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| I1 | invite → claim-URL для approved-регистрации | 200 + claim_url/expires_at | 200 + claim_url=/claim/«token» (7 дней) | **PASS** | HTTP 200 {"ok":true,"claim_url":"/claim/«token»","expires_at":"2026-09-21T11:59:17.431Z"} |
+| I1 | invite → claim-URL для approved-регистрации | 200 + claim_url/expires_at | 200 + claim_url=/claim/«token» (7 дней) | **PASS** | HTTP 200 {"ok":true,"claim_url":"/claim/«token»","expires_at":"2026-09-21T12:27:49.871Z"} |
 | I2 | GET /claim/<token> НЕ консюмит (повторный GET работает) | два GET → 200, challenge не consumed | GET ×2 → 200; consumed_at остался NULL | **PASS** | HTTP 200/200, link_challenges.consumed_at = null |
 | I3 | claim с чужого email → 403 | 403 email_mismatch | 403 email_mismatch | **PASS** | HTTP 403 {"code":"email_mismatch","message":"This claim link belongs to a different email address","correlation_id":"«token»","retryable":false} |
 | I4 | claim с правильным email → 200 (+membership) | 200 + membership state active | 200: membership active, profile_created=false | **PASS** | HTTP 200 {"ok":true,"event_id":"«token»","membership":{"id":"«token»","state":"active","directory_visible":false},"profile_created":false,"notice":"Данные из регистрации — проверьте, что всё верно. Им… |
@@ -155,7 +183,7 @@
 | J4 | mutual-переход и reveal только при mutual | два accept → mutual; reveal = пересечение полей | pending → mutual после двух accept; revealed=[phone: +34600999888] при public_enabled=false | **PASS** | HTTP 200 {"ok":true,"revealed":[]} \| HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"mutual","my_decision":"accept"}} \| HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"mutual",… |
 | J5 | отзыв полей → reveal скрывается | после re-accept с reveal_fields=[] → revealed=[] | revealed=[] после сужения пересечения полей | **PASS** | HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"mutual","my_decision":"accept","other_accepted":true},"revealed":[]} |
 | J6 | блокировка: reveal подавлен и интро невозможно | GET reveal=[] при mutual; create → 403 blocked | revealed=[] (state mutual) + create → 403 blocked | **PASS** | HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"mutual","my_decision":"accept","other_accepted":true},"revealed":[]} \| HTTP 403 {"code":"blocked","message":"Introduction is not available",… |
-| J7 | cooldown: пара с интро не в рекомендациях | Bravo исчез из рекомендаций после decline | до интро Bravo был в рекомендациях (3 шт.), после decline отсутствует; сейчас 1 шт. | **PASS** | before=[MATRIX-Charlie, MATRIX-Delta, MATRIX-Bravo], after=[1] |
+| J7 | cooldown: пара с интро не в рекомендациях | Bravo исчез из рекомендаций после decline | до интро Bravo был в рекомендациях (3 шт.), после decline отсутствует; сейчас 1 шт. | **PASS** | before=[MATRIX-Charlie, MATRIX-Bravo, MATRIX-Delta], after=[1] |
 | J8 | блокировка: нет в directory и рекомендациях | Charlie отсутствует в обоих списках | Charlie отсутствует в directory (3 записей) и рекомендациях (1) | **PASS** | members=3, recommendations=1, blocked=Charlie |
 | J9 | respond withdraw (отзыв до mutual) | 200 state revoked | withdraw → 200 revoked; повторный respond → 409 invalid_state | **PASS** | HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"revoked","my_decision":"withdraw"}} \| HTTP 409 {"code":"invalid_state","message":"This introduction is revoked; only pending introductions c… |
 
@@ -163,7 +191,7 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| K1 | заметка владельцем: upsert + список | 200; заметка видна в своём списке | 200 + заметка в /api/me/notes | **PASS** | HTTP 200 {"ok":true,"note":{"other_profile_id":"«token»","note_text":"MATRIX- note about Delta","next_step":"ping","next_step_status":"proposed","updated_at":"2026-09-14T11:59:20.319Z"}} |
+| K1 | заметка владельцем: upsert + список | 200; заметка видна в своём списке | 200 + заметка в /api/me/notes | **PASS** | HTTP 200 {"ok":true,"note":{"other_profile_id":"«token»","note_text":"MATRIX- note about Delta","next_step":"ping","next_step_status":"proposed","updated_at":"2026-09-14T12:27:58.071Z"}} |
 | K2 | чужая заметка не видна другому аккаунту | список Bravo не содержит заметку Alpha | список Bravo: 0 заметок, чужих нет | **PASS** | HTTP 200 {"ok":true} notes=0 |
 | K3 | организатор без связи → 403 | 403 not_connected | organizer → 403 not_connected; self → 400 self_note | **PASS** | HTTP 403 {"code":"not_connected","message":"Notes can only be kept about people you actually met","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"self_note","message":"Notes are abou… |
 
@@ -174,7 +202,7 @@
 | L1 | grant по purpose (event scope) | 200 action=grant | 200 grant organizer_marketing@event | **PASS** | HTTP 200 {"ok":true,"action":"grant","purpose":"organizer_marketing","scope_type":"event"} |
 | L2 | withdraw по purpose (revoke-ручка) | 200 action=withdraw | 200 withdraw; неизвестный purpose → 400 invalid_purpose | **PASS** | HTTP 200 {"ok":true,"action":"withdraw"} \| HTTP 400 {"code":"invalid_purpose","message":"purpose must be one of: public_card, event_directory, introduction_fields, service_channel, organizer_marketing… |
 | L3 | withdraw подавляет уже поставленные в очередь джобы (интро) | pending-джоба становится suppressed | джоба intro_requested…: pending → suppressed | **PASS** | outbox_jobs.status pending → suppressed (purpose=service_channel, account=Bravo) |
-| L4 | export содержит историю согласий | консенты grant+withdraw присутствуют в export | export.consents: 5 записей (grant+withdraw organizer_marketing) | **PASS** | [{"purpose":"organizer_marketing","scope_type":"event","scope_id":"45b2e052-8476-485e-9d56-9e3b9d7396e9","field_set":[],"policy_version":"matrix-2026-09-14","action":"grant","created_at":"2026-09-14T1… |
+| L4 | export содержит историю согласий | консенты grant+withdraw присутствуют в export | export.consents: 5 записей (grant+withdraw organizer_marketing) | **PASS** | [{"purpose":"organizer_marketing","scope_type":"event","scope_id":"94ee5659-25c6-46a2-815f-29ce6bd792d4","field_set":[],"policy_version":"matrix-2026-09-14","action":"grant","created_at":"2026-09-14T1… |
 
 ## Режим M
 
@@ -218,7 +246,7 @@
 | P1 | health публичный: без migration_version | 200 status/db/worker и БЕЗ migration_version | 200 {"status":"ok","db":"up","worker":"up"} (без migration_version) | **PASS** | HTTP 200 {"status":"ok","db":"up","worker":"up"} |
 | P2 | health с x-health-details: отдаёт версию миграций | 200 + migration_version | 200 migrations=applied, migration_version=008 | **PASS** | HTTP 200 {"status":"ok","db":"up","migrations":"applied","migration_version":"008","worker":"up"} |
 | P3 | security-заголовки на / и /login (4 заголовка) | CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy | 4/4 на / и /login (content-security-policy, x-frame-options, referrer-policy, permissions-policy) | **PASS** | /: 4/4 \| /login: 4/4 |
-| P4 | rate limit на OTP: per-IP bucket (10/мин) | 11-й запрос с одного IP → 429 + X-RateLimit-Limit | статусы 503,503,503,503,503,503,503,503,503,429 → 429 (X-RateLimit-Limit=10) | **PASS** | HTTP 429 {"code":"rate_limited","message":"Too many requests. Slow down and try again later.","correlation_id":"«token»","retryable":true} x-ratelimit-limit=10 |
+| P4 | rate limit на OTP: per-IP bucket (10/мин) | 11-й запрос с одного IP → 429 + X-RateLimit-Limit | статусы 503,503,503,503,503,503,503,503,503,503,429 → 429 (X-RateLimit-Limit=10) | **PASS** | HTTP 429 {"code":"rate_limited","message":"Too many requests. Slow down and try again later.","correlation_id":"«token»","retryable":true} x-ratelimit-limit=10 |
 | P5 | приватные GET → cache-control: no-store | no-store на /api/me/profile и /api/me/notes | /api/me/profile: no-store, private \| /api/me/notes: no-store, private | **PASS** | /api/me/profile: no-store, private \| /api/me/notes: no-store, private |
 | P6 | worker-tick: оба носителя секрета (header и Bearer) | 200 на x-worker-tick-secret и Authorization: Bearer | header 200, Bearer 200, ?secret= 401 (носитель удалён) | **PASS** | HTTP 200 {"ok":true,"processed":0} \| HTTP 200 {"ok":true,"processed":0} \| HTTP 401 {"code":"«token»","message":"Invalid worker tick secret","correlation_id":"«token»","retryable":false} |
 
@@ -233,22 +261,19 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| R1 | /?lang=ru\|en\|es переключает язык | ожидание задания: строки языка по query-параметру | query-параметр игнорируется: ?lang=ru → en, ?lang=es → en, ?lang=en → en | **FAIL** | ?lang=ru → en \| ?lang=es → en \| ?lang=en → en; рабочая механика — cookie welcome_locale (см. R2) |
+| R1 | /?lang=ru\|en\|es переключает язык | ожидание задания: строки языка по query-параметру | ?lang=ru → ru, ?lang=es → es, ?lang=en → en; ?lang=de → en (игнорируется, cookie не перезаписан) | **PASS** | ?lang=ru → ru \| ?lang=es → es \| ?lang=en → en \| cookie welcome_locale сохранён для каждого валидного значения |
 | R2 | фактическая механика локали: cookie → локализованные строки | ru/es отдают свои строки, en — свои | en«networking» / ru«профиль» / es«útiles» — все найдены на страницах | **PASS** | {"en":"networking","ru":"профиль","es":"útiles"} |
 | R3 | мини-лендинг на 360px без горизонтального overflow (Playwright) | scrollWidth <= 361 при viewport 360 | 360px: scrollWidth=360 (clientWidth=360) — overflow нет | **PASS** | {"scrollWidth":360,"clientWidth":360,"bodyScrollWidth":360} |
 
 ## Отклонения от ожиданий задания
 
-- A8: ожидалось {ok:true}; фактически HTTP 503 email_send_failed — на staging-деплое почтовый транспорт в owner-test режиме, поэтому код на не-демо адрес не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.
-- F1: живая ручка отвечает 502 enrichment_failed (retryable) за ~6.6с для профиля без собственных ссылок — 4 вызова в двух прогонах, все красные. Локальный repro тем же ключом/моделью: transport.enrich({links:[]}) → no_draft. Контроль F1b (профиль с website-ссылкой) в этом же прогоне тоже красный, поэтому гипотеза «виновато только отсутствие ссылок» не подтверждена — фактическая картина в BUG-3: провайдер отвечает 502 на живом деплое, код провайдера скрыт маршрутом (BUG-4).
+- A8: ожидалось {ok:true}; фактически HTTP 503 email_channel_disabled — у экземпляра под тестом нет почтового транспорта для не-демо адреса (на staging-деплое это owner-test режим Resend, на локальном прогоне — отсутствие RESEND_API_KEY), поэтому код не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.
 - F2: квота тратилась аккаунтом без профиля (400 profile_required), чтобы не жечь живые Vertex-вызовы; порядок проверок (квота раньше профиля) подтверждён.
 - G2: ожидание задания «403/429 после 20 попыток lockout» проверено отдельной строкой G3 на выделенном событии (lockout блокирует и верный код — совместно на одном событии не сходится).
 - G5: позитивный контроль: Bravo/Charlie/Delta видны до интро; отсутствие пары с активным интро проверяется в J7
 - H1: в ответе preview нет ключей `mapping` и `would_update` из задания — фактический контракт: totalRows/validEmails/invalidEmails/quarantined/duplicatesInFile/sample. Mapping — входной параметр, не часть отчёта.
-- H5: тело >~4.5МБ отклоняет сама платформа Vercel до входа в функцию, поэтому прикладной лимит 5МиБ на этом деплое недостижим: отказ есть (413), но на платформенном слое, с другим телом ответа.
 - L4: ключ называется `consents`, а не `consent_events` как в задании; содержимое — append-only история согласий.
 - O5: /stop выполнен на синтетической MATRIX-привязке, а не на реальной привязке владельца: отзыв реальной привязки — деструктивная операция с существующими данными (запрещена заданием вне режима «проверить отказ»). /help на реальной привязке владельца проверен в O4.
-- R1: язык выбирается только cookie `welcome_locale` (POST /api/locale), `?lang=` не читается нигде (проверено grep по src/app и src/lib). Задокументировано в src/i18n/README.md; в подвале есть fallback-ссылки `/?locale=xx`, которые перехватываются onClick → POST /api/locale.
 
 ## Созданные / удалённые MATRIX-сущности
 
@@ -256,7 +281,7 @@
 
 Cleanup:
 - outbox_jobs removed: 11; audit_events unlinked (actor → NULL, как в собственном cleanup приложения)
-- accounts hard-deleted: 24/24 (каскадом — profiles, contacts, memberships, consents, sessions, challenges, mfa, blocks, reports)
+- accounts hard-deleted: 25/25 (каскадом — profiles, contacts, memberships, consents, sessions, challenges, mfa, blocks, reports)
 - link_challenges (registration_claim) removed before their registrations: 1
 - organizers hard-deleted: 2 (каскадом — events, campaigns, registrations, memberships, introductions)
 
