@@ -63,6 +63,9 @@ async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: s
           purpose: campaign.purpose,
           payload: {
             account_id: accountId,
+            // Event context for the send-time channel decision (ADR 0011): an
+            // email fallback must come from THIS event's claimed registration.
+            event_id: campaign.event_id,
             text: campaign.body_text ?? '',
             campaign_id: campaign.id,
             enforce_consent: true,

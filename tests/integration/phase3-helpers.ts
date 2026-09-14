@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { getSql } from '../../src/lib/db';
-import { generatePublicSlug } from '../../src/lib/crypto';
+import { generatePublicSlug, emailLookupHash, encryptValue } from '../../src/lib/crypto';
+import { requireEncryptionKey, requireHashPepper } from '../../src/lib/env';
 import { tickOnce, type TickReport } from '../../src/infra/worker';
 import type { ChannelTransport } from '../../src/integrations/telegram/transport';
+import type { EmailTransport } from '../../src/integrations/email/transport';
 
 /**
  * Phase-3 integration helpers: direct DB factories for accounts/profiles/
@@ -80,13 +82,56 @@ export async function makeJobDue(jobId: string): Promise<void> {
  * per-job assertions deterministic.
  */
 export async function drainWorker(transport: ChannelTransport, maxTicks = 12): Promise<TickReport[]> {
+  return drainWorkerWithEmail(transport, null, maxTicks);
+}
+
+/**
+ * Same drain, with an injected EMAIL transport (ADR 0011). Pass `null` for a
+ * deployment without an email provider (the worker then suppresses email-routed
+ * jobs with `channel_disabled`).
+ */
+export async function drainWorkerWithEmail(
+  transport: ChannelTransport,
+  emailTransport: EmailTransport | null,
+  maxTicks = 12,
+): Promise<TickReport[]> {
   const reports: TickReport[] = [];
   for (let i = 0; i < maxTicks; i++) {
-    const report = await tickOnce({ transport });
+    const report = await tickOnce({ transport, emailTransport });
     reports.push(report);
     if (report.claimed === 0) break;
   }
   return reports;
+}
+
+/**
+ * Gives an account a decryptable email the way the product does: an imported
+ * registration that the account CLAIMED — the membership link is what makes the
+ * address belong to the account (AC-08), and `registrations.encrypted_email` is
+ * the only stored form of it (AES-256-GCM, ENCRYPTION_KEY).
+ */
+export async function attachClaimedEmail(accountId: string, eventId: string, email: string): Promise<string> {
+  const sql = getSql();
+  const profileRows = await sql<{ id: string }[]>`
+    SELECT id FROM profiles WHERE account_id = ${accountId} LIMIT 1
+  `;
+  const profileId = profileRows[0]?.id;
+  if (!profileId) throw new Error('attachClaimedEmail: account has no profile');
+  const pepper = requireHashPepper();
+  const lookup = emailLookupHash(email, pepper);
+  const registrationRows = await sql<{ id: string }[]>`
+    INSERT INTO registrations (event_id, provider, external_guest_id, email_lookup_hash, encrypted_email,
+                               imported_name, claim_state)
+    VALUES (${eventId}, 'csv', ${'guest-' + randomUUID()}, ${lookup},
+            ${encryptValue(email, requireEncryptionKey())}, 'Claimed Guest', 'claimed')
+    RETURNING id
+  `;
+  const registrationId = registrationRows[0]!.id;
+  await sql`
+    UPDATE event_memberships SET registration_id = ${registrationId}
+    WHERE event_id = ${eventId} AND profile_id = ${profileId}
+  `;
+  return registrationId;
 }
 
 export async function jobRow(jobId: string): Promise<{

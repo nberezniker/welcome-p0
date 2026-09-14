@@ -144,6 +144,9 @@ async function postRoute(req: NextRequest) {
           purpose: 'service_channel',
           payload: {
             account_id: target.account_id,
+            // Event context for the send-time channel decision (ADR 0011): the
+            // email, when used, must come from THIS event's claimed registration.
+            event_id: input.value.eventId,
             text: `WELCOME: ${my.display_name} отправил(а) вам запрос на знакомство. Ответить можно здесь: ${appBaseUrl()}`,
             enforce_consent: true,
             counterparty_account_id: auth.accountId,

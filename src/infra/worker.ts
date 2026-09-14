@@ -16,6 +16,18 @@ import { handleTelegramUpdate, type TelegramUpdatePayload } from './telegram-han
 import { minimizeTelegramInboxPayload, runCleanupIfDue, type CleanupReport } from './cleanup';
 import { selectTransport } from '../integrations/telegram';
 import type { ChannelTransport } from '../integrations/telegram/transport';
+import {
+  selectNotificationEmailTransport,
+  type EmailTransport,
+} from '../integrations/email';
+import { appBaseUrl } from '../lib/env';
+import { DEFAULT_LOCALE } from '../i18n/locale';
+import {
+  campaignEmailSubject,
+  isServiceNoticeKind,
+  serviceNoticeEmail,
+} from '../domain/service-notices';
+import { decideRecipientChannel, loadTelegramBindingState, resolveAccountEmail } from './recipient-channel';
 
 /**
  * Outbox worker (spec 04 §7). tickOnce() is exported for tests — no
@@ -35,6 +47,10 @@ import type { ChannelTransport } from '../integrations/telegram/transport';
 export interface WorkerDeps {
   sql?: Sql;
   transport?: ChannelTransport;
+  /** Email transport for outbound jobs routed to the email channel (ADR 0011).
+   * Omitted → `selectNotificationEmailTransport()` (Resend when configured, else
+   * null → the job is suppressed with `channel_disabled`). */
+  emailTransport?: EmailTransport | null;
   /** Test hook: set false to skip the cleanup due-gate. */
   cleanup?: boolean;
   /** Max jobs claimed by this tick (default BATCH_LIMIT). Callers that must stay
@@ -54,12 +70,24 @@ export interface TickReport {
 
 const BATCH_LIMIT = 10;
 
+/** Transports resolved for one tick: telegram (injected or default) + email. */
+interface TickTransports {
+  telegram: ChannelTransport | null;
+  email: EmailTransport | null;
+}
+
 /** One worker tick: heartbeat → requeue expired leases → claim → process →
  * cleanup pass when due (F-06). The claim batch is overridable via
  * deps.batchLimit — the webhook post-response path (infra/post-response-tick)
  * reuses this exact tick with a small cap instead of duplicating the pipeline. */
 export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   const sql = deps.sql ?? getSql();
+  const transports: TickTransports = {
+    telegram: deps.transport ?? null,
+    // Resolved per tick (not at module load) so env changes stay observable, and
+    // so a deployment without a provider suppresses honestly instead of logging.
+    email: 'emailTransport' in deps ? deps.emailTransport ?? null : selectNotificationEmailTransport(),
+  };
 
   // Liveness (worker_heartbeat, id=true) — every tick, well within the 10s SLA.
   await sql`
@@ -71,7 +99,7 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   const jobs = await claimJobs(sql, deps.batchLimit ?? BATCH_LIMIT);
   const results: TickReport['results'] = [];
   for (const job of jobs) {
-    const outcome = await processJob(sql, deps.transport ?? null, job);
+    const outcome = await processJob(sql, transports, job);
     results.push({ job_id: job.id, kind: job.kind, outcome });
   }
 
@@ -82,7 +110,7 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   return { heartbeat: true, requeuedLeases, claimed: jobs.length, results, cleanup };
 }
 
-async function processJob(sql: Sql, transport: ChannelTransport | null, job: OutboxJobRow): Promise<string> {
+async function processJob(sql: Sql, transports: TickTransports, job: OutboxJobRow): Promise<string> {
   try {
     if (job.kind === 'telegram_update') {
       const outcome = await handleTelegramUpdate(sql, job.payload as unknown as TelegramUpdatePayload);
@@ -100,7 +128,7 @@ async function processJob(sql: Sql, transport: ChannelTransport | null, job: Out
       await applyUpdateProcessed(sql, job, outcome);
       return `processed:${outcome}`;
     }
-    return await processOutbound(sql, transport, job);
+    return await processOutbound(sql, transports, job);
   } catch (err) {
     // Unexpected processing error (not a transport outcome): requeue with
     // backoff, respecting the unknown cap so a poison job cannot loop forever.
@@ -109,8 +137,15 @@ async function processJob(sql: Sql, transport: ChannelTransport | null, job: Out
   }
 }
 
-/** Outbound message job: preconditions → transport → outcome. */
-async function processOutbound(sql: Sql, transport: ChannelTransport | null, job: OutboxJobRow): Promise<string> {
+/**
+ * Outbound message job: channel selection → preconditions → transport → outcome.
+ *
+ * Channel selection (ADR 0011) happens here, on live state, in the same spirit as
+ * the other send-time preconditions: an active Telegram binding wins, otherwise a
+ * decryptable account email takes over when the job's own consent holds, and a
+ * revoked/blocked binding stays terminal (a "stop" is never re-routed).
+ */
+async function processOutbound(sql: Sql, transports: TickTransports, job: OutboxJobRow): Promise<string> {
   const payload = job.payload;
   const text = typeof payload['text'] === 'string' ? payload['text'] : null;
   if (!text) return await suppress(sql, job, 'bad_payload');
@@ -118,58 +153,79 @@ async function processOutbound(sql: Sql, transport: ChannelTransport | null, job
   const accountId = typeof payload['account_id'] === 'string' ? (payload['account_id'] as string) : null;
   const explicitChatId = typeof payload['chat_id'] === 'string' ? (payload['chat_id'] as string) : null;
 
-  let chatId = explicitChatId;
-  if (accountId) {
-    // Send-time precondition 1: the channel binding must be active (AC-39).
-    const bindingRows = await sql<{ state: string; external_id: string }[]>`
-      SELECT state, external_id FROM channel_bindings
-      WHERE account_id = ${accountId} AND provider = 'telegram'
-      LIMIT 1
-    `;
-    const binding = bindingRows[0];
-    if (!binding) {
-      // Documented P0 behaviour: recipients without any channel are suppressed
-      // with code 'no_channel' — visible in stats, never emailed (spec S08).
-      return await suppress(sql, job, 'no_channel');
-    }
-    if (binding.state === 'revoked') return await suppress(sql, job, 'channel_revoked');
-    if (binding.state === 'blocked') return await suppress(sql, job, 'channel_blocked');
-    chatId = explicitChatId ?? binding.external_id;
+  // Jobs without a recipient account (inbound-driven command replies) are
+  // addressed by an explicit chat id only — unchanged Telegram behaviour.
+  if (!accountId) {
+    if (!explicitChatId) return await suppress(sql, job, 'no_channel');
+    return await sendTelegram(sql, transports.telegram, job, explicitChatId, text);
+  }
 
-    // Send-time precondition 2: consent must STILL be granted (AC-41 — a stale
-    // snapshot never bypasses a revoke). Enforced only for jobs that opted in:
-    // direct command replies are answers to a live user request, not pushes.
-    if (payload['enforce_consent'] === true && isConsentPurpose(job.purpose)) {
-      const scope = readConsentScope(payload);
-      const granted = await hasGrant(sql, accountId, job.purpose as ConsentPurpose, scope);
-      if (!granted) return await suppress(sql, job, 'consent_revoked');
-    }
+  const enforceConsent = payload['enforce_consent'] === true && isConsentPurpose(job.purpose);
+  const scope = readConsentScope(payload);
 
-    // Send-time precondition 3: blocks in either direction stop delivery.
-    const counterparty =
-      typeof payload['counterparty_account_id'] === 'string'
-        ? (payload['counterparty_account_id'] as string)
-        : null;
-    if (counterparty) {
-      const blockedRows = await sql<{ count: number }[]>`
-        SELECT count(*)::int AS count FROM blocks
-        WHERE (blocker_account_id = ${accountId} AND target_account_id = ${counterparty})
-           OR (blocker_account_id = ${counterparty} AND target_account_id = ${accountId})
-      `;
-      if ((blockedRows[0]?.count ?? 0) > 0) return await suppress(sql, job, 'blocked');
+  const binding = await loadTelegramBindingState(sql, accountId);
+  let consentGranted: boolean | null = null;
+  let hasEmail = false;
+
+  if (binding?.state === 'active') {
+    // Consent must STILL be granted (AC-41 — a stale snapshot never bypasses a
+    // revoke). Enforced only for jobs that opted in: direct command replies are
+    // answers to a live user request, not pushes.
+    if (enforceConsent) {
+      consentGranted = await hasGrant(sql, accountId, job.purpose as ConsentPurpose, scope);
+    }
+  } else if (!binding) {
+    // No binding at all: the email channel is the one candidate, so the address
+    // lookup happens before the consent check (a recipient with no channel and
+    // no address keeps the historical `no_channel` code, not `consent_revoked`).
+    const eventId = typeof payload['event_id'] === 'string' ? (payload['event_id'] as string) : null;
+    hasEmail = (await resolveAccountEmail(sql, accountId, eventId)) !== null;
+    if (hasEmail && enforceConsent) {
+      consentGranted = await hasGrant(sql, accountId, job.purpose as ConsentPurpose, scope);
     }
   }
 
-  if (!chatId) return await suppress(sql, job, 'no_channel');
+  const decision = decideRecipientChannel({
+    telegramBinding: binding?.state ?? null,
+    hasEmail,
+    consentGranted,
+  });
+  if (decision.channel === 'suppress') return await suppress(sql, job, decision.code);
+
+  // Send-time precondition 3: blocks in either direction stop delivery on ANY channel.
+  const counterparty =
+    typeof payload['counterparty_account_id'] === 'string'
+      ? (payload['counterparty_account_id'] as string)
+      : null;
+  if (counterparty) {
+    const blockedRows = await sql<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM blocks
+      WHERE (blocker_account_id = ${accountId} AND target_account_id = ${counterparty})
+         OR (blocker_account_id = ${counterparty} AND target_account_id = ${accountId})
+    `;
+    if ((blockedRows[0]?.count ?? 0) > 0) return await suppress(sql, job, 'blocked');
+  }
 
   // Channel window: Telegram Bot API is 24/7 — no service window for P0
   // (hook for future channels with restricted windows; spec 04 §7).
+  if (decision.channel === 'email') return await sendEmailWithJobText(sql, transports.email, job);
 
+  const chatId = explicitChatId ?? binding!.externalId;
+  return await sendTelegram(sql, transports.telegram, job, chatId, text);
+}
+
+/** Telegram dispatch: one HTTP call outside any transaction, then the outcome. */
+async function sendTelegram(
+  sql: Sql,
+  transport: ChannelTransport | null,
+  job: OutboxJobRow,
+  chatId: string,
+  text: string,
+): Promise<string> {
   if (!transport) {
     // No transport wired (should not happen — selectTransport always returns one).
     return await suppress(sql, job, 'channel_disabled');
   }
-
   // External HTTP with NO open DB transaction (spec §7 hard rule).
   const result = await transport.send({ jobId: job.id, chatId, text });
   const outcome: TransportOutcome = {
@@ -180,6 +236,52 @@ async function processOutbound(sql: Sql, transport: ChannelTransport | null, job
   };
   const status = await applyOutcome(sql, job, outcome);
   return `${status}${outcome.code ? `:${outcome.code}` : ''}`;
+}
+
+/**
+ * Email dispatch (ADR 0011). The body is rendered from the job KIND, never from
+ * the stored payload text — except for `campaign_message`, whose body IS the
+ * organizer's approved `body_text`, sent verbatim as on the Telegram channel.
+ * The recipient address is resolved here and handed straight to the transport;
+ * it is never written to the job, the attempt row or any log line.
+ */
+async function sendEmailWithJobText(
+  sql: Sql,
+  transport: EmailTransport | null,
+  job: OutboxJobRow,
+): Promise<string> {
+  const accountId = job.payload['account_id'] as string;
+  const eventId = typeof job.payload['event_id'] === 'string' ? (job.payload['event_id'] as string) : null;
+  const to = await resolveAccountEmail(sql, accountId, eventId);
+  if (!to) return await suppress(sql, job, 'no_channel');
+
+  let subject: string;
+  let body: string;
+  if (job.kind === 'campaign_message') {
+    subject = campaignEmailSubject(DEFAULT_LOCALE);
+    body = typeof job.payload['text'] === 'string' ? (job.payload['text'] as string) : '';
+  } else if (isServiceNoticeKind(job.kind)) {
+    // EN: WELCOME stores no per-account locale (cookie only) — see the module doc.
+    const rendered = serviceNoticeEmail(job.kind, appBaseUrl(), DEFAULT_LOCALE);
+    subject = rendered.subject;
+    body = rendered.text;
+  } else {
+    // A kind with no email rendering must never be guessed at.
+    return await suppress(sql, job, 'bad_payload');
+  }
+  if (body.length === 0) return await suppress(sql, job, 'bad_payload');
+
+  if (!transport) return await suppress(sql, job, 'channel_disabled');
+
+  const result = await transport.send({ to, subject, text: body });
+  const outcome: TransportOutcome = {
+    state: result.state,
+    code: result.code ?? null,
+    providerMessageId: result.providerMessageId ?? null,
+    retryAfterSeconds: result.retryAfterSeconds ?? null,
+  };
+  const status = await applyOutcome(sql, job, outcome);
+  return `${status}:email${outcome.code ? `:${outcome.code}` : ''}`;
 }
 
 function readConsentScope(payload: Record<string, unknown>): { scopeType: 'global' | 'event'; scopeId: string | null } {
@@ -217,6 +319,7 @@ async function requeueWithErrorCap(sql: Sql, job: OutboxJobRow): Promise<string>
 /** Long-running worker: SIGTERM/SIGINT → graceful drain, then exit. */
 export async function runWorker(deps: WorkerDeps = {}): Promise<void> {
   const transport = deps.transport ?? (await selectTransport());
+  const emailTransport = 'emailTransport' in deps ? deps.emailTransport ?? null : selectNotificationEmailTransport();
   let running = true;
   const stop = (): void => {
     running = false;
@@ -224,10 +327,10 @@ export async function runWorker(deps: WorkerDeps = {}): Promise<void> {
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);
 
-  console.log(`[worker] started transport=${transport.name}`);
+  console.log(`[worker] started transport=${transport.name} email=${emailTransport?.name ?? 'none'}`);
   try {
     while (running) {
-      const report = await tickOnce({ sql: deps.sql, transport });
+      const report = await tickOnce({ sql: deps.sql, transport, emailTransport });
       if (report.claimed > 0 || report.requeuedLeases > 0) {
         console.log(`[worker] claimed=${report.claimed} requeued=${report.requeuedLeases}`, report.results);
       }

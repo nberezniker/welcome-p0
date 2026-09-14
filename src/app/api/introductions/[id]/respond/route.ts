@@ -38,8 +38,8 @@ async function postRoute(
     if (!my) return jsonError(409, 'profile_required', 'Create your profile first');
 
     const result = await sql.begin(async (tx): Promise<{ code: string; state: string }> => {
-      const introRows = await tx<{ id: string; profile_a: string; profile_b: string; state: string }[]>`
-        SELECT id, profile_a, profile_b, state FROM introductions WHERE id = ${id} LIMIT 1 FOR UPDATE
+      const introRows = await tx<{ id: string; profile_a: string; profile_b: string; state: string; event_id: string | null }[]>`
+        SELECT id, profile_a, profile_b, state, event_id FROM introductions WHERE id = ${id} LIMIT 1 FOR UPDATE
       `;
       const intro = introRows[0];
       if (!intro) return { code: 'not_found', state: '' };
@@ -75,7 +75,7 @@ async function postRoute(
         if (!cas[0]) return { code: 'invalid_state', state: current };
         await upsertConsent(tx, intro.id, my.id, decision, input.value.revealFields);
         // The other side learns THAT it ended, never why (ADR 0010).
-        await enqueueDecisionNotice(tx, intro.id, otherProfileId, auth.accountId, decision);
+        await enqueueDecisionNotice(tx, intro.id, intro.event_id, otherProfileId, auth.accountId, decision);
         return { code: 'ok', state: next };
       }
 
@@ -108,7 +108,7 @@ async function postRoute(
             // Exactly one row wins the CAS → exactly one mutual audit and
             // exactly one notice per side (outbox dedupe keys make it so).
             await recordAudit(tx, auth.accountId, 'intro.mutual', 'introduction', intro.id, {});
-            await enqueueMutualNotices(tx, intro.id, intro.profile_a, intro.profile_b);
+            await enqueueMutualNotices(tx, intro.id, intro.event_id, intro.profile_a, intro.profile_b);
           }
         }
       }
@@ -171,6 +171,7 @@ async function upsertConsent(
 async function enqueueDecisionNotice(
   tx: Sql | TransactionSql,
   introductionId: string,
+  eventId: string | null,
   otherProfileId: string,
   myAccountId: string,
   decision: 'decline' | 'withdraw',
@@ -189,6 +190,8 @@ async function enqueueDecisionNotice(
     purpose: 'service_channel',
     payload: {
       account_id: otherAccountId,
+      // Event context for the send-time channel decision (ADR 0011).
+      event_id: eventId,
       text: declined ? 'WELCOME: знакомство не состоялось.' : 'WELCOME: знакомство отозвано.',
       enforce_consent: true,
       counterparty_account_id: myAccountId,
@@ -204,6 +207,7 @@ async function enqueueDecisionNotice(
 async function enqueueMutualNotices(
   tx: Sql | TransactionSql,
   introductionId: string,
+  eventId: string | null,
   profileA: string,
   profileB: string,
 ): Promise<void> {
@@ -226,6 +230,8 @@ async function enqueueMutualNotices(
       purpose: 'service_channel',
       payload: {
         account_id: accountId,
+        // Event context for the send-time channel decision (ADR 0011).
+        event_id: eventId,
         text: `WELCOME: знакомство состоялось! Контактные данные открылись в веб-приложении: ${appBaseUrl()}/introductions`,
         enforce_consent: true,
         counterparty_account_id: otherAccountId,

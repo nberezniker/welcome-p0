@@ -90,6 +90,27 @@ export function otpEmailTask(to: string, code: string): { to: string; subject: s
   return { to, subject: 'WELCOME login code', text: `WELCOME login code: ${code}`, otpCode: code };
 }
 
+/**
+ * Transport for NOTIFICATION email (outbox jobs, ADR 0011) — deliberately NOT
+ * `selectEmailTransport()`:
+ *
+ *   - the dev transport writes the recipient address into `.runtime/otp.log`;
+ *     acceptable for the operator's own OTP, never for a notification that
+ *     carries a third party's address;
+ *   - the disabled transport maps a send to `failed`, which would push the job
+ *     terminal on every tick instead of an honest suppression.
+ *
+ * Notifications therefore have exactly one real provider and `null` otherwise:
+ * the worker suppresses the job with `channel_disabled` when this returns null,
+ * so a deployment without an email provider keeps an auditable outcome and never
+ * a fallback that logs an address.
+ */
+export function selectNotificationEmailTransport(env: TransportEnv = process.env): EmailTransport | null {
+  const apiKey = env.RESEND_API_KEY;
+  if (!apiKey || apiKey.length === 0) return null;
+  return new ResendEmailTransport(apiKey, env.RESEND_FROM || 'WELCOME <onboarding@resend.dev>');
+}
+
 export { ResendEmailTransport } from './transport';
 export { DevOtpLogTransport } from './dev-transport';
 export { DisabledEmailTransport } from './disabled-transport';
