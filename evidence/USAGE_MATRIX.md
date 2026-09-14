@@ -2,7 +2,7 @@
 
 - **BASE:** http://127.0.0.1:3210 (`--live`=true)
 - **Цель прогона:** локальный production-билд текущего дерева (`next start`) с теми же прод-секретами, что у деплоя (Neon, Vertex, Telegram, worker-tick). Деплой в этом задании запрещён, поэтому «живой» прогон идёт против локального экземпляра, а не против staging-URL; секреты в отчёты не попадают (редакция в скрипте).
-- **Прогон:** 2026-09-14T22:48:05.908Z → 2026-09-14T22:51:31.065Z
+- **Прогон:** 2026-09-14T23:11:52.166Z → 2026-09-14T23:15:17.660Z
 - **Итог:** 104 PASS / 0 FAIL / 1 SKIP / 0 BLOCKED (всего 105)
 - **Машинный отчёт:** [usage-matrix.json](usage-matrix.json)
 
@@ -25,6 +25,7 @@
 | test:e2e | `pnpm test:e2e` | **0** | 13 passed (41.3s) (Playwright chromium, next dev :3111, welcome_e2e) |
 | build | `pnpm build` | **0** | Compiled successfully (Turbopack), 33 предрендеренных страниц + Proxy (Middleware) |
 | scan:secrets | `pnpm scan:secrets` | **0** | scan:secrets ok — no secrets found in tracked files |
+| drill:defect | `pnpm drill:defect` | **0** | DRILL-OK: инъекция → гейт FAIL (exit 1) → revert → PASS (exit 0), без остатка в src/ |
 
 Сырые логи гейтов: `evidence/matrix/*.log`.
 
@@ -128,7 +129,7 @@
 | D1 | мини-лендинг GET /p/<slug>: 200 + имя/оси, без приватного телефона | 200, имя + метки интересов/интентов, не содержит телефон | 200; секции: interests«data-testid="pubcard-interests"> Interes…», needs«data-testid="pubcard-needs"> Looking for…», offers«data-testid="pubcard-offers"> …»; телефон отсутствует | **PASS** | {"interests":"data-testid=\"pubcard-interests\"> Interests AI / ML Dev tools <section class=\"mt-6 border-t border-line pt-5\"","needs":"data-testid=\"pubcard-needs\"> Looking for a co-founder <sectio… |
 | D2 | публичная проекция /api/public/profiles/<slug>: только public-контакты | 200, contacts без phone | contacts=[website] | **PASS** | HTTP 200 {"slug":"«token»","display_name":"MATRIX-Alpha","contacts":[{"kind":"website","value":"https://matrix.example/alpha"}]} |
 | D3 | vCard: 200, public-поля, без телефона, экранирование | text/vcard + escaped FN, без phone | text/vcard, FN экранирован (\, \;), phone отсутствует | **PASS** | FN:MATRIX-Alpha\, Inc.\; "Ltd" \| URL:https://matrix.example/alpha |
-| D4 | QR SVG: 200 image/svg+xml | 200 + <svg | 200 image/svg+xml | **PASS** | HTTP 200 image/svg+xml; charset=utf-8 bytes=2008 |
+| D4 | QR SVG: 200 image/svg+xml | 200 + <svg | 200 image/svg+xml | **PASS** | HTTP 200 image/svg+xml; charset=utf-8 bytes=1985 |
 | D5 | несуществующий slug → 404 (JSON и HTML) | 404 not_found | 404 JSON + 404 HTML + 404 vCard | **PASS** | HTTP 404 {"code":"not_found","message":"Profile not found","correlation_id":"«token»","retryable":false} \| HTML 404 |
 
 ## Режим E
@@ -142,8 +143,8 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| F1 | enrichment: живой Vertex draft (профиль без своих ссылок) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"MATRIX-Bravo","short_bio":"This is the professional profil… |
-| F1b | enrichment: живой Vertex draft при наличии ссылки (контроль) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"Founder & CEO in AI and SaaS","short_bio":"MATRIX-Charlie … |
+| F1 | enrichment: живой Vertex draft (профиль без своих ссылок) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"MATRIX-Bravo","short_bio":"Professional profile for MATRIX… |
+| F1b | enrichment: живой Vertex draft при наличии ссылки (контроль) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"Founder & CEO in AI SaaS","short_bio":"MATRIX-Charlie is a… |
 | F2 | enrichment: лимит 5/час → 429 | 6-й запрос → 429 (X-RateLimit-Limit: 5) | 400,400,400,400,400 → 429 (limit 5) | **PASS** | HTTP 429 {"code":"rate_limited","message":"Too many enrichment requests. Try again later.","correlation_id":"«token»","retryable":true} x-ratelimit-limit=5 |
 | F3 | enrichment без сессии → 401 | 401 unauthorized | 401 unauthorized | **PASS** | HTTP 401 {"code":"unauthorized","message":"Sign in required","correlation_id":"«token»","retryable":false} |
 
@@ -175,7 +176,7 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| I1 | invite → claim-URL для approved-регистрации | 200 + claim_url/expires_at | 200 + claim_url=/claim/«token» (7 дней) | **PASS** | HTTP 200 {"ok":true,"claim_url":"/claim/«token»","expires_at":"2026-09-21T22:50:48.432Z"} |
+| I1 | invite → claim-URL для approved-регистрации | 200 + claim_url/expires_at | 200 + claim_url=/claim/«token» (7 дней) | **PASS** | HTTP 200 {"ok":true,"claim_url":"/claim/«token»","expires_at":"2026-09-21T23:14:32.791Z"} |
 | I2 | GET /claim/<token> НЕ консюмит (повторный GET работает) | два GET → 200, challenge не consumed | GET ×2 → 200; consumed_at остался NULL | **PASS** | HTTP 200/200, link_challenges.consumed_at = null |
 | I3 | claim с чужого email → 403 | 403 email_mismatch | 403 email_mismatch | **PASS** | HTTP 403 {"code":"email_mismatch","message":"This claim link belongs to a different email address","correlation_id":"«token»","retryable":false} |
 | I4 | claim с правильным email → 200 (+membership) | 200 + membership state active | 200: membership active, profile_created=false | **PASS** | HTTP 200 {"ok":true,"event_id":"«token»","membership":{"id":"«token»","state":"active","directory_visible":false},"profile_created":false,"notice":"Данные из регистрации — проверьте, что всё верно. Им… |
@@ -194,14 +195,14 @@
 | J7 | cooldown: пара с интро не в рекомендациях | Bravo исчез из рекомендаций после decline | до интро Bravo был в рекомендациях (3 шт.), после decline отсутствует; сейчас 1 шт. | **PASS** | before=[MATRIX-Charlie, MATRIX-Bravo, MATRIX-Delta], after=[1] |
 | J8 | блокировка: нет в directory и рекомендациях | Charlie отсутствует в обоих списках | Charlie отсутствует в directory (2 записей) и рекомендациях (1) | **PASS** | members=2, recommendations=1, blocked=Charlie |
 | J9 | respond withdraw (отзыв до mutual) + нейтральное уведомление контрагенту | 200 state revoked; джоба intro_withdrawn без причины, ровно одна | withdraw → 200 revoked (повтор → 409); джоба intro_withdrawn_notice для delta, текст нейтральный, ровно одна | **PASS** | HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"revoked","my_decision":"withdraw"}} \| HTTP 409 {"code":"invalid_state","message":"This introduction is revoked; only pending introductions c… |
-| J10 | уведомления о решении подавляются по правилам (no_channel / consent_revoked) | decline → suppressed:no_channel; withdraw при активном binding без service_channel-согласия → suppressed:consent_revoked | decline=suppressed:no_channel (нет канала), withdraw=suppressed:consent_revoked (binding активен, согласие отозвано) | **PASS** | delivery_attempts: intro_declined:140bf0d0-1bbb-40ea-9209-034e2c474a96:c93ed80e-7959-4236-a6e4-f9e7dc50922f → suppressed/no_channel; intro_withdrawn:ffb8df02-29c0-4a16-9e5b-3b811b5926d1:90468f67-11f7-… |
-| J11 | email-канал уведомлений: выбор канала и подавление | без привязки + email + согласие → email (не no_channel); с активной привязкой → telegram (email не используется); email без согласия → suppressed:consent_revoked; адрес не хранится в джобе | mailOnly=suppressed:channel_disabled (провайдера у экземпляра нет — подавление честное, канал всё равно email, не no_channel); mailBound=failed:tg_http_400 (telegram приоритетнее); mailNoConsent=suppressed:consent_revoked | **PASS** | delivery_attempts: intro_requested:81e8b675-1b10-4f34-9114-7fec0df2ccae:a491b4a8-5756-4150-b85d-ddd87d073619 → suppressed:channel_disabled; intro_requested:d3f6feb7-6ead-4f63-a70b-d47f784ceb15:063fb7c… |
+| J10 | уведомления о решении подавляются по правилам (no_channel / consent_revoked) | decline → suppressed:no_channel; withdraw при активном binding без service_channel-согласия → suppressed:consent_revoked | decline=suppressed:no_channel (нет канала), withdraw=suppressed:consent_revoked (binding активен, согласие отозвано) | **PASS** | delivery_attempts: intro_declined:6e927506-2eba-4f10-9069-15f5c3408b52:f6d723f6-6f74-4d56-9702-345a2d603a3f → suppressed/no_channel; intro_withdrawn:4f432e80-6259-4e23-8cea-e6741ecb258f:8169acf2-a7e0-… |
+| J11 | email-канал уведомлений: выбор канала и подавление | без привязки + email + согласие → email (не no_channel); с активной привязкой → telegram (email не используется); email без согласия → suppressed:consent_revoked; адрес не хранится в джобе | mailOnly=suppressed:channel_disabled (провайдера у экземпляра нет — подавление честное, канал всё равно email, не no_channel); mailBound=failed:tg_http_400 (telegram приоритетнее); mailNoConsent=suppressed:consent_revoked | **PASS** | delivery_attempts: intro_requested:63373378-f7e0-45b6-a6e5-6276ce279ce6:00fa0cf2-aa3f-486f-85fe-b55e7e78b99c → suppressed:channel_disabled; intro_requested:5f776286-5ff7-407e-b4fd-cdcf2d90ad1b:d62e89f… |
 
 ## Режим K
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| K1 | заметка владельцем: upsert + список | 200; заметка видна в своём списке | 200 + заметка в /api/me/notes | **PASS** | HTTP 200 {"ok":true,"note":{"other_profile_id":"«token»","note_text":"MATRIX- note about Delta","next_step":"ping","next_step_status":"proposed","updated_at":"2026-09-14T22:51:02.997Z"}} |
+| K1 | заметка владельцем: upsert + список | 200; заметка видна в своём списке | 200 + заметка в /api/me/notes | **PASS** | HTTP 200 {"ok":true,"note":{"other_profile_id":"«token»","note_text":"MATRIX- note about Delta","next_step":"ping","next_step_status":"proposed","updated_at":"2026-09-14T23:14:47.503Z"}} |
 | K2 | чужая заметка не видна другому аккаунту | список Bravo не содержит заметку Alpha | список Bravo: 0 заметок, чужих нет | **PASS** | HTTP 200 {"ok":true} notes=0 |
 | K3 | организатор без связи → 403 | 403 not_connected | organizer → 403 not_connected; self → 400 self_note | **PASS** | HTTP 403 {"code":"not_connected","message":"Notes can only be kept about people you actually met","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"self_note","message":"Notes are abou… |
 
@@ -212,7 +213,7 @@
 | L1 | grant по purpose (event scope) | 200 action=grant | 200 grant organizer_marketing@event | **PASS** | HTTP 200 {"ok":true,"action":"grant","purpose":"organizer_marketing","scope_type":"event"} |
 | L2 | withdraw по purpose (revoke-ручка) | 200 action=withdraw | 200 withdraw; неизвестный purpose → 400 invalid_purpose | **PASS** | HTTP 200 {"ok":true,"action":"withdraw"} \| HTTP 400 {"code":"invalid_purpose","message":"purpose must be one of: public_card, event_directory, introduction_fields, service_channel, organizer_marketing… |
 | L3 | withdraw подавляет уже поставленные в очередь джобы (интро) | pending-джоба становится suppressed | джоба intro_requested…: suppressed → suppressed | **PASS** | outbox_jobs.status suppressed → suppressed (purpose=service_channel, account=Bravo) |
-| L4 | export содержит историю согласий | консенты grant+withdraw присутствуют в export | export.consents: 5 записей (grant+withdraw organizer_marketing) | **PASS** | [{"purpose":"organizer_marketing","scope_type":"event","scope_id":"d882a933-cb44-4478-b97e-3be543789bc4","field_set":[],"policy_version":"matrix-2026-09-14","action":"grant","created_at":"2026-09-14T2… |
+| L4 | export содержит историю согласий | консенты grant+withdraw присутствуют в export | export.consents: 5 записей (grant+withdraw organizer_marketing) | **PASS** | [{"purpose":"organizer_marketing","scope_type":"event","scope_id":"9d1ab64a-b2b6-488e-8ec5-a85388ae58ba","field_set":[],"policy_version":"matrix-2026-09-14","action":"grant","created_at":"2026-09-14T2… |
 
 ## Режим M
 

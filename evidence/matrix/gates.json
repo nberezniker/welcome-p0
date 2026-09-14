@@ -2,7 +2,7 @@
   "run_at": "2026-09-14T22:26:08.163Z",
   "commit": "339c75f6b0edc3cd1df46318944853708ba8e3f1",
   "command": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:integration && pnpm test:e2e && pnpm build && pnpm scan:secrets",
-  "note": "Гейты 1–7 прогнаны последовательно на чистом дереве коммита 339c75f; логи — evidence/matrix/*.log. Прирост против прошлого прогона (323 unit / 250 integration / 7 e2e на e778901 и 11 e2e на 017cb89): +30 unit-тестов (email-канал 7, выбор канала 8, воронка 5, сегменты 10), +12 integration-тестов (email-канал 7, воронка 2, сегменты 3), +2 e2e-спеки (воронка организатора, сегмент кампании).",
+  "note": "Гейты 1–7 прогнаны последовательно на чистом дереве коммита 339c75f; логи — evidence/matrix/*.log. drill:defect требует чистого дерева и запускается последним (пишет свои evidence-выходы), поэтому он выполнен на d588985, который отличается от 339c75f только evidence-артефактами. Прирост против прошлого прогона (323 unit / 250 integration / 7 e2e): +30 unit-тестов (email-канал 7, выбор канала 8, воронка 5, сегменты 10), +12 integration-тестов (email-канал 7, воронка 2, сегменты 3), +2 e2e-спеки (воронка организатора, сегмент кампании).",
   "all_green": true,
   "gates": [
     {
@@ -46,6 +46,13 @@
       "command": "pnpm scan:secrets",
       "exit": 0,
       "summary": "scan:secrets ok — no secrets found in tracked files"
+    },
+    {
+      "id": "drill:defect",
+      "command": "pnpm drill:defect",
+      "exit": 0,
+      "summary": "DRILL-OK: инъекция → гейт FAIL (exit 1) → revert → PASS (exit 0), без остатка в src/"
     }
-  ]
+  ],
+  "drill_commit": "d588985be3a3e8cbde8d12813885acd0d11f9e72"
 }
