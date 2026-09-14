@@ -86,3 +86,4 @@ export {
   type EnrichmentResult,
   type EnrichmentSource,
 } from './transport';
+export { degradedEnrichmentDraft, type DegradedDraftInput } from './degraded-draft';

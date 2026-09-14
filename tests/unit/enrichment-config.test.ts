@@ -197,10 +197,13 @@ test('vertex transport: thinking-model output budget, grounding tool, empty answ
       links: ['https://2ai.com.ua'],
     });
 
-    // An empty answer is a retryable failure, never a fake success.
+    // An empty answer is a retryable failure, never a fake success — and the
+    // transport repeats it exactly once before giving up (BUG-3, see
+    // tests/unit/enrichment-degraded.test.ts for the retry contract).
     assert.equal(result.state, 'failed');
     assert.equal(result.code, 'no_draft');
     assert.equal(result.retryable, true);
+    assert.equal(calls.length, 2, 'one internal retry, never more');
 
     const call = calls[0];
     assert.ok(call, 'the transport must call fetch');

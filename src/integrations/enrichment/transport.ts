@@ -31,6 +31,14 @@ import type { TokenSource } from './auth';
 
 export const ENRICHMENT_REQUEST_TIMEOUT_MS = 30_000;
 /**
+ * Wall-clock budget for the WHOLE transport call, internal retry included. The
+ * retry only runs while this budget still leaves room, so the endpoint's
+ * worst-case latency is unchanged from the single-attempt behaviour (measured
+ * live: one grounding call takes ~7-9s) and a serverless invocation cannot be
+ * pushed past the platform's duration limit by the retry.
+ */
+const MIN_RETRY_BUDGET_MS = 5_000;
+/**
  * Output budget for one generateContent call. gemini-2.5-flash is a THINKING
  * model: its reasoning tokens are charged against this budget, and Google
  * Search grounding injects a large tool-use prompt on top. Measured live:
@@ -67,6 +75,8 @@ export interface EnrichmentRequest {
   displayName: string;
   company: string | null;
   industry: string | null;
+  /** The requester's own job-function id/label (own data, never inferred). */
+  jobFunction?: string | null;
   /** The user's own confirmed links (their site / LinkedIn / GitHub / Telegram). */
   links: string[];
 }
@@ -95,20 +105,33 @@ export function enrichmentPrompt(request: EnrichmentRequest): string {
     'Use ONLY the identifiers below. This is their own data, submitted by them.',
     'Rules:',
     '- Never enrich a different or third person, never aggregate people, never guess private data.',
-    '- Do not invent employers, titles, schools or achievements. If the public footprint is thin, return nulls/empty arrays.',
+    '- Do not invent employers, titles, schools, achievements or links you did not actually find.',
+    // Best-effort-always: measured live (2026-09-14), the grounded model
+    // periodically answers HTTP 200 / finishReason STOP with an EMPTY visible
+    // part on a thin public footprint (thoughts 250–3300 of the 8192 budget, so
+    // it is not an exhausted budget) which the route had to report as a
+    // failure. Composing a draft from the fields the person supplied is not
+    // invention — it is their own data — and it keeps the UI useful.
+    '- ALWAYS return a best-effort draft. If the public footprint is thin or you find nothing new,',
+    '  compose headline and short_bio ONLY from the person fields given below (display_name, company,',
+    '  job_function, industry) and leave the fields you cannot support as null / empty arrays.',
+    '- Never return an empty answer: a draft built from the provided fields is always acceptable,',
+    '  an empty answer is not.',
     '- Search the open web for the person\'s own public professional footprint only.',
     `- suggested_interests: at most ${MAX_INTERESTS} ids from the allowed interest list.`,
     `- suggested_intents: at most ${MAX_NEED_INTENTS + MAX_OFFER_INTENTS} ids from the allowed intent list.`,
-    '- links: at most 5 public http(s) URLs you actually found and can source.',
+    '- links: at most 5 public http(s) URLs you actually found and can source (never the own links back).',
     '',
     'Person (own profile):',
     `display_name: ${request.displayName}`,
     `company: ${request.company ?? '(not provided)'}`,
+    `job_function: ${request.jobFunction ?? '(not provided)'}`,
     `industry: ${request.industry ?? '(not provided)'}`,
     'own links:',
     links,
     '',
-    'Respond with a SINGLE JSON object and nothing else, exactly this shape:',
+    'Respond with a SINGLE JSON object and nothing else — no prose, no markdown fences, no comments.',
+    'Every key must be present; use null (or []) for the ones you cannot fill:',
     '{"headline": string|null, "short_bio": string|null, "company": string|null,',
     ' "links": string[], "suggested_interests": string[], "suggested_intents": string[]}',
     'Allowed interest ids and intent ids are defined by the app catalogue; only emit ids you are confident about.',
@@ -264,14 +287,20 @@ export class VertexEnrichmentTransport implements EnrichmentProvider {
     return `https://aiplatform.googleapis.com/v1/projects/${encodeURIComponent(projectId)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`;
   }
 
-  async enrich(request: EnrichmentRequest): Promise<EnrichmentResult> {
-    let token: string;
-    try {
-      token = await this.options.tokenSource.getToken();
-    } catch {
-      return { state: 'failed', code: 'enrichment_auth_failed', retryable: false };
-    }
-
+  /**
+   * One generateContent round-trip with the SAME token budget every time.
+   * The outcome is classified, not reported: the caller decides whether a
+   * retry is worth it.
+   */
+  private async generate(
+    token: string,
+    request: EnrichmentRequest,
+    timeoutMs: number,
+  ): Promise<
+    | { kind: 'ok'; draft: EnrichmentDraft; sources: EnrichmentSource[] }
+    | { kind: 'no_answer'; code: 'no_draft' | 'bad_response' }
+    | { kind: 'failure'; code: string; retryable: boolean }
+  > {
     let res: Response;
     try {
       res = await fetch(this.endpoint(), {
@@ -286,31 +315,68 @@ export class VertexEnrichmentTransport implements EnrichmentProvider {
           tools: [{ googleSearch: {} }],
           generationConfig: { temperature: 0.2, maxOutputTokens: ENRICHMENT_MAX_OUTPUT_TOKENS },
         }),
-        signal: AbortSignal.timeout(ENRICHMENT_REQUEST_TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
       const timedOut = err instanceof Error && err.name === 'TimeoutError';
-      return { state: 'failed', code: timedOut ? 'timeout' : 'network_error', retryable: true };
+      return { kind: 'failure', code: timedOut ? 'timeout' : 'network_error', retryable: true };
     }
 
     if (res.status === 429 || res.status >= 500) {
-      return { state: 'failed', code: res.status === 429 ? 'rate_limited' : 'upstream_5xx', retryable: true };
+      return { kind: 'failure', code: res.status === 429 ? 'rate_limited' : 'upstream_5xx', retryable: true };
     }
     if (!res.ok) {
       // Permanent: never leak provider details beyond the raw status.
-      return { state: 'failed', code: `upstream_${res.status}`, retryable: false };
+      return { kind: 'failure', code: `upstream_${res.status}`, retryable: false };
     }
 
     let body: VertexResponse;
     try {
       body = (await res.json()) as VertexResponse;
     } catch {
-      return { state: 'failed', code: 'bad_response', retryable: true };
+      return { kind: 'no_answer', code: 'bad_response' };
     }
 
     const parsed = parseEnrichmentAnswer(vertexAnswerText(body), extractSources(body));
-    if (!parsed) return { state: 'failed', code: 'no_draft', retryable: true };
+    if (!parsed) return { kind: 'no_answer', code: 'no_draft' };
 
-    return { state: 'ok', draft: parsed.draft, sources: parsed.sources, provider: this.name };
+    return { kind: 'ok', draft: parsed.draft, sources: parsed.sources };
+  }
+
+  /**
+   * Live behaviour (2026-09-14): a grounded answer periodically comes back HTTP
+   * 200 with no parsable draft — the thinking model spends its budget on
+   * thoughts and emits an empty visible part. That is a retryable *answer*
+   * problem, not a transport failure, so exactly ONE internal retry is made
+   * with the same request and the same token budget. A second retry would only
+   * double the spend again without evidence of helping, so after the retry the
+   * failure is reported honestly ('no_draft') and the route turns it into a
+   * deterministic degraded draft. Transport failures (auth, network, timeout,
+   * 429, 5xx) are NOT repeated here — they are reported retryable as before.
+   */
+  async enrich(request: EnrichmentRequest): Promise<EnrichmentResult> {
+    let token: string;
+    try {
+      token = await this.options.tokenSource.getToken();
+    } catch {
+      return { state: 'failed', code: 'enrichment_auth_failed', retryable: false };
+    }
+
+    const deadline = Date.now() + ENRICHMENT_REQUEST_TIMEOUT_MS;
+    let lastCode: 'no_draft' | 'bad_response' = 'no_draft';
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      const remaining = deadline - Date.now();
+      // The retry is skipped when the first attempt already ate the budget.
+      if (attempt > 1 && remaining < MIN_RETRY_BUDGET_MS) break;
+      const outcome = await this.generate(token, request, remaining);
+      if (outcome.kind === 'ok') {
+        return { state: 'ok', draft: outcome.draft, sources: outcome.sources, provider: this.name };
+      }
+      if (outcome.kind === 'failure') {
+        return { state: 'failed', code: outcome.code, retryable: outcome.retryable };
+      }
+      lastCode = outcome.code;
+    }
+    return { state: 'failed', code: lastCode, retryable: true };
   }
 }

@@ -161,6 +161,117 @@ test('enrich: requires auth and an existing profile', async () => {
   assert.equal(((await res.json()) as { code: string }).code, 'profile_required');
 });
 
+test('enrich: provider answers without a draft twice → 200 + degraded draft from the profile (BUG-3)', async () => {
+  const user = await loginWithProfile('degraded');
+  const savedProvider = process.env.ENRICHMENT_PROVIDER;
+  const savedProject = process.env.GCP_PROJECT_ID;
+  const savedToken = process.env.GCP_ACCESS_TOKEN;
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  // The real transport against a stubbed upstream that keeps returning the live
+  // failure mode: HTTP 200 with an empty visible answer.
+  process.env.ENRICHMENT_PROVIDER = 'vertex';
+  process.env.GCP_PROJECT_ID = 'integration-project';
+  process.env.GCP_ACCESS_TOKEN = 'integration-token';
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(
+      JSON.stringify({ candidates: [{ finishReason: 'STOP', content: { parts: [{ text: '' }] } }] }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    );
+  }) as typeof fetch;
+
+  try {
+    const before = await snapshot(user);
+    const res = await enrich(user);
+    // Not a 502: the UI must always get confirmable rows for a valid profile.
+    assertStatus(res, 200);
+    assert.equal(res.headers.get('cache-control'), 'no-store, private');
+    const body = (await res.json()) as {
+      ok: boolean;
+      degraded: boolean;
+      sources: unknown[];
+      draft: {
+        headline: string | null;
+        short_bio: string | null;
+        company: string | null;
+        links: string[];
+        suggested_interests: string[];
+        suggested_intents: string[];
+      };
+    };
+    assert.equal(body.ok, true);
+    assert.equal(body.degraded, true, 'the degraded flag separates this from a provider draft');
+    assert.deepEqual(body.sources, [], 'nothing was found, so no source is claimed');
+    assert.equal(calls, 2, 'one internal retry before the fallback');
+
+    // Deterministic content, built only from the caller's own profile fields.
+    assert.equal(body.draft.headline, 'Acme Labs');
+    assert.equal(body.draft.company, 'Acme Labs');
+    assert.match(body.draft.short_bio ?? '', /^Enrich degraded — Acme Labs/);
+    // Taxonomy ids are resolved through the catalogue, never leaked raw.
+    assert.ok(!(body.draft.short_bio ?? '').includes('ai-saas'), 'industry id must be rendered as a label');
+    // Nothing invented: no links, no catalogue suggestions.
+    assert.deepEqual(body.draft.links, []);
+    assert.deepEqual(body.draft.suggested_interests, []);
+    assert.deepEqual(body.draft.suggested_intents, []);
+
+    // Same privacy property as a provider draft: nothing is persisted.
+    assert.equal(await snapshot(user), before, 'profile + contacts must be byte-identical after enrich');
+    assert.equal(await ledgerCount(user.accountId), 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+    process.env.ENRICHMENT_PROVIDER = savedProvider;
+    if (savedProject === undefined) delete process.env.GCP_PROJECT_ID;
+    else process.env.GCP_PROJECT_ID = savedProject;
+    if (savedToken === undefined) delete process.env.GCP_ACCESS_TOKEN;
+    else process.env.GCP_ACCESS_TOKEN = savedToken;
+  }
+});
+
+test('enrich: a real provider failure is still a 502 with a server-side trace (BUG-4)', async () => {
+  const user = await loginWithProfile('providerdown');
+  const savedProvider = process.env.ENRICHMENT_PROVIDER;
+  const savedProject = process.env.GCP_PROJECT_ID;
+  const savedToken = process.env.GCP_ACCESS_TOKEN;
+  const originalFetch = globalThis.fetch;
+  const logged: string[] = [];
+  const originalError = console.error;
+  process.env.ENRICHMENT_PROVIDER = 'vertex';
+  process.env.GCP_PROJECT_ID = 'integration-project';
+  process.env.GCP_ACCESS_TOKEN = 'integration-token';
+  globalThis.fetch = (async () => new Response('{"error":"boom"}', { status: 503 })) as typeof fetch;
+  console.error = (...args: unknown[]) => {
+    logged.push(args.map(String).join(' '));
+  };
+
+  try {
+    const res = await enrich(user);
+    assertStatus(res, 502);
+    const body = (await res.json()) as { code: string; retryable: boolean };
+    assert.equal(body.code, 'enrichment_failed');
+    assert.equal(body.retryable, true);
+    // The client is told nothing about the provider, but the operator gets the code.
+    assert.ok(!res.headers.get('x-enrichment-code'));
+    const trace = logged.find((line) => line.startsWith('[enrich]'));
+    assert.ok(trace, 'the 502 must leave a server-side trace');
+    assert.match(trace!, /code=upstream_5xx/);
+    assert.match(trace!, /provider=vertex_gemini/);
+    // No PII / secrets in the log line.
+    assert.ok(!trace!.includes('integration-token'));
+    assert.ok(!trace!.includes('Enrich providerdown'));
+    assert.ok(!trace!.includes('integration-project'));
+  } finally {
+    console.error = originalError;
+    globalThis.fetch = originalFetch;
+    process.env.ENRICHMENT_PROVIDER = savedProvider;
+    if (savedProject === undefined) delete process.env.GCP_PROJECT_ID;
+    else process.env.GCP_PROJECT_ID = savedProject;
+    if (savedToken === undefined) delete process.env.GCP_ACCESS_TOKEN;
+    else process.env.GCP_ACCESS_TOKEN = savedToken;
+  }
+});
+
 test('enrich: provider disabled → 503 enrichment_disabled, retryable:false, no quota spent', async () => {
   const user = await loginWithProfile('disabled');
   const saved = process.env.ENRICHMENT_PROVIDER;
