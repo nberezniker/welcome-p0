@@ -2,7 +2,7 @@
 > welcome-p0@0.1.0 drill:defect /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
 > node --env-file-if-exists=.env.local scripts/defect-drill.mjs
 
-defect drill on commit 0e4d6334080f4885ff1dda5518894d897496b240
+defect drill on commit bfc79c0a335bf943b12041543b4baa7c95ca71b2
 {
   severity_local: 'NOTICE',
   severity: 'NOTICE',
@@ -53,6 +53,7 @@ applied 005 005_security_hardening.sql
 applied 006 006_mfa_step_up.sql
 applied 007 007_taxonomy_v3.sql
 applied 008 008_profile_card_fields.sql
+applied 009 009_introduction_consent_source.sql
 step 1: defect injected into src/lib/public-profile.ts
 step 1: gate run exit code = 1 (expected non-zero)
 step 2: defect reverted from git

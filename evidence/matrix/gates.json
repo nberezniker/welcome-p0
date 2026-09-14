@@ -1,8 +1,8 @@
 {
-  "run_at": "2026-09-14T12:24:59.100Z",
-  "commit": "0e4d6334080f4885ff1dda5518894d897496b240",
+  "run_at": "2026-09-14T13:06:43.000Z",
+  "commit": "e7789016863e49ff863801d8ba941c7ecb1ce41f",
   "command": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:integration && pnpm test:e2e && pnpm build && pnpm scan:secrets && pnpm drill:defect",
-  "note": "Гейты прогнаны последовательно на чистом дереве; логи — evidence/matrix/*.log. drill:defect требует чистого дерева и запускается последним (сам переписывает свои evidence-выходы).",
+  "note": "Гейты 1–7 прогнаны последовательно на чистом дереве коммита e778901; логи — evidence/matrix/*.log. drill:defect требует чистого дерева, поэтому запускается отдельно и последним (сам переписывает свои evidence-выходы) — он выполнен на bfc79c0, который отличается от e778901 только evidence-логами. Прирост против прошлого прогона: +1 unit-тест (паритет CONSENT_SOURCES ↔ CHECK миграции 009), +4 integration-теста (согласие инициатора, уведомления decline/withdraw, миграция 009).",
   "all_green": true,
   "gates": [
     {
@@ -21,19 +21,19 @@
       "id": "test:unit",
       "command": "pnpm test:unit",
       "exit": 0,
-      "summary": "322 pass / 0 fail (node --test + tsx, 322 tests)"
+      "summary": "323 pass / 0 fail (node --test + tsx, 323 tests)"
     },
     {
       "id": "test:integration",
       "command": "pnpm test:integration",
       "exit": 0,
-      "summary": "246 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–008)"
+      "summary": "250 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–009)"
     },
     {
       "id": "test:e2e",
       "command": "pnpm test:e2e",
       "exit": 0,
-      "summary": "7 passed (28.2s) (Playwright chromium, next dev :3111, welcome_e2e)"
+      "summary": "7 passed (25.8s) (Playwright chromium, next dev :3111, welcome_e2e)"
     },
     {
       "id": "build",

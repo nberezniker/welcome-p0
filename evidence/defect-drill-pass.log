@@ -1,12 +1,12 @@
 # defect drill — PASS expected (defect reverted)
-# commit: 0e4d6334080f4885ff1dda5518894d897496b240
+# commit: bfc79c0a335bf943b12041543b4baa7c95ca71b2
 # exit code: 0
 
 TAP version 13
 # Subtest: public API returns ONLY the public projection (disabled contact and private data absent)
 ok 1 - public API returns ONLY the public projection (disabled contact and private data absent)
   ---
-  duration_ms: 71.550416
+  duration_ms: 69.613084
   type: 'test'
   ...
 1..1
@@ -17,4 +17,4 @@ ok 1 - public API returns ONLY the public projection (disabled contact and priva
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 314.102792
+# duration_ms 306.692542
