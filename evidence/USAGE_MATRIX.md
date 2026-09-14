@@ -1,7 +1,7 @@
 # USAGE MATRIX — живой прогон всех режимов
 
 - **BASE:** https://welcome-p0-nikiti4.vercel.app (`--live`=true)
-- **Прогон:** 2026-09-14T11:50:28.430Z → 2026-09-14T11:53:52.665Z
+- **Прогон:** 2026-09-14T11:55:55.852Z → 2026-09-14T11:59:40.483Z
 - **Итог:** 93 PASS / 3 FAIL / 1 SKIP / 0 BLOCKED (всего 97)
 - **Машинный отчёт:** [usage-matrix.json](usage-matrix.json)
 
@@ -93,7 +93,7 @@
 | D1 | мини-лендинг GET /p/<slug>: 200 + имя/оси, без приватного телефона | 200, имя + метки интересов/интентов, не содержит телефон | 200; секции: interests«data-testid="pubcard-interests"> Interes…», needs«data-testid="pubcard-needs"> Looking for…», offers«data-testid="pubcard-offers"> …»; телефон отсутствует | **PASS** | {"interests":"data-testid=\"pubcard-interests\"> Interests AI / ML Dev tools <section class=\"mt-6 border-t border-line pt-5\"","needs":"data-testid=\"pubcard-needs\"> Looking for a co-founder <sectio… |
 | D2 | публичная проекция /api/public/profiles/<slug>: только public-контакты | 200, contacts без phone | contacts=[website] | **PASS** | HTTP 200 {"slug":"«token»","display_name":"MATRIX-Alpha","contacts":[{"kind":"website","value":"https://matrix.example/alpha"}]} |
 | D3 | vCard: 200, public-поля, без телефона, экранирование | text/vcard + escaped FN, без phone | text/vcard, FN экранирован (\, \;), phone отсутствует | **PASS** | FN:MATRIX-Alpha\, Inc.\; "Ltd" \| URL:https://matrix.example/alpha |
-| D4 | QR SVG: 200 image/svg+xml | 200 + <svg | 200 image/svg+xml | **PASS** | HTTP 200 image/svg+xml; charset=utf-8 bytes=2466 |
+| D4 | QR SVG: 200 image/svg+xml | 200 + <svg | 200 image/svg+xml | **PASS** | HTTP 200 image/svg+xml; charset=utf-8 bytes=2477 |
 | D5 | несуществующий slug → 404 (JSON и HTML) | 404 not_found | 404 JSON + 404 HTML + 404 vCard | **PASS** | HTTP 404 {"code":"not_found","message":"Profile not found","correlation_id":"«token»","retryable":false} \| HTML 404 |
 
 ## Режим E
@@ -118,7 +118,7 @@
 |---|---|---|---|---|---|
 | G1 | публичное событие видно без сессии | GET /api/events/<slug> без cookie → 200 | 200 «WELCOME Demo Meetup — Product & Growth» (access_mode=public), viewer.is_member=false | **PASS** | HTTP 200 {"ok":true,"event":{"id":"«token»","slug":"welcome-demo-meetup","name":"WELCOME Demo Meetup — Product & Growth","mode":"offline","access_mode":"public","status":"active","starts_at":"2026-09-… |
 | G2 | закрытое событие: join с кодом | без кода 403, неверный 403, верный 200, повтор идемпотентен | 403 join_forbidden (без кода) → 403 (неверный) → 200 (верный, state=active) → 200 already_member:true | **PASS** | HTTP 403 {"code":"join_forbidden","message":"This event requires a valid join code or registration claim","correlation_id":"«token»","retryable":false} \| HTTP 403 {"code":"join_forbidden","message":"T… |
-| G3 | закрытое событие: 20 неверных попыток → lockout | после 20 фейлов верный код тоже 429 join_code_locked | 20× 403 join_forbidden (2× придержал per-IP bucket) → верный код 429 join_code_locked | **PASS** | HTTP 429 {"code":"join_code_locked","message":"Too many failed attempts. Try again later.","correlation_id":"«token»","retryable":true} retry-after=900 |
+| G3 | закрытое событие: 20 неверных попыток → lockout | после 20 фейлов верный код тоже 429 join_code_locked | 20× 403 join_forbidden (3× придержал per-IP bucket) → верный код 429 join_code_locked | **PASS** | HTTP 429 {"code":"join_code_locked","message":"Too many failed attempts. Try again later.","correlation_id":"«token»","retryable":true} retry-after=900 |
 | G4 | directory: режимы intent/interest/all + фильтры + поиск q | 200 на все валидные, 400 на невалидные | all/intent/interest/function/industry/q → 200 (q=Bravo нашёл 1); невалидные → 400 invalid_mode / invalid_job_function | **PASS** | HTTP 200 {"ok":true,"mode":"all"} members=4 \| HTTP 400 {"code":"invalid_mode","message":"mode must be one of: all, intent, interest","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"i… |
 | G5 | recommendations: топ-3 + причины (коды и параметры) | 200, ≤3, reasons с code+params, без себя | 3/3: MATRIX-Charlie(88), MATRIX-Delta(80), MATRIX-Bravo(80); первый reason=intent_need_covered {"need":"seeking-cofounder","offer":"open-to-cofound"} | **PASS** | {"profile_id":"«token»","display_name":"MATRIX-Charlie","headline":null,"company":null,"score":88,"reasons_for_me":[{"code":"intent_need_covered","params":{"need":"seeking-cofounder","offer":"open-to-… |
 | G6 | attendance self-report | 200 attendance_source=self; чужая membership 403; мусор 400 | 200 attendance_source=self \| 403 forbidden (чужая) \| 400 invalid_present | **PASS** | HTTP 200 {"ok":true,"attendance_source":"self"} \| HTTP 403 {"code":"forbidden","message":"This membership does not belong to you","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"inva… |
@@ -139,7 +139,7 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| I1 | invite → claim-URL для approved-регистрации | 200 + claim_url/expires_at | 200 + claim_url=/claim/«token» (7 дней) | **PASS** | HTTP 200 {"ok":true,"claim_url":"/claim/«token»","expires_at":"2026-09-21T11:53:26.758Z"} |
+| I1 | invite → claim-URL для approved-регистрации | 200 + claim_url/expires_at | 200 + claim_url=/claim/«token» (7 дней) | **PASS** | HTTP 200 {"ok":true,"claim_url":"/claim/«token»","expires_at":"2026-09-21T11:59:17.431Z"} |
 | I2 | GET /claim/<token> НЕ консюмит (повторный GET работает) | два GET → 200, challenge не consumed | GET ×2 → 200; consumed_at остался NULL | **PASS** | HTTP 200/200, link_challenges.consumed_at = null |
 | I3 | claim с чужого email → 403 | 403 email_mismatch | 403 email_mismatch | **PASS** | HTTP 403 {"code":"email_mismatch","message":"This claim link belongs to a different email address","correlation_id":"«token»","retryable":false} |
 | I4 | claim с правильным email → 200 (+membership) | 200 + membership state active | 200: membership active, profile_created=false | **PASS** | HTTP 200 {"ok":true,"event_id":"«token»","membership":{"id":"«token»","state":"active","directory_visible":false},"profile_created":false,"notice":"Данные из регистрации — проверьте, что всё верно. Им… |
@@ -163,7 +163,7 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| K1 | заметка владельцем: upsert + список | 200; заметка видна в своём списке | 200 + заметка в /api/me/notes | **PASS** | HTTP 200 {"ok":true,"note":{"other_profile_id":"«token»","note_text":"MATRIX- note about Delta","next_step":"ping","next_step_status":"proposed","updated_at":"2026-09-14T11:53:30.294Z"}} |
+| K1 | заметка владельцем: upsert + список | 200; заметка видна в своём списке | 200 + заметка в /api/me/notes | **PASS** | HTTP 200 {"ok":true,"note":{"other_profile_id":"«token»","note_text":"MATRIX- note about Delta","next_step":"ping","next_step_status":"proposed","updated_at":"2026-09-14T11:59:20.319Z"}} |
 | K2 | чужая заметка не видна другому аккаунту | список Bravo не содержит заметку Alpha | список Bravo: 0 заметок, чужих нет | **PASS** | HTTP 200 {"ok":true} notes=0 |
 | K3 | организатор без связи → 403 | 403 not_connected | organizer → 403 not_connected; self → 400 self_note | **PASS** | HTTP 403 {"code":"not_connected","message":"Notes can only be kept about people you actually met","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"self_note","message":"Notes are abou… |
 
@@ -174,7 +174,7 @@
 | L1 | grant по purpose (event scope) | 200 action=grant | 200 grant organizer_marketing@event | **PASS** | HTTP 200 {"ok":true,"action":"grant","purpose":"organizer_marketing","scope_type":"event"} |
 | L2 | withdraw по purpose (revoke-ручка) | 200 action=withdraw | 200 withdraw; неизвестный purpose → 400 invalid_purpose | **PASS** | HTTP 200 {"ok":true,"action":"withdraw"} \| HTTP 400 {"code":"invalid_purpose","message":"purpose must be one of: public_card, event_directory, introduction_fields, service_channel, organizer_marketing… |
 | L3 | withdraw подавляет уже поставленные в очередь джобы (интро) | pending-джоба становится suppressed | джоба intro_requested…: pending → suppressed | **PASS** | outbox_jobs.status pending → suppressed (purpose=service_channel, account=Bravo) |
-| L4 | export содержит историю согласий | консенты grant+withdraw присутствуют в export | export.consents: 5 записей (grant+withdraw organizer_marketing) | **PASS** | [{"purpose":"organizer_marketing","scope_type":"event","scope_id":"eb57e73b-96df-42f5-85f4-12344b4bd72d","field_set":[],"policy_version":"matrix-2026-09-14","action":"grant","created_at":"2026-09-14T1… |
+| L4 | export содержит историю согласий | консенты grant+withdraw присутствуют в export | export.consents: 5 записей (grant+withdraw organizer_marketing) | **PASS** | [{"purpose":"organizer_marketing","scope_type":"event","scope_id":"45b2e052-8476-485e-9d56-9e3b9d7396e9","field_set":[],"policy_version":"matrix-2026-09-14","action":"grant","created_at":"2026-09-14T1… |
 
 ## Режим M
 
@@ -207,7 +207,7 @@
 | O2 | дубликат update_id → 200 accepted:false | первый accepted:true, дубль accepted:false | accepted:true → accepted:false (идемпотентность по update_id) | **PASS** | HTTP 200 {"ok":true,"accepted":true} \| HTTP 200 {"ok":true,"accepted":false} |
 | O3 | устаревший update (date > 24ч) → 400 stale_update | 400 stale_update | 400 stale_update (окно 24ч) | **PASS** | HTTP 400 {"code":"stale_update","message":"Update is older than the accepted window","correlation_id":"«token»","retryable":false} |
 | O4 | известная привязка (владелец) + /help → ответ доставлен | 200 accepted:true; telegram_reply переходит в sent | 200 accepted:true; telegram_reply → sent (attempt 1) | **PASS** | outbox_jobs(kind=telegram_reply, owner) status=sent; tick processed the update and the reply |
-| O5 | MATRIX-привязка + /stop → binding revoked и последующие автосообщения suppressed | binding state=revoked; новое автосообщение suppressed | /stop → 200; binding state=revoked; сообщение после отзыва → suppressed | **PASS** | channel_bindings.state=revoked; pre-stop job=suppressed (мог быть подхвачен cron до отзыва), post-stop job=suppressed (подавлено воркером) |
+| O5 | MATRIX-привязка + /stop → binding revoked и последующие автосообщения suppressed | binding state=revoked; новое автосообщение suppressed | /stop → 200; binding state=revoked; сообщение после отзыва → suppressed | **PASS** | channel_bindings.state=revoked; pre-stop job=failed (мог быть подхвачен cron до отзыва), post-stop job=suppressed (подавлено воркером) |
 | O6 | /start с валидным токеном без web-confirm → привязка НЕ создаётся | нет binding; после confirm → binding создаётся | /start без confirm → 0 привязок; после confirm + /start → active (тот же аккаунт) | **PASS** | HTTP 201 {"ok":true,"deep_link":"https://t.me/«secret»?start=«token»","next":"Confirm the link in this web session, then send /start with the link in Telegram."} \| HTTP 200 {"ok":true} |
 | O7 | worker-tick только с секретом | без секрета 401; с секретом 200 processed | 401 без секрета → 200 processed=0 | **PASS** | HTTP 401 {"code":"«token»","message":"Invalid worker tick secret","correlation_id":"«token»","retryable":false} \| HTTP 200 {"ok":true,"processed":0,"requeued_leases":0} |
 
@@ -240,7 +240,7 @@
 ## Отклонения от ожиданий задания
 
 - A8: ожидалось {ok:true}; фактически HTTP 503 email_send_failed — на staging-деплое почтовый транспорт в owner-test режиме, поэтому код на не-демо адрес не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.
-- F1: живая ручка отвечает 502 enrichment_failed (retryable) за ~6.6с для профиля без собственных ссылок: провайдер возвращает code=no_draft (ответ модели не парсится в черновик). Тот же ключ/модель локально дают draft, когда у профиля есть хотя бы одна ссылка (F1b), т.е. это хрупкость промпта/парсинга на «бедных» профилях, а не проблема конфигурации.
+- F1: живая ручка отвечает 502 enrichment_failed (retryable) за ~6.6с для профиля без собственных ссылок — 4 вызова в двух прогонах, все красные. Локальный repro тем же ключом/моделью: transport.enrich({links:[]}) → no_draft. Контроль F1b (профиль с website-ссылкой) в этом же прогоне тоже красный, поэтому гипотеза «виновато только отсутствие ссылок» не подтверждена — фактическая картина в BUG-3: провайдер отвечает 502 на живом деплое, код провайдера скрыт маршрутом (BUG-4).
 - F2: квота тратилась аккаунтом без профиля (400 profile_required), чтобы не жечь живые Vertex-вызовы; порядок проверок (квота раньше профиля) подтверждён.
 - G2: ожидание задания «403/429 после 20 попыток lockout» проверено отдельной строкой G3 на выделенном событии (lockout блокирует и верный код — совместно на одном событии не сходится).
 - G5: позитивный контроль: Bravo/Charlie/Delta видны до интро; отсутствие пары с активным интро проверяется в J7
