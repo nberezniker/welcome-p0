@@ -161,7 +161,17 @@ test.describe('WELCOME P0 smoke', () => {
     await pageB.getByTestId('send-intro').click();
     await expect(pageB.getByTestId('toast-success')).toBeVisible();
 
-    // ── 8. A accepts, then B accepts (mutual needs BOTH accepts) ────────────
+    // ── 8. B (the INITIATOR) opens the card: it must be the WAITING view ────
+    // Requesting IS consenting (ADR 0010), so the initiator is never asked to
+    // accept their own request — no accept/decline buttons, only Withdraw.
+    await pageB.goto('/me/introductions');
+    await waitHydrated(pageB);
+    await expect(pageB.locator('[data-testid^="intro-state"]').first()).toHaveText(/Waiting for response/);
+    await expect(pageB.locator('[data-testid^="intro-withdraw"]').first()).toBeVisible();
+    await expect(pageB.locator('[data-testid^="intro-accept"]')).toHaveCount(0);
+    await expect(pageB.locator('[data-testid^="intro-decline"]')).toHaveCount(0);
+
+    // ── 9. A (the counterparty) answers ONCE — that completes the pair ──────
     await page.goto('/me/introductions');
     await waitHydrated(page);
     await page.locator('fieldset input[type=checkbox]').first().check(); // reveal whatsapp
@@ -170,13 +180,6 @@ test.describe('WELCOME P0 smoke', () => {
     const acceptA = page.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/respond'));
     await page.getByRole('button', { name: 'Accept' }).click();
     await acceptA;
-
-    await pageB.goto('/me/introductions');
-    await waitHydrated(pageB);
-    await pageB.locator('fieldset input[type=checkbox]').first().check(); // reveal whatsapp
-    const acceptB = pageB.waitForResponse((r) => r.request().method() === 'POST' && r.url().endsWith('/respond'));
-    await pageB.getByRole('button', { name: 'Accept' }).click();
-    await acceptB;
 
     // Both sides reload and see the revealed field.
     await page.reload();

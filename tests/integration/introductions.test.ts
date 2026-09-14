@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { after } from 'node:test';
+import { randomUUID } from 'node:crypto';
 import { POST as requestOtp } from '../../src/app/api/auth/otp/request/route';
 import { POST as verifyOtp } from '../../src/app/api/auth/otp/verify/route';
 import { POST as createProfileRoute } from '../../src/app/api/me/profile/route';
@@ -13,7 +14,9 @@ import { POST as createIntroRoute } from '../../src/app/api/introductions/route'
 import { POST as respondRoute } from '../../src/app/api/introductions/[id]/respond/route';
 import { GET as getIntroRoute } from '../../src/app/api/introductions/[id]/route';
 import { getSql, closeSql } from '../../src/lib/db';
+import { MockTelegramTransport } from '../../src/integrations/telegram/mock-transport';
 import { loginViaOtp, makeRequest, uniqueEmail, assertStatus, accountIdFromCookie } from './helpers';
+import { attemptRows, bindTelegram, drainWorker, grantConsent } from './phase3-helpers';
 
 after(async () => {
   await closeSql();
@@ -86,6 +89,36 @@ async function getIntro(user: User, introId: string): Promise<Response> {
   });
 }
 
+interface NoticeJob {
+  id: string;
+  kind: string;
+  status: string;
+  text: string;
+  account_id: string;
+  counterparty_account_id: string;
+}
+
+/** The outbox row behind a decision notice — the only place its text lives. */
+async function noticeJob(dedupeKey: string): Promise<NoticeJob | undefined> {
+  const sql = getSql();
+  const rows = await sql<NoticeJob[]>`
+    SELECT id, kind, status,
+           payload->>'text' AS text,
+           payload->>'account_id' AS account_id,
+           payload->>'counterparty_account_id' AS counterparty_account_id
+    FROM outbox_jobs WHERE dedupe_key = ${dedupeKey} LIMIT 1
+  `;
+  return rows[0];
+}
+
+async function noticeJobCount(dedupeKey: string): Promise<number> {
+  const sql = getSql();
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM outbox_jobs WHERE dedupe_key = ${dedupeKey}
+  `;
+  return rows[0]?.count ?? 0;
+}
+
 test('introductions: create is idempotent, canonical pair, initiator from session (AC-33)', async () => {
   const { eventId, a, b } = await setupEventPair('t1');
 
@@ -106,16 +139,36 @@ test('introductions: create is idempotent, canonical pair, initiator from sessio
   assert.deepEqual(pair, [a.profileId, b.profileId].sort());
   assert.equal(body.introduction.context_key, `event:${eventId}`);
 
-  // Initiator is the SESSION user, not the spoofed body value.
+  // Initiator is the SESSION user, not the spoofed body value — and the
+  // initiator consents BY requesting (ADR 0010): the row is already 'accept'.
   const sql = getSql();
-  const consentRows = await sql<{ profile_id: string; decision: string; reveal_fields: string[]; version: number }[]>`
-    SELECT profile_id, decision, reveal_fields, version::int AS version
+  const consentRows = await sql<{ profile_id: string; decision: string; reveal_fields: string[]; source: string }[]>`
+    SELECT profile_id, decision, reveal_fields, source
     FROM introduction_consents WHERE introduction_id = ${body.introduction.id}
   `;
   assert.equal(consentRows.length, 1);
   assert.equal(consentRows[0]?.profile_id, a.profileId);
-  assert.equal(consentRows[0]?.decision, 'pending');
+  assert.equal(consentRows[0]?.decision, 'accept');
+  assert.equal(consentRows[0]?.source, 'implicit_by_initiation');
   assert.deepEqual(consentRows[0]?.reveal_fields, ['whatsapp']);
+
+  // The implicit consent carries a mandatory audit trace, written atomically.
+  const audits = await sql<{ count: number; metadata: { initiator_profile_id?: string } | null }[]>`
+    SELECT count(*)::int AS count, (array_agg(metadata))[1] AS metadata
+    FROM audit_events WHERE action = 'intro.consent_implicit' AND target_id = ${body.introduction.id}
+  `;
+  assert.equal(audits[0]?.count, 1, 'exactly one intro.consent_implicit audit');
+  assert.equal(audits[0]?.metadata?.initiator_profile_id, a.profileId);
+
+  // Per-party view: the initiator's card opens in the WAITING state — already
+  // accepting, the other side has not answered.
+  const view = await getIntro(a, body.introduction.id);
+  const viewBody = (await view.json()) as {
+    introduction: { state: string; my_decision: string; other_accepted: boolean };
+  };
+  assert.equal(viewBody.introduction.state, 'pending');
+  assert.equal(viewBody.introduction.my_decision, 'accept');
+  assert.equal(viewBody.introduction.other_accepted, false);
 
   // Idempotent re-create returns the same introduction.
   const again = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: ['whatsapp'] });
@@ -141,24 +194,34 @@ test('introductions: self-intro 400; unknown target 404; anonymous 401', async (
   assertStatus(anon, 401);
 });
 
-test('introductions: AC-31 — one-sided accept reveals NOTHING', async () => {
+test('introductions: AC-31 — the initiator\'s implicit consent alone reveals NOTHING', async () => {
   const { eventId, a, b } = await setupEventPair('t3');
   const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: ['whatsapp'] });
   const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
 
-  const bAccept = await respond(b, introId, { decision: 'accept', reveal_fields: ['phone'] });
-  assertStatus(bAccept, 200);
-
+  // Nothing is revealed while the counterparty has not answered, even though
+  // the initiator has already agreed (ADR 0010).
   const forA = await getIntro(a, introId);
   const aBody = (await forA.json()) as { introduction: { state: string; other_accepted: boolean; my_decision: string }; revealed: unknown[] };
   assert.equal(aBody.introduction.state, 'pending');
-  assert.equal(aBody.introduction.other_accepted, true);
-  assert.equal(aBody.introduction.my_decision, 'pending');
-  assert.deepEqual(aBody.revealed, [], 'one-sided accept must not reveal anything');
+  assert.equal(aBody.introduction.other_accepted, false);
+  assert.equal(aBody.introduction.my_decision, 'accept');
+  assert.deepEqual(aBody.revealed, [], 'pending must reveal nothing');
 
   const forB = await getIntro(b, introId);
-  const bBody = (await forB.json()) as { introduction: { state: string }; revealed: unknown[] };
+  const bBody = (await forB.json()) as { introduction: { state: string; my_decision: string }; revealed: unknown[] };
+  assert.equal(bBody.introduction.state, 'pending');
+  assert.equal(bBody.introduction.my_decision, 'pending', 'the counterparty has not answered');
   assert.deepEqual(bBody.revealed, []);
+
+  // The counterparty's SINGLE accept completes the mutual transition.
+  const bAccept = await respond(b, introId, { decision: 'accept', reveal_fields: ['whatsapp'] });
+  assertStatus(bAccept, 200);
+  assert.equal(
+    ((await bAccept.json()) as { introduction: { state: string } }).introduction.state,
+    'mutual',
+    'one counterparty accept is enough once the initiator has implicitly agreed',
+  );
 });
 
 test('introductions: AC-32 — concurrent double accept: both 200, one mutual transition, one audit', async () => {
@@ -166,6 +229,8 @@ test('introductions: AC-32 — concurrent double accept: both 200, one mutual tr
   const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: ['whatsapp'] });
   const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
 
+  // The initiator answers explicitly at the same time as the counterparty —
+  // the CAS must still produce exactly one transition and one audit.
   const [resA, resB] = await Promise.all([
     respond(a, introId, { decision: 'accept', reveal_fields: ['whatsapp'] }),
     respond(b, introId, { decision: 'accept', reveal_fields: ['whatsapp'] }),
@@ -181,6 +246,13 @@ test('introductions: AC-32 — concurrent double accept: both 200, one mutual tr
     SELECT count(*)::int AS count FROM audit_events WHERE action = 'intro.mutual' AND target_id = ${introId}
   `;
   assert.equal(audits[0]?.count, 1, 'exactly one intro.mutual audit');
+
+  // An explicit answer always wins the provenance: no stale "agreed by
+  // requesting" claim may survive the initiator's own /respond.
+  const sources = await sql<{ source: string }[]>`
+    SELECT source FROM introduction_consents WHERE introduction_id = ${introId} AND profile_id = ${a.profileId}
+  `;
+  assert.equal(sources[0]?.source, 'explicit');
   void eventId;
 });
 
@@ -188,7 +260,6 @@ test('introductions: AC-34 — empty reveal_fields intersection reveals nothing'
   const { eventId, a, b } = await setupEventPair('t5');
   const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: ['whatsapp'] });
   const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
-  await respond(a, introId, { decision: 'accept', reveal_fields: ['whatsapp'] });
   await respond(b, introId, { decision: 'accept', reveal_fields: [] }); // empty consent
 
   const forA = await getIntro(a, introId);
@@ -212,7 +283,7 @@ test('introductions: mutual reveal returns the OTHER side decrypted contact valu
 
   const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: ['whatsapp'] });
   const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
-  await respond(a, introId, { decision: 'accept', reveal_fields: ['whatsapp'] });
+  // a is the initiator: already accepted implicitly, so b's accept is enough.
   await respond(b, introId, { decision: 'accept', reveal_fields: ['whatsapp'] });
 
   const forA = await getIntro(a, introId);
@@ -224,7 +295,7 @@ test('introductions: mutual reveal returns the OTHER side decrypted contact valu
   assert.deepEqual(bBody.revealed, [{ kind: 'whatsapp', value: '+34600111222' }]);
 });
 
-test('introductions: decline is not exposed to the other side; pair excluded from recommendations', async () => {
+test('introductions: decline is visible to both sides, its reason is stored nowhere; pair excluded from recommendations', async () => {
   const { eventId, a, b } = await setupEventPair('t7');
   const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: [] });
   const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
@@ -233,15 +304,29 @@ test('introductions: decline is not exposed to the other side; pair excluded fro
   assertStatus(decline, 200);
 
   const forB = await getIntro(b, introId);
-  const bBody = (await forB.json()) as { introduction: { state: string; my_decision: string } };
+  const bBody = (await forB.json()) as { introduction: Record<string, unknown> };
   assert.equal(bBody.introduction.state, 'declined');
   assert.equal(bBody.introduction.my_decision, 'decline');
 
-  // The requester never sees the refusal — it stays "pending" for them.
+  // The requester is told the introduction is over — not why. The response
+  // carries no reason field and no free text at all: the allowlist is exact.
   const forA = await getIntro(a, introId);
-  const aBody = (await forA.json()) as { introduction: { state: string; other_accepted: boolean } };
-  assert.equal(aBody.introduction.state, 'pending');
+  const aBody = (await forA.json()) as { introduction: Record<string, unknown>; revealed: unknown[] };
+  assert.equal(aBody.introduction.state, 'declined', 'the state is honest for both parties (ADR 0010)');
   assert.equal(aBody.introduction.other_accepted, false);
+  assert.deepEqual(Object.keys(aBody.introduction).sort(), ['id', 'my_decision', 'other_accepted', 'state']);
+  assert.deepEqual(aBody.revealed, []);
+
+  // No reason is persisted anywhere: the consent row holds decision + fields only.
+  const sql = getSql();
+  const rows = await sql<{ decision: string; source: string; reveal_fields: string[] }[]>`
+    SELECT decision, source, reveal_fields FROM introduction_consents
+    WHERE introduction_id = ${introId} AND profile_id = ${b.profileId}
+  `;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.decision, 'decline');
+  assert.equal(rows[0]?.source, 'explicit');
+  assert.deepEqual(rows[0]?.reveal_fields, []);
 
   // Declined pair is excluded from recommendations within the cooldown window.
   const recs = await recommendationsRoute(makeRequest(`/api/events/${eventId}/recommendations`, { cookie: a.cookie }), {
@@ -250,18 +335,21 @@ test('introductions: decline is not exposed to the other side; pair excluded fro
   assert.deepEqual(((await recs.json()) as { recommendations: unknown[] }).recommendations, []);
 });
 
-test('introductions: withdraw before mutual → revoked; respond on revoked → 409', async () => {
+test('introductions: the initiator may withdraw before the counterparty answers → revoked', async () => {
   const { eventId, a, b } = await setupEventPair('t8');
   const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId });
   const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
 
+  // No accept is required from the initiator, and their withdraw still counts.
   const withdraw = await respond(a, introId, { decision: 'withdraw' });
   assertStatus(withdraw, 200);
+  assert.equal(((await withdraw.json()) as { introduction: { state: string } }).introduction.state, 'revoked');
 
   const sql = getSql();
   const intro = await sql<{ state: string }[]>`SELECT state FROM introductions WHERE id = ${introId}`;
   assert.equal(intro[0]?.state, 'revoked');
 
+  // The counterparty can no longer answer.
   const lateRespond = await respond(b, introId, { decision: 'accept' });
   assertStatus(lateRespond, 409);
 });
@@ -293,4 +381,88 @@ test('introductions: personal context (no event) uses personal:<min> key and is 
   const againBody = (await again.json()) as { introduction: { id: string }; already_existed: boolean };
   assert.equal(againBody.introduction.id, body.introduction.id, 'reverse personal intro reuses the canonical pair');
   assert.equal(againBody.already_existed, true);
+});
+
+// ---------------------------------------------------------------------------
+// Decision notices (ADR 0010) — one neutral message, never a reason
+// ---------------------------------------------------------------------------
+
+test('introductions: decline notifies the counterparty neutrally, is idempotent and is suppressed with no channel', async () => {
+  const { eventId, a, b } = await setupEventPair('t11');
+  const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: ['whatsapp'] });
+  const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
+  assertStatus(await respond(b, introId, { decision: 'decline' }), 200);
+
+  // The notice goes to the OTHER party — here the initiator — keyed to them.
+  const key = `intro_declined:${introId}:${a.accountId}`;
+  const job = await noticeJob(key);
+  assert.ok(job, 'decline notice job missing');
+  assert.equal(job.kind, 'intro_declined_notice');
+  assert.equal(job.account_id, a.accountId);
+  assert.equal(job.counterparty_account_id, b.accountId);
+
+  // Neutral by construction: the exact text, and no reason/name/blame/field in it.
+  assert.equal(job.text, 'WELCOME: знакомство не состоялось.');
+  for (const leak of ['Intro t11-a', 'Intro t11-b', 'reason', 'decline', 'whatsapp', 'phone']) {
+    assert.equal(job.text.includes(leak), false, `notice must not leak "${leak}"`);
+  }
+
+  // Idempotent: the state machine refuses a repeat decline and no second job appears.
+  assertStatus(await respond(b, introId, { decision: 'decline' }), 409);
+  assert.equal(await noticeJobCount(key), 1);
+
+  // Suppression is the worker's send-time decision, not this route's.
+  await drainWorker(new MockTelegramTransport());
+  const attempts = await attemptRows(job.id);
+  assert.equal(attempts[0]?.state, 'suppressed');
+  assert.equal(attempts[0]?.code, 'no_channel');
+});
+
+test('introductions: withdraw notice is suppressed with consent_revoked when the recipient has a channel but no service_channel consent', async () => {
+  const { eventId, a, b } = await setupEventPair('t12');
+  // The notice recipient HAS a channel — so the consent precondition is what decides.
+  await bindTelegram(b.accountId, `t12-${randomUUID()}`);
+
+  const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: [] });
+  const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
+  assertStatus(await respond(a, introId, { decision: 'withdraw' }), 200);
+
+  const key = `intro_withdrawn:${introId}:${b.accountId}`;
+  const job = await noticeJob(key);
+  assert.ok(job, 'withdraw notice job missing');
+  assert.equal(job.kind, 'intro_withdrawn_notice');
+  assert.equal(job.text, 'WELCOME: знакомство отозвано.');
+
+  const mock = new MockTelegramTransport();
+  await drainWorker(mock);
+  const attempts = await attemptRows(job.id);
+  assert.equal(attempts[0]?.state, 'suppressed');
+  assert.equal(attempts[0]?.code, 'consent_revoked');
+  assert.equal(
+    mock.sent.some((s) => s.text.includes('отозвано')),
+    false,
+    'a suppressed notice must never reach the channel',
+  );
+});
+
+test('introductions: withdraw notice is DELIVERED when the recipient has a channel and service_channel consent', async () => {
+  const { eventId, a, b } = await setupEventPair('t13');
+  const chatId = `t13-${randomUUID()}`;
+  await bindTelegram(b.accountId, chatId);
+  await grantConsent(b.accountId, 'service_channel', 'global', null);
+
+  const created = await createIntro(a, { target_profile_id: b.profileId, event_id: eventId, reveal_fields: [] });
+  const introId = ((await created.json()) as { introduction: { id: string } }).introduction.id;
+  assertStatus(await respond(a, introId, { decision: 'withdraw' }), 200);
+
+  const key = `intro_withdrawn:${introId}:${b.accountId}`;
+  const mock = new MockTelegramTransport();
+  await drainWorker(mock);
+
+  const job = await noticeJob(key);
+  assert.equal(job?.status, 'sent');
+  // The same chat also receives the "you got a request" notice — filter by text.
+  const delivered = mock.sent.filter((s) => s.text === 'WELCOME: знакомство отозвано.');
+  assert.equal(delivered.length, 1, 'exactly one notice reaches the channel');
+  assert.equal(delivered[0]?.chatId, chatId);
 });

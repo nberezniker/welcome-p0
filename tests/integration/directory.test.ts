@@ -136,7 +136,9 @@ test('directory: member sees only visible active members; strict field allowlist
 
   const res2 = await directory(a, e.id);
   const body2 = (await res2.json()) as { members: Array<Record<string, unknown>> };
-  assert.equal(body2.members.length, 2);
+  // a opted in as well, but the viewer is never part of their OWN directory.
+  assert.equal(body2.members.length, 1, 'only b — the viewer does not list themselves');
+  assert.equal(body2.members.some((m) => m.profile_id === a.profileId), false, 'self excluded');
 
   const bEntry = body2.members.find((m) => m.profile_id === b.profileId);
   assert.ok(bEntry);
@@ -346,7 +348,10 @@ test('directory: q searches name, headline, company and the member keywords — 
 
   const all = await directoryQuery(viewer, e.id, 'mode=all');
   assertStatus(all, 200);
-  assert.equal(((await all.json()) as { members: unknown[] }).members.length, 3);
+  const allMembers = (await all.json()) as { members: { profile_id: string }[] };
+  // Three opted-in members, minus the viewer themselves.
+  assert.equal(allMembers.members.length, 2);
+  assert.equal(allMembers.members.some((m) => m.profile_id === viewer.profileId), false, 'self excluded');
 
   const byName = await directoryQuery(viewer, e.id, 'mode=all&q=alice');
   assert.deepEqual(

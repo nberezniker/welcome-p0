@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   canonicalPair,
   eventContextKey,
   personalContextKey,
   validateCreateIntroInput,
   validateRespondInput,
+  CONSENT_SOURCES,
   REVEAL_FIELDS,
 } from '../../src/domain/introductions';
 
@@ -27,6 +29,14 @@ test('context keys: event:<uuid> | personal:<min uuid> (interpretation ②)', ()
 
 test('reveal fields allowlist: contact kinds only, no email (login email is never stored)', () => {
   assert.deepEqual(REVEAL_FIELDS, ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone', 'github_url']);
+});
+
+test('consent sources: the domain list matches the migration 009 CHECK (ADR 0010)', () => {
+  assert.deepEqual([...CONSENT_SOURCES], ['explicit', 'implicit_by_initiation']);
+  const sql = readFileSync(new URL('../../db/migrations/009_introduction_consent_source.sql', import.meta.url), 'utf8');
+  for (const source of CONSENT_SOURCES) {
+    assert.ok(sql.includes(`'${source}'`), `migration 009 must allow the '${source}' source`);
+  }
 });
 
 test('validateCreateIntroInput: valid with event and reveal fields', () => {

@@ -230,3 +230,58 @@ test('migrations 002: reports stores a row with default open status', async () =
   `;
   assert.equal(rep[0]?.status, 'open');
 });
+
+// ---------------------------------------------------------------------------
+// Migration 009 — consent provenance
+// ---------------------------------------------------------------------------
+
+test('migrations 009: introduction_consents.source defaults to explicit and only accepts known sources', async () => {
+  const sql = getSql();
+  const cols = await sql<{ column_name: string; column_default: string | null; is_nullable: string }[]>`
+    SELECT column_name, column_default, is_nullable FROM information_schema.columns
+    WHERE table_name = 'introduction_consents' AND column_name = 'source'
+  `;
+  assert.equal(cols.length, 1, 'introduction_consents.source must exist (migration 009)');
+  assert.match(cols[0]?.column_default ?? '', /explicit/);
+  assert.equal(cols[0]?.is_nullable, 'YES', 'NULL stays legal for rows from the pre-009 code path');
+
+  const stamp = Date.now();
+  const mkProfile = async (prefix: string): Promise<string> => {
+    const acc = await sql<{ id: string }[]>`
+      INSERT INTO accounts (auth_subject) VALUES (${prefix + ':' + stamp}) RETURNING id
+    `;
+    const prof = await sql<{ id: string }[]>`
+      INSERT INTO profiles (account_id, public_slug, display_name)
+      VALUES (${acc[0]!.id}, ${prefix + '-slug-' + stamp}, ${'X'}) RETURNING id
+    `;
+    return prof[0]!.id;
+  };
+  const profileA = await mkProfile('src-a');
+  const profileB = await mkProfile('src-b');
+  const [pairA, pairB] = profileA < profileB ? [profileA, profileB] : [profileB, profileA];
+  const intro = await sql<{ id: string }[]>`
+    INSERT INTO introductions (profile_a, profile_b, context_key)
+    VALUES (${pairA}, ${pairB}, ${'personal:' + pairA}) RETURNING id
+  `;
+  const introId = intro[0]!.id;
+
+  // A write that names no source (the pre-009 shape) reads as 'explicit'.
+  const legacy = await sql<{ source: string }[]>`
+    INSERT INTO introduction_consents (introduction_id, profile_id, decision)
+    VALUES (${introId}, ${pairA}, ${'accept'}) RETURNING source
+  `;
+  assert.equal(legacy[0]?.source, 'explicit');
+
+  // The initiator's provenance is representable.
+  const implicit = await sql<{ source: string }[]>`
+    INSERT INTO introduction_consents (introduction_id, profile_id, decision, source)
+    VALUES (${introId}, ${pairB}, ${'accept'}, ${'implicit_by_initiation'}) RETURNING source
+  `;
+  assert.equal(implicit[0]?.source, 'implicit_by_initiation');
+
+  // Anything else is rejected at the DB level, not just in application code.
+  await assert.rejects(
+    sql`UPDATE introduction_consents SET source = ${'guessed'} WHERE introduction_id = ${introId}`,
+    (err: { code?: string }) => err.code === '23514',
+  );
+});

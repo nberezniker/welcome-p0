@@ -278,26 +278,25 @@ test('directory: intent / interest modes and facet filters narrow the visible me
 
   for (const u of [founder, mentor, beauty]) await joinVisible(u, event.id);
 
-  // mode=all with a facet filter on industry (the viewer is listed too — the
-  // directory is not self-excluding — so compare the other members).
+  // mode=all with a facet filter on industry. The viewer is NEVER part of their
+  // own result: the list is of OTHER members, so no self-filtering is needed.
   const all = await directory(founder, event.id, '?mode=all&industry=ai-saas');
   assertStatus(all, 200);
   const allBody = (await all.json()) as { mode: string; members: { profile_id: string }[] };
   assert.equal(allBody.mode, 'all');
-  assert.ok(allBody.members.some((m) => m.profile_id === founder.profileId), 'self is listed');
+  assert.equal(allBody.members.some((m) => m.profile_id === founder.profileId), false, 'self is excluded');
   assert.deepEqual(
-    allBody.members.filter((m) => m.profile_id !== founder.profileId).map((m) => m.profile_id),
+    allBody.members.map((m) => m.profile_id),
     [mentor.profileId],
     'beauty is filtered out by industry',
   );
 
-  // mode=interest: shares ai-ml with mentor, not with beauty.
+  // mode=interest: shares ai-ml with mentor, not with beauty — and not with
+  // themselves either, though the viewer trivially shares their own interests.
   const byInterest = await directory(founder, event.id, '?mode=interest');
   const byInterestBody = (await byInterest.json()) as { members: { profile_id: string }[] };
-  assert.deepEqual(
-    byInterestBody.members.filter((m) => m.profile_id !== founder.profileId).map((m) => m.profile_id),
-    [mentor.profileId],
-  );
+  assert.deepEqual(byInterestBody.members.map((m) => m.profile_id), [mentor.profileId]);
+  assert.equal(byInterestBody.members.some((m) => m.profile_id === founder.profileId), false, 'self is excluded');
 
   // mode=intent ("ищут то же, что могу я"): the viewer offers nothing here.
   const noOffers = await directory(founder, event.id, '?mode=intent');
