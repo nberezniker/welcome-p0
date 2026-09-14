@@ -43,6 +43,8 @@ export type OutboxKind =
   | 'telegram_update'
   | 'intro_requested_notice'
   | 'intro_mutual_notice'
+  | 'intro_declined_notice'
+  | 'intro_withdrawn_notice'
   | 'campaign_message'
   | 'telegram_reply';
 

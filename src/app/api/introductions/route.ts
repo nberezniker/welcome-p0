@@ -11,8 +11,11 @@ import { enqueueOutbox } from '../../../infra/outbox';
 
 /** POST /api/introductions — the SESSION user requests an introduction.
  * Idempotent: a repeated request returns the canonical row, never a duplicate.
- * The initiator's consent record is created with decision 'pending' — mutual
- * reveal requires BOTH parties to respond accept. */
+ * The initiator consents by the act of requesting: their consent row is written
+ * as decision 'accept' with source 'implicit_by_initiation' in the same
+ * transaction, so pending → mutual needs only the counterparty's accept
+ * (ADR 0010). The initiator may still respond later — that is an explicit
+ * decision and overwrites the row with source 'explicit'. */
 
 const INTRO_RATE_WINDOW_MINUTES = 60;
 const INTRO_RATE_MAX = 60;
@@ -117,13 +120,20 @@ async function postRoute(req: NextRequest) {
         RETURNING id, state
       `;
       if (inserted[0]) {
-        // The initiator's own consent starts as 'pending'; both sides must
-        // respond accept before anything is revealed.
+        // The initiator consents BY the act of requesting (ADR 0010): the row
+        // is 'accept' + source 'implicit_by_initiation', so the counterparty's
+        // single accept completes the mutual transition. Reveal still needs
+        // both CURRENT reveal_fields sets to intersect, as before.
         await tx`
-          INSERT INTO introduction_consents (introduction_id, profile_id, decision, reveal_fields, version)
-          VALUES (${inserted[0].id}, ${my.id}, 'pending', ${input.value.revealFields}, 1)
+          INSERT INTO introduction_consents (introduction_id, profile_id, decision, reveal_fields, source, version)
+          VALUES (${inserted[0].id}, ${my.id}, 'accept', ${input.value.revealFields}, 'implicit_by_initiation', 1)
           ON CONFLICT (introduction_id, profile_id) DO NOTHING
         `;
+        // Audit inside the same transaction as the consent it documents: an
+        // implicit consent that is not auditable must not exist (ADR 0010).
+        await recordAudit(tx, auth.accountId, 'intro.consent_implicit', 'introduction', inserted[0].id, {
+          initiator_profile_id: my.id,
+        });
         // Transactional outbox: one service notice for the RECIPIENT. No
         // private contact values in the body — the answer lives in the web app.
         await enqueueOutbox(tx, {

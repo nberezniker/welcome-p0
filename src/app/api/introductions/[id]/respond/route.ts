@@ -3,7 +3,7 @@ import type { Sql, TransactionSql } from 'postgres';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
-import { validateRespondInput, type IntroDecision } from '../../../../../domain/introductions';
+import { validateRespondInput, type ConsentSource, type IntroDecision } from '../../../../../domain/introductions';
 import { recordAudit } from '../../../../../lib/audit';
 import { appBaseUrl } from '../../../../../lib/env';
 import { enqueueOutbox } from '../../../../../infra/outbox';
@@ -11,10 +11,12 @@ import { enqueueOutbox } from '../../../../../infra/outbox';
 /**
  * POST /api/introductions/[id]/respond — accept / decline / withdraw.
  * Only the two parties may respond; the second party is NEVER taken from the
- * body. Accept needs BOTH parties: the pending→mutual transition is a
- * transactional CAS, so a concurrent double-accept produces exactly one
- * transition and exactly one intro.mutual audit (AC-32). Withdraw before
- * mutual → 'revoked'. A decline is never surfaced to the other side.
+ * body. The initiator already consented BY requesting (ADR 0010), so accept
+ * needs only the counterparty: the pending→mutual transition is a transactional
+ * CAS, so a concurrent double-accept produces exactly one transition and
+ * exactly one intro.mutual audit (AC-32). Withdraw before mutual → 'revoked'.
+ * A decline or withdraw sends the other side one neutral notice — THAT it did
+ * not happen, never WHY.
  */
 
 async function postRoute(
@@ -72,6 +74,8 @@ async function postRoute(
         `;
         if (!cas[0]) return { code: 'invalid_state', state: current };
         await upsertConsent(tx, intro.id, my.id, decision, input.value.revealFields);
+        // The other side learns THAT it ended, never why (ADR 0010).
+        await enqueueDecisionNotice(tx, intro.id, otherProfileId, auth.accountId, decision);
         return { code: 'ok', state: next };
       }
 
@@ -83,7 +87,10 @@ async function postRoute(
 
       let next = current;
       if (current === 'pending') {
-        // Mutual only when BOTH sides have accepted (independent, explicit).
+        // Mutual once both rows are 'accept'. The initiator's row was written
+        // by the create route (implicit_by_initiation), so in practice ONE
+        // accept here completes it; the count keeps the legacy two-sided rows
+        // (and any explicit re-accept) correct.
         const both = await tx<{ count: number }[]>`
           SELECT count(*)::int AS count FROM introduction_consents
           WHERE introduction_id = ${intro.id}
@@ -127,22 +134,66 @@ async function postRoute(
   }
 }
 
+/**
+ * Writes a party's consent row. Every /respond is by definition an explicit
+ * decision, so it also clears the 'implicit_by_initiation' provenance the
+ * create route may have written (ADR 0010) — a row can never keep claiming
+ * "agreed by requesting" after the party has answered for themselves.
+ */
 async function upsertConsent(
   tx: Sql | TransactionSql,
   introductionId: string,
   profileId: string,
   decision: IntroDecision,
   revealFields: string[],
+  source: ConsentSource = 'explicit',
 ): Promise<void> {
   await tx`
-    INSERT INTO introduction_consents (introduction_id, profile_id, decision, reveal_fields, version)
-    VALUES (${introductionId}, ${profileId}, ${decision}, ${revealFields}, 1)
+    INSERT INTO introduction_consents (introduction_id, profile_id, decision, reveal_fields, source, version)
+    VALUES (${introductionId}, ${profileId}, ${decision}, ${revealFields}, ${source}, 1)
     ON CONFLICT (introduction_id, profile_id) DO UPDATE SET
       decision = EXCLUDED.decision,
       reveal_fields = EXCLUDED.reveal_fields,
+      source = EXCLUDED.source,
       version = introduction_consents.version + 1,
       updated_at = now()
   `;
+}
+
+/**
+ * One neutral notice to the OTHER party when an introduction ends early.
+ * The body says only THAT it did not happen: no reason, no blame, no reveal
+ * fields, no contact values, and not even which side answered (ADR 0010).
+ * Consent / channel / block suppression stays the worker's send-time job, so a
+ * recipient without service_channel consent or without a channel is suppressed
+ * (`consent_revoked` / `no_channel`) rather than silently skipped here.
+ */
+async function enqueueDecisionNotice(
+  tx: Sql | TransactionSql,
+  introductionId: string,
+  otherProfileId: string,
+  myAccountId: string,
+  decision: 'decline' | 'withdraw',
+): Promise<void> {
+  const rows = await tx<{ account_id: string }[]>`
+    SELECT account_id FROM profiles WHERE id = ${otherProfileId} LIMIT 1
+  `;
+  const otherAccountId = rows[0]?.account_id;
+  if (!otherAccountId) return;
+  const declined = decision === 'decline';
+  await enqueueOutbox(tx, {
+    dedupeKey: `intro_${declined ? 'declined' : 'withdrawn'}:${introductionId}:${otherAccountId}`,
+    kind: declined ? 'intro_declined_notice' : 'intro_withdrawn_notice',
+    subjectId: introductionId,
+    channel: 'telegram',
+    purpose: 'service_channel',
+    payload: {
+      account_id: otherAccountId,
+      text: declined ? 'WELCOME: знакомство не состоялось.' : 'WELCOME: знакомство отозвано.',
+      enforce_consent: true,
+      counterparty_account_id: myAccountId,
+    },
+  });
 }
 
 /**

@@ -3,13 +3,24 @@ import { CONTACT_KINDS } from './profile';
 
 /** Introductions domain: canonical pairs, context keys, input validation.
  * State machine lives in the routes (transactional CAS against the DB).
- * A language choice, page view or link click is never consent — both parties
- * must explicitly respond with accept before anything is revealed. */
+ * A language choice, page view or link click is never consent. Mutual reveal
+ * needs BOTH parties to have agreed — but the initiator agrees by the act of
+ * requesting (`implicit_by_initiation`), so only the counterparty has to answer
+ * with an explicit accept before anything is revealed (ADR 0010). */
 
 /** Fields that can be revealed after MUTUAL acceptance. The login email is
  * never stored in plaintext, so it can never be revealed. */
 export const REVEAL_FIELDS = [...CONTACT_KINDS] as const;
 export type RevealField = (typeof REVEAL_FIELDS)[number];
+
+/**
+ * How a party's consent row came to be. `explicit` covers every /respond
+ * (accept, decline, withdraw); `implicit_by_initiation` is written only by
+ * POST /api/introductions for the requester. Kept in sync with the
+ * `introduction_consents_source_check` constraint (migration 009).
+ */
+export const CONSENT_SOURCES = ['explicit', 'implicit_by_initiation'] as const;
+export type ConsentSource = (typeof CONSENT_SOURCES)[number];
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const REVEAL_FIELDS_MAX = 20;
