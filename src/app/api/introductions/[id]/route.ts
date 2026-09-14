@@ -10,7 +10,11 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/introductions/[id] — per-party view.
- * - state: a decline is NEVER exposed to the other side (it stays 'pending' for them)
+ * - state: the TRUE state, for both parties. A decline/withdraw is no longer
+ *   masked as 'pending' — the neutral decision notice already tells the other
+ *   side it ended, so the card must not keep claiming "waiting for an answer".
+ *   The REASON is what stays private: it is never stored, never returned and
+ *   never sent (ADR 0010).
  * - my_decision: own record; other_accepted: only a boolean
  * - revealed: ONLY in mutual state, ONLY the intersection of both CURRENT
  *   consent field sets (AC-34: empty consent → empty reveal), decrypted values
@@ -48,8 +52,9 @@ export async function GET(
 
     const myDecision = mine?.decision ?? 'pending';
     const otherAccepted = other?.decision === 'accept';
-    // A refusal is visible only to the person who refused.
-    const effectiveState = intro.state === 'declined' && myDecision !== 'decline' ? 'pending' : intro.state;
+    // Both parties see the true state; the refusal's reason is what stays
+    // private (there is none to leak — see the migration 009 / ADR 0010 note).
+    const state = intro.state;
 
     // SECURITY_TESTS #11: a block between the parties (either direction)
     // suppresses the reveal — blocked parties never see (new) contact values.
@@ -83,7 +88,7 @@ export async function GET(
         ok: true,
         introduction: {
           id: intro.id,
-          state: effectiveState,
+          state,
           my_decision: myDecision,
           other_accepted: otherAccepted,
         },

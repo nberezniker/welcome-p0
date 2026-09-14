@@ -317,7 +317,7 @@ export const es: Partial<Dictionary> = {
 
   // ── /me/introductions ─────────────────────────────────────────────────────
   'intros.title': 'Presentaciones',
-  'intros.subtitle': 'Peticiones que enviaste o recibiste. Los contactos se revelan solo cuando ambas partes aceptan.',
+  'intros.subtitle': 'Peticiones que enviaste o recibiste. Los contactos se revelan solo cuando ambas partes están de acuerdo: quien inicia da su acuerdo al enviar la petición.',
   'intros.empty': 'Aún no hay presentaciones.',
   'intros.tabIncoming': 'Recibidas',
   'intros.tabOutgoing': 'Enviadas',
@@ -325,6 +325,8 @@ export const es: Partial<Dictionary> = {
   'intros.state.mutual': 'Mutua: contactos revelados',
   'intros.state.declined': 'Rechazada (por ti)',
   'intros.state.revoked': 'Retirada (por ti)',
+  'intros.state.declinedOther': 'La presentación no se concretó',
+  'intros.state.revokedOther': 'Presentación retirada',
   'intros.otherPending': '{name} aún no ha respondido.',
   'intros.waitingForYou': 'Espera tu respuesta.',
   'intros.accept': 'Aceptar',
@@ -340,7 +342,7 @@ export const es: Partial<Dictionary> = {
   'intros.block': 'Bloquear',
   'intros.reportDone': 'Denuncia enviada.',
   'intros.blockDone': 'Cuenta bloqueada.',
-  'intros.declineNote': 'La otra parte no sabrá el motivo: simplemente verá que aún no hay respuesta.',
+  'intros.declineNote': 'La otra parte no sabrá el motivo: solo verá que la presentación no se concretó.',
   'intros.mutualNote': 'Ambas partes aceptaron. Solo se comparten los tipos coincidentes de arriba.',
   'intros.decisionAccepted': 'Aceptaste',
   'intros.decisionDeclined': 'Rechazaste',

@@ -18,7 +18,12 @@ interface IntroDetail {
 }
 
 type Strings = {
-  stateLabels: Record<IntroDetail['introduction']['state'], string>;
+  /** `declined`/`revoked` are read by the side that ANSWERED; `declinedOther`/
+   * `revokedOther` by the other side, which must never see "(by you)". */
+  stateLabels: Record<
+    IntroDetail['introduction']['state'] | 'declinedOther' | 'revokedOther',
+    string
+  >;
   otherPendingTemplate: string;
   waitingForYou: string;
   accept: string;
@@ -163,6 +168,19 @@ export function IntroCard({
 
   const state = detail.introduction.state;
   const myDecision = detail.introduction.my_decision;
+  // Honest chip: the neutral wording belongs to the side that did NOT answer,
+  // and naming them "(by you)" would be a lie for the other party.
+  const stateLabel =
+    state === 'declined' && myDecision !== 'decline'
+      ? strings.stateLabels.declinedOther
+      : state === 'revoked' && myDecision !== 'withdraw'
+        ? strings.stateLabels.revokedOther
+        : strings.stateLabels[state];
+  // The initiator's consent is recorded at creation time (ADR 0010), so their
+  // card opens in "pending + accept": that is the WAITING view — `{name} has
+  // not answered yet` plus Withdraw — never the accept/decline prompt, which
+  // belongs to the party who has not answered.
+  const isWaitingForOther = state === 'pending' && myDecision === 'accept';
 
   return (
     <section className="card" data-testid={`intro-${introId}`}>
@@ -174,7 +192,7 @@ export function IntroCard({
           }
           data-testid={`intro-state-${introId}`}
         >
-          {strings.stateLabels[state]}
+          {stateLabel}
         </span>
       </div>
 
@@ -223,7 +241,7 @@ export function IntroCard({
         </div>
       ) : null}
 
-      {state === 'pending' && myDecision === 'accept' ? (
+      {isWaitingForOther ? (
         <div className="mt-3">
           <p className="text-sm text-muted">{fill(strings.otherPendingTemplate, { name: otherName })}</p>
           <button
@@ -263,7 +281,10 @@ export function IntroCard({
         </div>
       ) : null}
 
-      {state === 'declined' || state === 'revoked' || myDecision !== 'pending' ? (
+      {/* Only the side that actually answered sees its own decision echoed: the
+          waiting initiator already reads "has not answered yet", and the other
+          side reads the neutral chip above instead of "no answer yet". */}
+      {state !== 'pending' && myDecision !== 'pending' ? (
         <p className="mt-2 text-xs text-muted">{strings.decisionLabels[myDecision]}</p>
       ) : null}
 

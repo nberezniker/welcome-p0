@@ -329,7 +329,7 @@ export const en = {
 
   // ── /me/introductions ─────────────────────────────────────────────────────
   'intros.title': 'Introductions',
-  'intros.subtitle': 'Requests you sent or received. Contacts are revealed only after both sides accept.',
+  'intros.subtitle': 'Requests you sent or received. Contacts are revealed only once both sides agree — the initiator agrees by requesting.',
   'intros.empty': 'No introductions yet.',
   'intros.tabIncoming': 'Incoming',
   'intros.tabOutgoing': 'Outgoing',
@@ -337,6 +337,8 @@ export const en = {
   'intros.state.mutual': 'Mutual — contacts revealed',
   'intros.state.declined': 'Declined (by you)',
   'intros.state.revoked': 'Withdrawn (by you)',
+  'intros.state.declinedOther': 'Introduction did not happen',
+  'intros.state.revokedOther': 'Introduction withdrawn',
   'intros.otherPending': '{name} has not answered yet.',
   'intros.waitingForYou': 'Waiting for your answer.',
   'intros.accept': 'Accept',
@@ -352,7 +354,7 @@ export const en = {
   'intros.block': 'Block',
   'intros.reportDone': 'Report sent.',
   'intros.blockDone': 'Account blocked.',
-  'intros.declineNote': 'The other side is not told why — they simply see no response yet.',
+  'intros.declineNote': 'The other side is not told why — they only learn that it did not happen.',
   'intros.mutualNote': 'Both sides accepted. Only the overlapping contact kinds above are shared.',
   'intros.decisionAccepted': 'You accepted',
   'intros.decisionDeclined': 'You declined',

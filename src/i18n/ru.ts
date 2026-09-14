@@ -317,7 +317,7 @@ export const ru: Partial<Dictionary> = {
 
   // ── /me/introductions ─────────────────────────────────────────────────────
   'intros.title': 'Знакомства',
-  'intros.subtitle': 'Запросы, которые вы отправили или получили. Контакты открываются только после согласия обеих сторон.',
+  'intros.subtitle': 'Запросы, которые вы отправили или получили. Контакты открываются только при согласии обеих сторон — инициатор соглашается самим запросом.',
   'intros.empty': 'Знакомств пока нет.',
   'intros.tabIncoming': 'Входящие',
   'intros.tabOutgoing': 'Исходящие',
@@ -325,6 +325,8 @@ export const ru: Partial<Dictionary> = {
   'intros.state.mutual': 'Взаимное — контакты открыты',
   'intros.state.declined': 'Отклонено (вами)',
   'intros.state.revoked': 'Отозвано (вами)',
+  'intros.state.declinedOther': 'Знакомство не состоялось',
+  'intros.state.revokedOther': 'Знакомство отозвано',
   'intros.otherPending': '{name} пока не ответил(а).',
   'intros.waitingForYou': 'Ожидает вашего ответа.',
   'intros.accept': 'Принять',
@@ -340,7 +342,7 @@ export const ru: Partial<Dictionary> = {
   'intros.block': 'Заблокировать',
   'intros.reportDone': 'Жалоба отправлена.',
   'intros.blockDone': 'Аккаунт заблокирован.',
-  'intros.declineNote': 'Другая сторона не узнает причину — для неё запрос просто останется без ответа.',
+  'intros.declineNote': 'Причина не раскрывается — вторая сторона узнает только, что знакомство не состоялось.',
   'intros.mutualNote': 'Обе стороны согласились. Делятся только пересекающиеся виды контактов выше.',
   'intros.decisionAccepted': 'Вы приняли',
   'intros.decisionDeclined': 'Вы отклонили',

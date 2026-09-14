@@ -64,6 +64,8 @@ export default async function IntroductionsPage() {
                 mutual: t('intros.state.mutual'),
                 declined: t('intros.state.declined'),
                 revoked: t('intros.state.revoked'),
+                declinedOther: t('intros.state.declinedOther'),
+                revokedOther: t('intros.state.revokedOther'),
               },
               otherPendingTemplate: t('intros.otherPending'),
               waitingForYou: t('intros.waitingForYou'),
