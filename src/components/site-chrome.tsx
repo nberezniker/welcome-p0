@@ -72,6 +72,8 @@ export function SiteFooter({
   privacyHref,
   termsLabel,
   termsHref,
+  repoLabel,
+  repoHref,
   localeLinks,
 }: {
   statusLine: string;
@@ -79,6 +81,8 @@ export function SiteFooter({
   privacyHref: string;
   termsLabel?: string;
   termsHref?: string;
+  repoLabel?: string;
+  repoHref?: string;
   localeLinks: { locale: string; href: string; label: string }[];
 }) {
   return (
@@ -96,6 +100,18 @@ export function SiteFooter({
             <Link href={termsHref} className="underline underline-offset-2 hover:text-ink">
               {termsLabel}
             </Link>
+          ) : null}
+          {/* External links carry an explicit rel, as on the public card. */}
+          {repoLabel && repoHref ? (
+            <a
+              href={repoHref}
+              rel="noopener noreferrer"
+              target="_blank"
+              data-testid="footer-repo-link"
+              className="underline underline-offset-2 hover:text-ink"
+            >
+              {repoLabel}
+            </a>
           ) : null}
           <div className="mt-1 flex gap-2" aria-label="Locale links">
             {localeLinks.map((l) => (

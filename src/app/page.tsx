@@ -8,6 +8,10 @@ export const metadata = {
   robots: { index: true, follow: true },
 };
 
+/** Pilot contact address: a human inbox, not a form (content guardrail §7). */
+const PILOT_MAILTO = 'mailto:nberezniker@gmail.com?subject=WELCOME%20pilot';
+const REPO_URL = 'https://github.com/nberezniker/welcome-p0';
+
 /** Decorative deterministic QR-style mark (fictional, interface example only). */
 function DemoQr({ label }: { label: string }) {
   const cells: { x: number; y: number }[] = [];
@@ -44,6 +48,51 @@ export default async function LandingPage() {
   const accountId = await getOptionalAccountId();
   const authed = accountId !== null;
 
+  // One entry per bullet, so the markup stays a plain list of items.
+  const problemItems = [
+    { title: t('landing.problem.item1Title'), text: t('landing.problem.item1Text') },
+    { title: t('landing.problem.item2Title'), text: t('landing.problem.item2Text') },
+    { title: t('landing.problem.item3Title'), text: t('landing.problem.item3Text') },
+  ];
+  const howSteps = [
+    { num: t('landing.step1Kicker'), title: t('landing.step1Title'), text: t('landing.step1Text') },
+    { num: t('landing.step2Kicker'), title: t('landing.step2Title'), text: t('landing.step2Text') },
+    { num: t('landing.step3Kicker'), title: t('landing.step3Title'), text: t('landing.step3Text') },
+  ];
+  // The illustration walks the same three states a real request goes through.
+  const consentFlow = [
+    { icon: '↗', label: t('landing.howExample.step1Label'), text: t('landing.howExample.step1Text'), state: t('landing.howExample.closedLabel'), open: false },
+    { icon: '✓', label: t('landing.howExample.step2Label'), text: t('landing.howExample.step2Text'), state: t('landing.howExample.closedLabel'), open: false },
+    { icon: '→', label: t('landing.howExample.step3Label'), text: t('landing.howExample.step3Text'), state: t('landing.howExample.openLabel'), open: true },
+  ];
+  const memberItems = [
+    { title: t('landing.forMember.item1Title'), text: t('landing.forMember.item1Text') },
+    { title: t('landing.forMember.item2Title'), text: t('landing.forMember.item2Text') },
+    { title: t('landing.forMember.item3Title'), text: t('landing.forMember.item3Text') },
+    { title: t('landing.forMember.item4Title'), text: t('landing.forMember.item4Text') },
+  ];
+  const organizerItems = [
+    { title: t('landing.forOrganizer.item1Title'), text: t('landing.forOrganizer.item1Text') },
+    { title: t('landing.forOrganizer.item2Title'), text: t('landing.forOrganizer.item2Text') },
+    { title: t('landing.forOrganizer.item3Title'), text: t('landing.forOrganizer.item3Text') },
+    { title: t('landing.forOrganizer.item4Title'), text: t('landing.forOrganizer.item4Text') },
+  ];
+  const trustItems = [
+    { title: t('landing.trust.item1Title'), text: t('landing.trust.item1Text') },
+    { title: t('landing.trust.item2Title'), text: t('landing.trust.item2Text') },
+    { title: t('landing.trust.item3Title'), text: t('landing.trust.item3Text') },
+    { title: t('landing.trust.item4Title'), text: t('landing.trust.item4Text') },
+  ];
+  const faqItems = [
+    { q: t('landing.faq.q1'), a: t('landing.faq.a1') },
+    { q: t('landing.faq.q2'), a: t('landing.faq.a2') },
+    { q: t('landing.faq.q3'), a: t('landing.faq.a3') },
+    { q: t('landing.faq.q4'), a: t('landing.faq.a4') },
+    { q: t('landing.faq.q5'), a: t('landing.faq.a5') },
+    // The pilot question carries the mailto CTA — a person, not a form.
+    { q: t('landing.faq.q6'), a: t('landing.faq.a6'), link: true },
+  ];
+
   return (
     <>
       <a href="#main" className="skip-link">
@@ -52,9 +101,10 @@ export default async function LandingPage() {
       <SiteHeader
         locale={locale}
         links={[
-          { href: '#personal', label: t('landing.principle1') },
-          { href: '#events', label: t('landing.organizerEyebrow') },
-          { href: '#how', label: t('landing.howEyebrow') },
+          { href: '#how', label: t('landing.navHow') },
+          { href: '#member', label: t('landing.navMember') },
+          { href: '#organizer', label: t('landing.navOrganizer') },
+          { href: '#faq', label: t('landing.navFaq') },
         ]}
         authLabel={authed ? t('common.myProfile') : t('common.signIn')}
         authHref={authed ? '/me' : '/login'}
@@ -69,7 +119,11 @@ export default async function LandingPage() {
           </p>
 
           {/* Hero */}
-          <section aria-labelledby="hero-title" className="grid items-center gap-10 py-12 md:grid-cols-[1.07fr_1fr] md:py-16">
+          <section
+            aria-labelledby="hero-title"
+            data-testid="hero"
+            className="grid items-center gap-10 py-12 md:grid-cols-[1.07fr_1fr] md:py-16"
+          >
             <div>
               <p className="eyebrow">
                 <span className="eyebrow-dot" /> {t('landing.eyebrow')}
@@ -86,12 +140,12 @@ export default async function LandingPage() {
               </h1>
               <p className="mt-6 max-w-md text-base leading-relaxed text-muted">{t('landing.subtitle')}</p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/login" className="btn-accent" data-testid="cta-personal">
-                  {t('landing.ctaPersonal')} <span aria-hidden="true">↗</span>
+                <Link href="/login" className="btn-accent" data-testid="cta-demo">
+                  {t('landing.heroCtaDemo')} <span aria-hidden="true">↗</span>
                 </Link>
-                <a href="#events" className="btn-outline">
-                  {t('landing.ctaEvent')} <span aria-hidden="true">→</span>
-                </a>
+                <Link href="/organizer" className="btn-outline" data-testid="cta-organizer">
+                  {t('landing.heroCtaOrganizer')} <span aria-hidden="true">→</span>
+                </Link>
               </div>
               <p className="mt-4 text-[11px] leading-relaxed text-muted">
                 {t('landing.micro1')}
@@ -118,7 +172,7 @@ export default async function LandingPage() {
                     .map((w) => w[0])
                     .join('')}
                 </div>
-                <h3 className="mt-3 text-xl font-bold leading-tight tracking-tight">{t('landing.cardName')}</h3>
+                <p className="mt-3 text-xl font-bold leading-tight tracking-tight">{t('landing.cardName')}</p>
                 <p className="text-xs leading-relaxed text-muted">
                   {t('landing.cardRole')}
                   <br />
@@ -146,7 +200,7 @@ export default async function LandingPage() {
             </div>
           </section>
 
-          {/* Principles strip */}
+          {/* Principles strip — the hero argument in one line */}
           <div className="grid gap-4 border-y border-line py-5 sm:grid-cols-3">
             {[
               ['↗', t('landing.principle1')],
@@ -162,8 +216,29 @@ export default async function LandingPage() {
             ))}
           </div>
 
+          {/* The problem */}
+          <section id="problem" data-testid="section-problem" className="py-16" aria-labelledby="problem-title">
+            <div className="mb-8 max-w-2xl">
+              <p className="eyebrow">
+                <span className="eyebrow-dot" /> {t('landing.problem.eyebrow')}
+              </p>
+              <h2 id="problem-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+                {t('landing.problem.title')}
+              </h2>
+              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.problem.subtitle')}</p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              {problemItems.map((item) => (
+                <article key={item.title} className="card">
+                  <h3 className="text-lg font-bold leading-snug tracking-tight">{item.title}</h3>
+                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{item.text}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+
           {/* How it works */}
-          <section id="how" className="py-16" aria-labelledby="how-title">
+          <section id="how" data-testid="section-how" className="pb-16" aria-labelledby="how-title">
             <div className="mb-8 max-w-2xl">
               <p className="eyebrow">
                 <span className="eyebrow-dot" /> {t('landing.howEyebrow')}
@@ -174,11 +249,7 @@ export default async function LandingPage() {
               <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.howSubtitle')}</p>
             </div>
             <div className="grid gap-4 md:grid-cols-3">
-              {[
-                { num: t('landing.step1Kicker'), title: t('landing.step1Title'), text: t('landing.step1Text') },
-                { num: t('landing.step2Kicker'), title: t('landing.step2Title'), text: t('landing.step2Text') },
-                { num: t('landing.step3Kicker'), title: t('landing.step3Title'), text: t('landing.step3Text') },
-              ].map((step) => (
+              {howSteps.map((step) => (
                 <article key={step.num} className="card">
                   <p className="text-[11px] font-bold tracking-[0.15em] text-accent">{step.num}</p>
                   <h3 className="mt-4 text-lg font-bold leading-snug tracking-tight">{step.title}</h3>
@@ -186,16 +257,58 @@ export default async function LandingPage() {
                 </article>
               ))}
             </div>
+
+            {/* Consent flow illustration — text and glyphs only, no external assets. */}
+            <div className="card mt-6" data-testid="how-example">
+              <h3 className="text-lg font-bold leading-snug tracking-tight">{t('landing.howExample.title')}</h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-muted">{t('landing.howExample.note')}</p>
+              <ol className="mt-5 border-t border-line">
+                {consentFlow.map((row) => (
+                  <li
+                    key={row.label}
+                    className="flex items-start gap-4 border-b border-line py-4 last:border-b-0"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-paper text-base"
+                    >
+                      {row.icon}
+                    </span>
+                    {/* Label and state share a line; the text keeps the full column. */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span className="text-sm font-bold">{row.label}</span>
+                        <span
+                          className={
+                            row.open
+                              ? 'rounded-full bg-mint px-3 py-1 text-[11px] font-semibold text-pine'
+                              : 'rounded-full border border-line bg-white px-3 py-1 text-[11px] font-semibold text-muted'
+                          }
+                        >
+                          {row.state}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-[13px] leading-relaxed text-muted">{row.text}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </section>
 
-          {/* Personal section */}
-          <section id="personal" className="grid items-center gap-8 pb-16 md:grid-cols-2" aria-label={t('landing.principle1')}>
+          {/* For members */}
+          <section
+            id="member"
+            data-testid="section-member"
+            className="grid items-center gap-8 pb-16 md:grid-cols-2"
+            aria-labelledby="member-title"
+          >
+            {/* Decorative card mock; the section heading lives in the next column. */}
             <div className="rounded-3xl bg-ink p-8 text-white sm:p-10">
-              <p className="eyebrow !text-[#bccbbe]">{t('landing.principle1')}</p>
-              <h3 className="mt-4 text-2xl font-extrabold leading-snug tracking-tight">
-                {t('landing.cardQrTitle')}
-              </h3>
-              <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-[#bbc8be]">{t('landing.micro1')} {t('landing.micro2')}</p>
+              <p className="text-2xl font-extrabold leading-snug tracking-tight">{t('landing.cardQrTitle')}</p>
+              <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-[#bbc8be]">
+                {t('landing.micro1')} {t('landing.micro2')}
+              </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {['LinkedIn', 'WhatsApp', 'Telegram', t('contacts.kind.phone')].map((s) => (
                   <span key={s} className="rounded-lg border border-white/25 bg-white/5 px-2.5 py-1.5 text-[11px]">
@@ -203,66 +316,150 @@ export default async function LandingPage() {
                   </span>
                 ))}
               </div>
-              <Link href="/login" className="btn-light mt-7">
+              <Link href="/login" className="btn-light mt-7" data-testid="member-cta">
                 {t('landing.ctaOpen')} <span aria-hidden="true">↗</span>
               </Link>
             </div>
             <div>
-              <h2 className="text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-                {t('landing.trustTitle')}
+              <p className="eyebrow">
+                <span className="eyebrow-dot" /> {t('landing.forMember.eyebrow')}
+              </p>
+              <h2 id="member-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+                {t('landing.forMember.title')}
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.trustText')}</p>
-              <ul className="mt-4 divide-y divide-line border-t border-line">
-                {[t('landing.trustItem1'), t('landing.trustItem2'), t('landing.trustItem3')].map((item) => (
-                  <li key={item} className="flex gap-3 py-3 text-[13px]">
-                    <span aria-hidden="true" className="font-bold text-pine">✓</span>
-                    {item}
-                  </li>
+              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.forMember.subtitle')}</p>
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                {memberItems.map((item) => (
+                  <article key={item.title} className="card-tight">
+                    <h3 className="text-sm font-bold leading-snug tracking-tight">{item.title}</h3>
+                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{item.text}</p>
+                  </article>
                 ))}
-              </ul>
+              </div>
             </div>
           </section>
 
-          {/* Event organizer section */}
-          <section id="events" className="pb-16" aria-labelledby="events-title">
+          {/* For organizers */}
+          <section id="organizer" data-testid="section-organizer" className="pb-16" aria-labelledby="organizer-title">
             <div className="mb-8 max-w-2xl">
               <p className="eyebrow">
-                <span className="eyebrow-dot" /> {t('landing.organizerEyebrow')}
+                <span className="eyebrow-dot" /> {t('landing.forOrganizer.eyebrow')}
               </p>
-              <h2 id="events-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-                {t('landing.organizerTitle')}
+              <h2 id="organizer-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+                {t('landing.forOrganizer.title')}
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.organizerSubtitle')}</p>
+              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.forOrganizer.subtitle')}</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {[
-                { num: t('landing.organizerStep1Kicker'), title: t('landing.organizerStep1Title'), text: t('landing.organizerStep1Text') },
-                { num: t('landing.organizerStep2Kicker'), title: t('landing.organizerStep2Title'), text: t('landing.organizerStep2Text') },
-                { num: t('landing.organizerStep3Kicker'), title: t('landing.organizerStep3Title'), text: t('landing.organizerStep3Text') },
-              ].map((step) => (
-                <article key={step.num} className="card">
-                  <p className="text-[11px] font-bold tracking-[0.15em] text-accent">{step.num}</p>
-                  <h3 className="mt-4 text-lg font-bold leading-snug tracking-tight">{step.title}</h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{step.text}</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {organizerItems.map((item) => (
+                <article key={item.title} className="card">
+                  <h3 className="text-lg font-bold leading-snug tracking-tight">{item.title}</h3>
+                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{item.text}</p>
                 </article>
+              ))}
+            </div>
+            {/* Consent guardrail: the organizer sells no reach the member did not grant. */}
+            <div className="mt-4 rounded-2xl border border-line bg-mint p-6" data-testid="organizer-consent-note">
+              <h3 className="text-lg font-bold leading-snug tracking-tight text-pine">
+                {t('landing.forOrganizer.consentNoteTitle')}
+              </h3>
+              <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-pine">
+                {t('landing.forOrganizer.consentNote')}
+              </p>
+            </div>
+          </section>
+
+          {/* Trust and privacy */}
+          <section id="trust" data-testid="section-trust" className="pb-16" aria-labelledby="trust-title">
+            <div className="mb-8 max-w-2xl">
+              <p className="eyebrow">
+                <span className="eyebrow-dot" /> {t('landing.trust.eyebrow')}
+              </p>
+              <h2 id="trust-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+                {t('landing.trust.title')}
+              </h2>
+              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.trust.subtitle')}</p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {trustItems.map((item) => (
+                <article key={item.title} className="card">
+                  <h3 className="flex items-start gap-2 text-lg font-bold leading-snug tracking-tight">
+                    <span aria-hidden="true" className="font-bold text-pine">
+                      ✓
+                    </span>
+                    {item.title}
+                  </h3>
+                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{item.text}</p>
+                </article>
+              ))}
+            </div>
+            <div className="mt-4 rounded-2xl border border-line bg-accent-pale p-6" data-testid="trust-no-scraping">
+              <h3 className="text-lg font-bold leading-snug tracking-tight">{t('landing.trust.noScrapingTitle')}</h3>
+              <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-muted">{t('landing.trust.noScraping')}</p>
+            </div>
+          </section>
+
+          {/* FAQ */}
+          <section id="faq" data-testid="section-faq" className="pb-16" aria-labelledby="faq-title">
+            <div className="mb-8 max-w-2xl">
+              <p className="eyebrow">
+                <span className="eyebrow-dot" /> {t('landing.faq.eyebrow')}
+              </p>
+              <h2 id="faq-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+                {t('landing.faq.title')}
+              </h2>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {faqItems.map((item) => (
+                <details key={item.q} className="group rounded-2xl border border-line bg-white p-5" data-testid="faq-item">
+                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4 [&::-webkit-details-marker]:hidden">
+                    <h3 className="text-base font-bold leading-snug tracking-tight">{item.q}</h3>
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 text-lg font-bold leading-none text-accent transition-transform group-open:rotate-45"
+                    >
+                      +
+                    </span>
+                  </summary>
+                  <p className="mt-3 text-[13px] leading-relaxed text-muted">{item.a}</p>
+                  {item.link ? (
+                    <a
+                      href={PILOT_MAILTO}
+                      className="mt-3 inline-flex text-[13px] font-semibold text-ink underline underline-offset-2 hover:text-accent"
+                      data-testid="faq-pilot-link"
+                    >
+                      {t('landing.faq.a6Link')} <span aria-hidden="true">↗</span>
+                    </a>
+                  ) : null}
+                </details>
               ))}
             </div>
           </section>
 
           {/* Closing CTA */}
-          <section className="mb-12 rounded-3xl bg-ink px-6 py-14 text-center text-white sm:px-8" aria-labelledby="closing-title">
-            <h2 id="closing-title" className="mx-auto max-w-xl text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
-              {t('landing.closingTitle')}
+          <section
+            id="start"
+            data-testid="section-final-cta"
+            className="mb-12 rounded-3xl bg-ink px-6 py-14 text-center text-white sm:px-8"
+            aria-labelledby="final-cta-title"
+          >
+            <h2 id="final-cta-title" className="mx-auto max-w-xl text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+              {t('landing.finalCta.title')}
             </h2>
-            <p className="mt-4 text-sm text-[#becabd]">{t('landing.closingText')}</p>
+            <p className="mt-4 text-sm text-[#becabd]">{t('landing.finalCta.text')}</p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <Link href="/login" className="btn-accent">
-                {t('landing.ctaPersonal')} <span aria-hidden="true">↗</span>
+              <Link href="/login" className="btn-accent" data-testid="final-cta-demo">
+                {t('landing.finalCta.ctaDemo')} <span aria-hidden="true">↗</span>
               </Link>
-              <a href="#events" className="btn-outline !border-[#8a9a8a] !text-white hover:!bg-white/10">
-                {t('landing.ctaEvent')} <span aria-hidden="true">→</span>
+              <a
+                href={PILOT_MAILTO}
+                className="btn-outline !border-[#8a9a8a] !text-white hover:!bg-white/10"
+                data-testid="final-cta-pilot"
+              >
+                {t('landing.finalCta.ctaPilot')} <span aria-hidden="true">→</span>
               </a>
             </div>
+            <p className="mt-4 text-[11px] text-[#a9b6ab]">{t('landing.finalCta.pilotNote')}</p>
           </section>
         </div>
       </main>
@@ -273,6 +470,8 @@ export default async function LandingPage() {
         privacyHref="/legal/privacy"
         termsLabel={t('landing.footerTerms')}
         termsHref="/legal/terms"
+        repoLabel={t('landing.footerRepo')}
+        repoHref={REPO_URL}
         localeLinks={[]}
       />
       <div className="mx-auto w-full max-w-6xl px-5 pb-6 sm:px-7">

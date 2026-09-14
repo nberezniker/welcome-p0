@@ -55,76 +55,161 @@ export const es: Partial<Dictionary> = {
   'locale.es': 'ES',
 
   // ── Landing ───────────────────────────────────────────────────────────────
-  'landing.eyebrow': 'El encuentro es solo el comienzo',
+  'landing.eyebrow': 'La reunión es solo el principio',
   'landing.titleLine1': 'Un QR.',
   'landing.titleLine2': 'Nuevos contactos.',
   'landing.titleEmphasis': 'Conexiones que duran.',
   'landing.subtitle':
-    'Tu perfil de networking viaja contigo a cada evento. Comparte solo lo que tú eliges, encuentra a personas útiles y guarda el siguiente paso: en la sala, en el chat y después del evento.',
-  'landing.ctaPersonal': 'Crear mi perfil de networking',
-  'landing.ctaEvent': 'Ver el flujo del evento',
-  'landing.micro1': 'En el navegador. Sin aplicación aparte.',
+    'Un perfil permanente y un QR reutilizable en lugar de una pila de tarjetas. Los contactos se abren solo con acuerdo mutuo, y el perfil sigue funcionando cuando la reunión ya terminó.',
+  'landing.heroCtaDemo': 'Probar la demo',
+  'landing.heroCtaOrganizer': 'Soy organizador',
+  'landing.micro1': 'En el navegador. Sin app aparte.',
   'landing.micro2': 'Tú decides qué ve cada persona.',
-  'landing.principle1': 'Un perfil permanente',
-  'landing.principle2': 'Antes, durante y después del evento',
-  'landing.principle3': 'Contactos bajo tu control',
-  'landing.howEyebrow': 'No otro formulario',
-  'landing.howTitle': 'Menos «hablamos luego». Más acciones claras.',
-  'landing.howSubtitle':
-    'Una conversación no termina intercambiando enlaces. Guarda con quién hablaste y por qué merece la pena continuar.',
-  'landing.step1Kicker': '01 / PRESÉNTATE',
-  'landing.step1Title': 'Muestra un QR',
-  'landing.step1Text':
-    'La otra persona abre tu tarjeta directamente en el navegador. Primero los campos públicos; los contactos privados solo si tú lo permites.',
-  'landing.step2Kicker': '02 / ENCUENTRA UN MOTIVO',
-  'landing.step2Title': 'Más que un interés compartido',
-  'landing.step2Text':
-    'El contexto del evento explica quién puede ser útil: qué ofrece cada persona y qué buscas tú. Responder o no es tu decisión.',
-  'landing.step3Kicker': '03 / CONTINÚA',
-  'landing.step3Title': 'Guarda el siguiente paso',
-  'landing.step3Text':
-    'La nota y el próximo paso acordado se quedan contigo después del evento. El organizador ve agregados, no tu conversación privada.',
-  'landing.organizerEyebrow': 'Para eventos y comunidades',
-  'landing.organizerTitle': 'Los invitados llegan preparados. Las conexiones no se pierden.',
-  'landing.organizerSubtitle':
-    'Importa los datos permitidos de la inscripción, añade contexto del evento y observa resultados agregados. Cada participante conserva su perfil y su memoria privada de contactos.',
-  'landing.organizerStep1Kicker': 'ANTES',
-  'landing.organizerStep1Title': 'Los datos ya están',
-  'landing.organizerStep1Text':
-    'Importa las columnas permitidas de la inscripción. Cada participante verifica su propio perfil y elige su visibilidad.',
-  'landing.organizerStep2Kicker': 'DURANTE',
-  'landing.organizerStep2Title': 'Sin buscar a ciegas',
-  'landing.organizerStep2Text':
-    'Hasta tres sugerencias con una razón comprensible. Las personas deciden si se conocen y qué contactos revelar.',
-  'landing.organizerStep3Kicker': 'DESPUÉS',
-  'landing.organizerStep3Title': 'Hay continuación',
-  'landing.organizerStep3Text':
-    'La nota personal y el siguiente paso se quedan con el participante. El organizador recibe agregados, no mensajes privados de nadie.',
-  'landing.trustTitle': 'Conocer a alguien es una elección, no un defecto.',
-  'landing.trustText':
-    'Tu tarjeta puede ser pública mientras ciertos contactos siguen cerrados. Controlas cada cosa por separado.',
-  'landing.trustItem1': 'Escanear el QR no convierte a nadie en suscriptor',
-  'landing.trustItem2': 'Unirse a un evento no es consentir publicidad',
-  'landing.trustItem3': 'El mensajero es tu elección, no una barrera',
-  'landing.closingTitle': 'Que el próximo encuentro sea un comienzo y no un punto final.',
-  'landing.closingText': 'Crea tu perfil o recorre el flujo de participante del evento.',
   'landing.ctaOpen': 'Abrir mi perfil',
-  'landing.demoBanner': 'Build P0: una vista previa funcional, aún sin staging.',
-  'landing.footerStatus': 'Build P0: el staging está pendiente. Las cuentas se crean localmente; nada se envía a terceros.',
+  'landing.principle1': 'Un QR en lugar de una pila de tarjetas',
+  'landing.principle2': 'Los contactos se abren solo con acuerdo mutuo',
+  'landing.principle3': 'Un perfil que vive más allá del evento',
+  'landing.navHow': 'Cómo funciona',
+  'landing.navMember': 'Para participantes',
+  'landing.navOrganizer': 'Para organizadores',
+  'landing.navFaq': 'Preguntas',
+  'landing.problem.eyebrow': 'El problema',
+  'landing.problem.title': 'Conocer a alguien es fácil. Mantener el contacto no lo es.',
+  'landing.problem.subtitle':
+    'Tres cosas que pasan tras casi todos los eventos — y que ningún mensajero resuelve por sí solo.',
+  'landing.problem.item1Title': 'Las tarjetas se pierden',
+  'landing.problem.item1Text':
+    'El papel acaba en un bolsillo, en la galería o en la basura. Una semana después nadie recuerda quién estaba detrás ni por qué importaba la conversación.',
+  'landing.problem.item2Title': 'Los chats posteriores mueren',
+  'landing.problem.item2Text':
+    'El grupo se llena una vez y luego se queda en silencio. Los números se dictaron en voz alta y no se apuntaron en ningún sitio.',
+  'landing.problem.item3Title': 'Las redes no conocen la sala',
+  'landing.problem.item3Text':
+    'Una lista de seguidores no dice nada de quién estaba a tu lado. El feed no sabe con quién te conociste ni qué prometiste enviar.',
+  'landing.howEyebrow': 'No es otro formulario',
+  'landing.howTitle': 'Un perfil. Un QR. Un siguiente paso acordado.',
+  'landing.howSubtitle':
+    'Tres pasos sin instalar nada: crea el perfil una vez, muestra el QR donde estés y abre contactos solo con la persona que tienes delante.',
+  'landing.step1Kicker': '01 / PERFIL EN UN MINUTO',
+  'landing.step1Title': 'Perfil en un minuto',
+  'landing.step1Text':
+    'Nombre, rol, qué ofreces y qué buscas. Respondes tres preguntas y la tarjeta ya vive en el navegador, sin instalar nada.',
+  'landing.step2Kicker': '02 / QR EN PANTALLA O ACREDITACIÓN',
+  'landing.step2Title': 'Un QR en pantalla o en la acreditación',
+  'landing.step2Text':
+    'La persona de al lado lo escanea y lee la tarjeta al momento. Primero los campos públicos; los contactos privados siguen cerrados.',
+  'landing.step3Kicker': '03 / CONTACTO CON CONSENTIMIENTO',
+  'landing.step3Title': 'Abrir el contacto juntos',
+  'landing.step3Text':
+    'El contacto se revela cuando ambas partes confirman. Hasta entonces nadie ve un teléfono ni un usuario de mensajería.',
+  'landing.howExample.title': 'Cómo se abre de verdad un contacto mutuo',
+  'landing.howExample.note': 'Ejemplo de interfaz. Un solo escaneo no revela nada.',
+  'landing.howExample.step1Label': 'Escaneas el QR de la tarjeta',
+  'landing.howExample.step1Text': 'La tarjeta se abre. La solicitud queda registrada; el contacto sigue cerrado.',
+  'landing.howExample.step2Label': 'La otra parte acepta',
+  'landing.howExample.step2Text': 'Ya hay consentimiento en ambos lados y se abre justo el campo que elegisteis los dos.',
+  'landing.howExample.step3Label': 'El siguiente paso queda guardado',
+  'landing.howExample.step3Text':
+    'Una nota privada se queda contigo: de qué hablasteis y qué prometiste enviar.',
+  'landing.howExample.closedLabel': 'Contacto cerrado',
+  'landing.howExample.openLabel': 'Contacto abierto en ambos lados',
+  'landing.forMember.eyebrow': 'Para participantes',
+  'landing.forMember.title': 'Un perfil que sigue funcionando después del evento',
+  'landing.forMember.subtitle': 'La tarjeta es tuya, no del evento al que fuiste.',
+  'landing.forMember.item1Title': 'Una mini-landing en lugar de una tarjeta',
+  'landing.forMember.item1Text':
+    'Un enlace público y un QR que puedes mostrar en cualquier sitio: una conferencia, un café, una acreditación. Tú eliges qué campos se ven.',
+  'landing.forMember.item2Title': 'Recomendaciones de a quién conocer',
+  'landing.forMember.item2Text':
+    'Hasta tres personas por evento, cada una con su motivo: qué ofrece, qué buscas tú y dónde encajan las dos cosas.',
+  'landing.forMember.item3Title': 'Sin bandeja de mensajes',
+  'landing.forMember.item3Text':
+    'No hay un muro de mensajes que revisar. El contacto se abre solo cuando ambas partes lo confirman.',
+  'landing.forMember.item4Title': 'Notas del siguiente paso',
+  'landing.forMember.item4Text':
+    'Después de la reunión, apunta qué hablasteis y qué prometiste enviar. La nota solo la ves tú.',
+  'landing.forOrganizer.eyebrow': 'Para eventos y comunidades',
+  'landing.forOrganizer.title': 'Los invitados llegan preparados. Las conexiones no se pierden.',
+  'landing.forOrganizer.subtitle':
+    'Una capa ligera de networking sobre el registro que ya gestionas, sin un CRM nuevo que mantener.',
+  'landing.forOrganizer.item1Title': 'Importar participantes desde CSV',
+  'landing.forOrganizer.item1Text':
+    'Sube las columnas de registro que puedes usar. Cada participante confirma después su propio perfil y su visibilidad.',
+  'landing.forOrganizer.item2Title': 'Catálogo y sugerencias',
+  'landing.forOrganizer.item2Text':
+    'Los participantes ven quién está en la sala y qué intenciones encajan, y cada sugerencia trae un motivo en lugar de una lista de nombres.',
+  'landing.forOrganizer.item3Title': 'Analítica del embudo',
+  'landing.forOrganizer.item3Text':
+    'Registro → activación → intro → mutualidad, como recuentos agregados. Ves cómo rindió la parte de networking sin leer contactos privados.',
+  'landing.forOrganizer.item4Title': 'Avisos por Telegram',
+  'landing.forOrganizer.item4Text':
+    'Los recordatorios llegan donde la persona ya lee mensajes, con un enlace de vuelta a su propio perfil.',
+  'landing.forOrganizer.consentNoteTitle': 'No hacemos spam',
+  'landing.forOrganizer.consentNote':
+    'Cada mensaje necesita consentimiento para ese fin y ese evento. Asistir a un evento no es consentir publicidad, y un consentimiento retirado detiene los envíos.',
+  'landing.trust.eyebrow': 'Confianza y privacidad',
+  'landing.trust.title': 'Conocer a alguien es una elección. No una opción por defecto.',
+  'landing.trust.subtitle':
+    'Estos controles forman parte del producto, no son una promesa de política. La build P0 es una preview funcional: trátala como tal.',
+  'landing.trust.item1Title': 'Primero el consentimiento',
+  'landing.trust.item1Text':
+    'Visibilidad en el directorio, sugerencias y mensajes: cada fin tiene su propio consentimiento y cada uno se retira por separado.',
+  'landing.trust.item2Title': 'Contactos cifrados',
+  'landing.trust.item2Text':
+    'Los valores de contacto se guardan cifrados (AES-256-GCM) y no aparecen en la tarjeta pública salvo que publiques ese campo concreto.',
+  'landing.trust.item3Title': 'Alojamiento en la UE (Fráncfort)',
+  'landing.trust.item3Text':
+    'El alojamiento en la UE (Fráncfort) es el objetivo del despliegue piloto. La build P0 corre en local y no envía nada a redes publicitarias.',
+  'landing.trust.item4Title': 'Exportar y borrar en una acción',
+  'landing.trust.item4Text':
+    'Descarga todo lo que se guarda sobre ti o borra la cuenta desde tus propios ajustes, sin escribir a soporte.',
+  'landing.trust.noScrapingTitle': 'Sin scraping de LinkedIn',
+  'landing.trust.noScraping':
+    'No hacemos scraping de LinkedIn ni de otras redes, y no enriquecemos perfiles automáticamente desde ellas. Todo lo que aparece en una tarjeta lo escribió esa persona.',
+  'landing.faq.eyebrow': 'Preguntas',
+  'landing.faq.title': 'Preguntas que se hacen de verdad',
+  'landing.faq.q1': '¿Hace falta una app?',
+  'landing.faq.a1': 'No. El perfil se abre en el navegador desde un QR o un enlace, en el móvil que ya llevas.',
+  'landing.faq.q2': '¿Qué ve la otra persona?',
+  'landing.faq.a2':
+    'Solo los campos que haces públicos: nombre, rol, qué ofreces y qué buscas. Un teléfono o email privado sigue oculto salvo que publiques ese contacto concreto.',
+  'landing.faq.q3': '¿Cómo se abren los contactos?',
+  'landing.faq.a3':
+    'Solo mutuamente. Una parte pide, la otra acepta y ambas acuerdan qué contacto revelar. Un escaneo no revela nada.',
+  'landing.faq.q4': '¿Qué pasa con mis datos?',
+  'landing.faq.a4':
+    'Puedes ver qué se guarda, exportarlo y borrar la cuenta desde tus ajustes. El consentimiento por fin se retira en cualquier momento y los datos retirados dejan de usarse.',
+  'landing.faq.q5': '¿Cuánto cuesta?',
+  'landing.faq.a5':
+    'El perfil personal, la mini-landing y los contactos mutuos son gratis en la build P0. El piloto para organizadores es gratis mientras sea piloto: todavía no hay tarifas.',
+  'landing.faq.q6': '¿Cómo me convierto en organizador piloto?',
+  'landing.faq.a6':
+    'Escríbenos con el formato del evento y el número aproximado de participantes. No afirmamos que ya haya pilotos en marcha: los primeros están en preparación.',
+  'landing.faq.a6Link': 'Escribir sobre el piloto de WELCOME',
+  'landing.finalCta.title': 'Empieza con tu propio perfil',
+  'landing.finalCta.text':
+    'Recorre el flujo de demo con una cuenta real, o trae esta capa a un evento que ya organizas.',
+  'landing.finalCta.ctaDemo': 'Probar la demo',
+  'landing.finalCta.ctaPilot': 'Ser organizador piloto',
+  'landing.finalCta.pilotNote':
+    'Build P0, piloto en preparación — el correo llega a una persona, no a un formulario.',
+  'landing.demoBanner': 'Build P0 — una preview funcional, todavía no un servicio en staging.',
+  'landing.footerStatus': 'Build P0 — staging pendiente. Las cuentas se crean en local y no se envía nada a terceros.',
   'landing.footerPrivacy': 'Privacidad',
   'landing.footerTerms': 'Términos',
-  'landing.fictionalNote': 'El perfil mostrado es un ejemplo ficticio de interfaz.',
+  'landing.footerRepo': 'Código fuente en GitHub',
+  'landing.fictionalNote': 'El perfil del ejemplo es ficticio.',
   'landing.cardName': 'Anna Levina',
   'landing.cardRole': 'Diseñadora de producto',
   'landing.cardBio': 'Ayudo a equipos a convertir ideas en productos claros.',
-  'landing.cardLooking': 'AHORA BUSCO',
-  'landing.cardTag': 'Proyecto piloto SaaS',
+  'landing.cardLooking': 'BUSCA AHORA',
+  'landing.cardTag': 'Proyecto SaaS piloto',
   'landing.cardQrTitle': 'Un perfil. En cada evento.',
-  'landing.cardQrNote': 'QR de demo · el dominio se define al compilar',
+  'landing.cardQrNote': 'QR de demo · el dominio se fija al compilar',
   'landing.cardFloat1Title': 'Tú eliges qué compartir',
   'landing.cardFloat1Text': 'El teléfono no se abre solo',
   'landing.cardFloat2Title': 'Hay un motivo para conocerse',
-  'landing.cardFloat2Text': 'Una petición más tu propia oferta',
+  'landing.cardFloat2Text': 'Una solicitud más tu propia oferta',
 
   // ── Login ─────────────────────────────────────────────────────────────────
   'login.title': 'Iniciar sesión en WELCOME',

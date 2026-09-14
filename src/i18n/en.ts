@@ -72,59 +72,145 @@ export const en = {
   'landing.titleLine2': 'New acquaintances.',
   'landing.titleEmphasis': 'Connections that last.',
   'landing.subtitle':
-    'Your networking profile travels with you to every event. Share only what you choose, find useful people, and keep the next step — in the room, in the chat and after the event.',
-  'landing.ctaPersonal': 'Create my networking profile',
-  'landing.ctaEvent': 'See the event flow',
+    'A permanent profile with a reusable QR instead of a stack of business cards. Contacts open only when both sides agree, and the profile keeps working long after the event is over.',
+  'landing.heroCtaDemo': 'Try the demo',
+  'landing.heroCtaOrganizer': 'I organise events',
   'landing.micro1': 'In the browser. No separate app.',
   'landing.micro2': 'You decide what each person sees.',
-  'landing.principle1': 'One permanent profile',
-  'landing.principle2': 'Before, during and after the event',
-  'landing.principle3': 'Contacts under your control',
-  'landing.howEyebrow': 'Not another form',
-  'landing.howTitle': 'Less "let\'s keep in touch". More clear next actions.',
-  'landing.howSubtitle':
-    'A conversation does not end with an exchange of links. Save who you met and why it is worth continuing.',
-  'landing.step1Kicker': '01 / INTRODUCE YOURSELF',
-  'landing.step1Title': 'Show one QR',
-  'landing.step1Text':
-    'The other person opens your card right in the browser. Public fields first — private contacts only if you allow it.',
-  'landing.step2Kicker': '02 / FIND A REASON',
-  'landing.step2Title': 'More than a shared interest',
-  'landing.step2Text':
-    'Event context explains who may be worth meeting: what they offer, what you are looking for. You decide whether to respond.',
-  'landing.step3Kicker': '03 / CONTINUE',
-  'landing.step3Title': 'Keep the next step',
-  'landing.step3Text':
-    'A note and the agreed next action stay with you after the event. The organizer sees aggregates, not your private conversation.',
-  'landing.organizerEyebrow': 'For events and communities',
-  'landing.organizerTitle': 'Guests arrive prepared. Connections are not lost.',
-  'landing.organizerSubtitle':
-    'Import allowed registration data, add event context, and see aggregate networking outcomes. Participants keep their profile and private connection memory.',
-  'landing.organizerStep1Kicker': 'BEFORE',
-  'landing.organizerStep1Title': 'Data is already there',
-  'landing.organizerStep1Text':
-    'Import permitted registration columns. Each participant verifies their own profile and chooses what to make visible.',
-  'landing.organizerStep2Kicker': 'DURING',
-  'landing.organizerStep2Title': 'No blind searching',
-  'landing.organizerStep2Text':
-    'Up to three suggestions with an understandable reason. People decide themselves whether to meet and which contacts to reveal.',
-  'landing.organizerStep3Kicker': 'AFTER',
-  'landing.organizerStep3Title': 'There is a follow-up',
-  'landing.organizerStep3Text':
-    'The personal note and next step stay with the participant. The organizer gets aggregates — not anyone\'s private messages.',
-  'landing.trustTitle': 'Meeting someone is a choice. Not a default.',
-  'landing.trustText':
-    'Your card can be public while specific contacts stay closed. You control each of these separately.',
-  'landing.trustItem1': 'A QR scan does not make anyone a subscriber',
-  'landing.trustItem2': 'Joining an event is not consent to advertising',
-  'landing.trustItem3': 'The messenger is your choice, not a barrier',
-  'landing.closingTitle': 'May the next meeting be a beginning, not a full stop.',
-  'landing.closingText': 'Create your profile, or walk through the event participant flow.',
   'landing.ctaOpen': 'Open my profile',
+  'landing.principle1': 'One QR instead of a stack of business cards',
+  'landing.principle2': 'Contacts open only by mutual consent',
+  'landing.principle3': 'A profile that outlives the event',
+  'landing.navHow': 'How it works',
+  'landing.navMember': 'For members',
+  'landing.navOrganizer': 'For organisers',
+  'landing.navFaq': 'FAQ',
+  'landing.problem.eyebrow': 'The problem',
+  'landing.problem.title': 'Meeting someone is easy. Keeping in touch is not.',
+  'landing.problem.subtitle':
+    'Three things that happen after almost every event — and that no messenger fixes by itself.',
+  'landing.problem.item1Title': 'Business cards get lost',
+  'landing.problem.item1Text':
+    'Paper goes into a pocket, a photo roll or the bin. A week later nobody remembers who was behind the card or why the conversation mattered.',
+  'landing.problem.item2Title': 'Event chats go quiet',
+  'landing.problem.item2Text':
+    'A group chat fills up once and then stops. Numbers and handles were exchanged out loud and written down nowhere.',
+  'landing.problem.item3Title': 'Social networks do not know the room',
+  'landing.problem.item3Text':
+    'A follower list says nothing about who was standing next to you. A feed does not know whom you actually met or what you promised to send.',
+  'landing.howEyebrow': 'Not another form',
+  'landing.howTitle': 'One profile. One QR. One agreed next step.',
+  'landing.howSubtitle':
+    'Three steps, no app to install: build the profile once, show the QR where you are, and open contacts only with the person in front of you.',
+  'landing.step1Kicker': '01 / PROFILE IN A MINUTE',
+  'landing.step1Title': 'Build a profile in a minute',
+  'landing.step1Text':
+    'Name, role, what you offer and what you are looking for. Answer three questions and the card is live in the browser — no app to install.',
+  'landing.step2Kicker': '02 / QR ON SCREEN OR BADGE',
+  'landing.step2Title': 'Show one QR on screen or badge',
+  'landing.step2Text':
+    'The person next to you scans it and reads your card immediately. Public fields first; private contacts stay closed until you say otherwise.',
+  'landing.step3Kicker': '03 / CONTACT BY CONSENT',
+  'landing.step3Title': 'Open the contact together',
+  'landing.step3Text':
+    'Both sides confirm before a contact is revealed. Until then nobody sees a phone number or a messenger handle.',
+  'landing.howExample.title': 'How a mutual contact actually opens',
+  'landing.howExample.note': 'Interface example. A single scan reveals nothing.',
+  'landing.howExample.step1Label': 'You scan the QR on the card',
+  'landing.howExample.step1Text': 'The card opens. The request is recorded — the contact is still closed.',
+  'landing.howExample.step2Label': 'The other side accepts',
+  'landing.howExample.step2Text': 'Consent now exists on both sides, so the field you both picked opens.',
+  'landing.howExample.step3Label': 'The next step is saved',
+  'landing.howExample.step3Text':
+    'A private note stays with you: what you discussed and what you promised to send.',
+  'landing.howExample.closedLabel': 'Contact closed',
+  'landing.howExample.openLabel': 'Contact open on both sides',
+  'landing.forMember.eyebrow': 'For members',
+  'landing.forMember.title': 'A profile that keeps working after the event',
+  'landing.forMember.subtitle':
+    'The card belongs to you, not to the event you happened to attend.',
+  'landing.forMember.item1Title': 'A mini-landing instead of a business card',
+  'landing.forMember.item1Text':
+    'A public link and a QR you can show anywhere: a conference, a cafe, a badge. You choose which fields are visible.',
+  'landing.forMember.item2Title': 'Suggestions about whom to meet',
+  'landing.forMember.item2Text':
+    'Up to three people per event, each with a reason: what they offer, what you are looking for, and where the two overlap.',
+  'landing.forMember.item3Title': 'No inbox to keep up with',
+  'landing.forMember.item3Text':
+    'There is no messaging feed to monitor. A contact opens only when both of you confirm the exchange.',
+  'landing.forMember.item4Title': 'Notes about the next step',
+  'landing.forMember.item4Text':
+    'After the meeting, write down what you discussed and what you promised to send. The note stays visible to you alone.',
+  'landing.forOrganizer.eyebrow': 'For events and communities',
+  'landing.forOrganizer.title': 'Guests arrive prepared. Connections are not lost.',
+  'landing.forOrganizer.subtitle':
+    'A light networking layer on top of the registration you already run — no new CRM to maintain.',
+  'landing.forOrganizer.item1Title': 'Import participants from CSV',
+  'landing.forOrganizer.item1Text':
+    'Bring the registration columns you are allowed to use. Each participant then confirms their own profile and visibility.',
+  'landing.forOrganizer.item2Title': 'Catalogue and suggestions',
+  'landing.forOrganizer.item2Text':
+    'Participants see who is in the room and which intents match, and every suggestion carries a reason instead of a bare list of names.',
+  'landing.forOrganizer.item3Title': 'Funnel analytics',
+  'landing.forOrganizer.item3Text':
+    'Registration to activation to intro to mutual consent, as aggregate counts. You see how the networking part performed without reading private contacts.',
+  'landing.forOrganizer.item4Title': 'Notifications in Telegram',
+  'landing.forOrganizer.item4Text':
+    'Reminders and follow-ups reach participants where they already read messages, with a link back to their own profile.',
+  'landing.forOrganizer.consentNoteTitle': 'We do not spam',
+  'landing.forOrganizer.consentNote':
+    'Every message needs consent for that purpose and that event. Joining an event is not consent to marketing, and a withdrawn consent stops the messaging.',
+  'landing.trust.eyebrow': 'Trust and privacy',
+  'landing.trust.title': 'Meeting someone is a choice. Not a default.',
+  'landing.trust.subtitle':
+    'These controls are part of the product, not a policy promise. The P0 build is a working preview, so judge it as a preview.',
+  'landing.trust.item1Title': 'Consent first',
+  'landing.trust.item1Text':
+    'Directory visibility, suggestions and messages each need their own consent, and each one can be withdrawn separately.',
+  'landing.trust.item2Title': 'Contacts are encrypted',
+  'landing.trust.item2Text':
+    'Contact values are stored encrypted (AES-256-GCM) and never appear on the public card unless you publish that exact field.',
+  'landing.trust.item3Title': 'EU hosting in Frankfurt',
+  'landing.trust.item3Text':
+    'EU hosting in Frankfurt is the target for the pilot deployment. The P0 build runs locally and sends nothing to third-party ad networks.',
+  'landing.trust.item4Title': 'Export and deletion in one action',
+  'landing.trust.item4Text':
+    'Download everything stored about you, or delete the account, from your own settings — no support ticket required.',
+  'landing.trust.noScrapingTitle': 'No LinkedIn scraping',
+  'landing.trust.noScraping':
+    'We do not scrape LinkedIn or any other social network, and we do not auto-enrich profiles from them. Everything on a card was entered by that person.',
+  'landing.faq.eyebrow': 'FAQ',
+  'landing.faq.title': 'Questions people actually ask',
+  'landing.faq.q1': 'Do I need to install an app?',
+  'landing.faq.a1': 'No. The profile opens in the browser from a QR or a link, on the phone you already carry.',
+  'landing.faq.q2': 'What does the other person see?',
+  'landing.faq.a2':
+    'Only the fields you make public: name, role, what you offer and what you are looking for. A private phone number or email stays hidden unless you publish that exact contact.',
+  'landing.faq.q3': 'How do contacts open?',
+  'landing.faq.a3':
+    'Only mutually. One side asks, the other accepts, and both agree which contact to reveal. A single scan reveals nothing.',
+  'landing.faq.q4': 'What happens to my data?',
+  'landing.faq.a4':
+    'You can see what is stored, export it, and delete your account from your own settings. Consent per purpose can be withdrawn at any time, and revoked data stops being used.',
+  'landing.faq.q5': 'How much does it cost?',
+  'landing.faq.a5':
+    'The personal profile, the mini-landing and mutual contacts are free in the P0 build. The organiser pilot is free while it is a pilot — there is no price list yet.',
+  'landing.faq.q6': 'How do I become a pilot organiser?',
+  'landing.faq.a6':
+    'Write to us with the event format and the approximate number of participants. We do not claim that pilots are already running: the first ones are in preparation.',
+  'landing.faq.a6Link': 'Email about the WELCOME pilot',
+  'landing.finalCta.title': 'Start with your own profile',
+  'landing.finalCta.text':
+    'Walk through the demo flow with a real account, or bring this layer to an event you already run.',
+  'landing.finalCta.ctaDemo': 'Try the demo',
+  'landing.finalCta.ctaPilot': 'Become a pilot organiser',
+  'landing.finalCta.pilotNote':
+    'P0 build, pilot in preparation — the mail goes to a person, not to a form.',
   'landing.demoBanner': 'P0 build — a working preview, not yet a staged service.',
   'landing.footerStatus': 'P0 build — staging pending. Real accounts are created locally; nothing is sent to third parties.',
   'landing.footerPrivacy': 'Privacy',
   'landing.footerTerms': 'Terms',
+  'landing.footerRepo': 'Source code on GitHub',
   'landing.fictionalNote': 'Profile shown is a fictional interface example.',
   'landing.cardName': 'Anna Levina',
   'landing.cardRole': 'Product designer',

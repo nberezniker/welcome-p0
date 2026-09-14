@@ -71,7 +71,7 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
 
   return (
     <main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-6">
-      <p className="text-xs font-bold uppercase tracking-wide text-muted">{t('landing.organizerEyebrow')}</p>
+      <p className="text-xs font-bold uppercase tracking-wide text-muted">{t('landing.forOrganizer.eyebrow')}</p>
       <div className="card mt-2">
         <div className="flex flex-wrap items-center gap-2 text-xs">
           <span className="chip">{t(modeLabel)}</span>
