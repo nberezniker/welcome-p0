@@ -43,8 +43,8 @@ late; AutoCoder will not post or submit without an explicit instruction.**
 
 | # | Item | Path / value | Status |
 |---|---|---|---|
-| 1 | Landing, desktop 1440, EN | `evidence/screenshots/landing-1440-en.png` | [x] PREPARED (local capture) |
-| 2 | Landing, desktop 1440, RU | `evidence/screenshots/landing-1440-ru.png` | [x] PREPARED (local capture) |
+| 1 | Landing, desktop 1280, EN | `evidence/screenshots/landing-1280-en.png` | [x] PREPARED (local capture) |
+| 2 | Landing, desktop 1280, RU | `evidence/screenshots/landing-1280-ru.png` | [x] PREPARED (local capture) |
 | 3 | Landing, mobile 360, EN | `evidence/screenshots/landing-360-en.png` | [x] PREPARED (local capture) |
 | 4 | Landing, mobile 360, RU | `evidence/screenshots/landing-360-ru.png` | [x] PREPARED (local capture) |
 | 5 | Profile editor (`/me/profile`) | `evidence/screenshots/profile-editor.png` | [x] PREPARED (local capture) |

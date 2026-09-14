@@ -15,8 +15,8 @@ never happened, so every artifact below is **local verification evidence**.
 | `defect-drill-pass.log` | Raw TAP output of the guard test after revert (expected pass) |
 | `load-smoke.json` | AC-53 load smoke results (50 concurrent joins + 200 recommendation GETs vs a 200-member event) — **local-only indicative numbers**, not a production benchmark |
 | `runtime/environment.md` | Honest implementation environment record: host, tool versions, executor (ZCode CLI agent in OpenClaw/AutoClaw session; AutoClaw browser preview NOT used — Playwright chromium used), DBs, env-var names, git state at gate run |
-| `screenshots/landing-1440-en.png` | Landing, desktop 1440px, English (Playwright chromium) |
-| `screenshots/landing-1440-ru.png` | Landing, desktop 1440px, Russian |
+| `screenshots/landing-1280-en.png` | Landing, desktop 1280px, English (Playwright chromium, written by tests/e2e/landing.spec.ts) |
+| `screenshots/landing-1280-ru.png` | Landing, desktop 1280px, Russian |
 | `screenshots/landing-360-en.png` | Landing, mobile 360px, English |
 | `screenshots/landing-360-ru.png` | Landing, mobile 360px, Russian |
 | `screenshots/profile-editor.png` | Authenticated profile editor (`/me/profile`) |
