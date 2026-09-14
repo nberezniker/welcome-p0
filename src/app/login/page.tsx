@@ -63,6 +63,8 @@ export default async function LoginPage({
                 tryAgain: t('login.tryAgain'),
                 errorNetwork: t('common.errorNetwork'),
                 errorRateLimited: t('common.errorRateLimited'),
+                demoLoginLink: t('login.demoLoginLink'),
+                demoLoginHint: t('login.demoLoginHint'),
               }}
             />
           </div>

@@ -145,6 +145,8 @@ export const es: Partial<Dictionary> = {
   'login.devHintCode': 'Código: {code}',
   'login.devHintNote': 'Este recuadro aparece solo cuando el servidor expone el código explícitamente en desarrollo.',
   'login.tryAgain': 'Solicitar un código nuevo',
+  'login.demoLoginLink': 'Entrar en la demo',
+  'login.demoLoginHint': 'Rellena la cuenta de demostración y muestra su código.',
 
   // ── /me shell & nav ───────────────────────────────────────────────────────
   'me.nav.dashboard': 'Resumen',

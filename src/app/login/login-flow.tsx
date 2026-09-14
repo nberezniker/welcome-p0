@@ -25,6 +25,8 @@ type Strings = {
   tryAgain: string;
   errorNetwork: string;
   errorRateLimited: string;
+  demoLoginLink: string;
+  demoLoginHint: string;
 };
 
 type Step = 'email' | 'code';
@@ -38,6 +40,7 @@ export function LoginFlow({ strings, nextPath }: { strings: Strings; nextPath: s
   const [code, setCode] = useState('');
   const [codeError, setCodeError] = useState<string | null>(null);
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [demoEmail, setDemoEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   const emailRef = useRef<HTMLInputElement>(null);
@@ -47,8 +50,31 @@ export function LoginFlow({ strings, nextPath }: { strings: Strings; nextPath: s
     emailRef.current?.focus();
   }, []);
 
-  const request = async () => {
-    const value = email.trim();
+  // Demo-login discovery (ADR 0009): the endpoint answers `no-store` and reads
+  // the flag per request, so a disabled deployment simply never shows the link.
+  // Failures are silent — the ordinary email form is the primary path.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch('/api/auth/demo-login-info');
+        if (!res.ok) return;
+        const body = (await res.json()) as { demoLoginEnabled?: boolean; demoEmail?: string | null };
+        if (cancelled) return;
+        if (body.demoLoginEnabled === true && typeof body.demoEmail === 'string' && body.demoEmail.length > 0) {
+          setDemoEmail(body.demoEmail);
+        }
+      } catch {
+        // Network hiccup: no demo link, no user-visible error.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const request = async (overrideEmail?: string) => {
+    const value = (overrideEmail ?? email).trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
       setEmailError(strings.emailError);
       return;
@@ -79,6 +105,12 @@ export function LoginFlow({ strings, nextPath }: { strings: Strings; nextPath: s
     } finally {
       setBusy(false);
     }
+  };
+
+  const startDemoLogin = () => {
+    if (!demoEmail) return;
+    setEmail(demoEmail);
+    void request(demoEmail);
   };
 
   const verify = async () => {
@@ -144,6 +176,20 @@ export function LoginFlow({ strings, nextPath }: { strings: Strings; nextPath: s
           <button type="submit" className="btn-primary mt-4 w-full" disabled={busy} data-testid="login-request">
             {busy ? strings.sending : strings.sendCode}
           </button>
+          {demoEmail ? (
+            <div className="mt-4 border-t border-line pt-4 text-sm">
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-ink"
+                disabled={busy}
+                onClick={startDemoLogin}
+                data-testid="demo-login-link"
+              >
+                {strings.demoLoginLink}
+              </button>
+              <p className="mt-1 text-xs text-muted">{strings.demoLoginHint}</p>
+            </div>
+          ) : null}
         </form>
       ) : (
         <div>

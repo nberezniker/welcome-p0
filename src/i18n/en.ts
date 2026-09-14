@@ -157,6 +157,8 @@ export const en = {
   'login.devHintCode': 'Code: {code}',
   'login.devHintNote': 'This box appears only when the server explicitly exposes the code in development.',
   'login.tryAgain': 'Request a new code',
+  'login.demoLoginLink': 'Demo sign-in',
+  'login.demoLoginHint': 'Fills in the seeded demo account and shows its code.',
 
   // ── /me shell & nav ───────────────────────────────────────────────────────
   'me.nav.dashboard': 'Dashboard',

@@ -145,6 +145,8 @@ export const ru: Partial<Dictionary> = {
   'login.devHintCode': 'Код: {code}',
   'login.devHintNote': 'Блок появляется, только когда сервер явно отдаёт код в development.',
   'login.tryAgain': 'Запросить новый код',
+  'login.demoLoginLink': 'Демо-вход',
+  'login.demoLoginHint': 'Подставит демо-аккаунт и покажет его код.',
 
   // ── /me shell & nav ───────────────────────────────────────────────────────
   'me.nav.dashboard': 'Обзор',
