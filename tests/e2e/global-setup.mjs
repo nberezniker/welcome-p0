@@ -17,7 +17,7 @@ const baseURL = `http://127.0.0.1:${process.env.E2E_PORT ?? 3111}`;
 const WARMUP_PATHS = [
   '/', '/login', '/legal/privacy', '/legal/terms', '/me', '/me/profile', '/me/contacts', '/me/privacy', '/organizer',
   // API route handlers also compile on demand — prove each family compiles.
-  '/api/locale', '/api/auth/otp/request', '/api/auth/otp/verify', '/api/auth/logout',
+  '/api/locale', '/api/auth/otp/request', '/api/auth/otp/verify', '/api/auth/logout', '/api/auth/demo-login-info',
   '/api/me/profile', '/api/me/contacts', '/api/me/notes', '/api/me/export',
   '/api/me/memberships/00000000-0000-0000-0000-000000000000',
   '/api/events/00000000-0000-0000-0000-000000000000',

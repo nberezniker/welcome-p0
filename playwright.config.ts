@@ -31,6 +31,10 @@ export default defineConfig({
       DATABASE_URL: E2E_DATABASE_URL,
       APP_ENV: 'development',
       AUTH_DEV_EXPOSE_OTP: 'true',
+      // Demo-login e2e (tests/e2e/demo-login.spec.ts): the "enabled" case needs
+      // the REAL flag on the running server, so it is set here rather than
+      // mocked. The "disabled" case mocks the discovery endpoint instead.
+      AUTH_EXPOSE_DEMO_OTP: 'true',
       HASH_PEPPER: 'e2e-pepper-0123456789abcdef',
       ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
       APP_BASE_URL: baseURL,
