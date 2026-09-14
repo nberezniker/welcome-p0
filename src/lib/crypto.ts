@@ -15,6 +15,40 @@ export function emailLookupHash(email: string, pepper: string): string {
   return hmacHex(email.trim().toLowerCase(), pepper);
 }
 
+/**
+ * Parses a comma-separated allowlist of email addresses (ADR 0009): trims,
+ * lowercases and drops empty entries, de-duplicating while preserving order.
+ * The raw env value never leaves this function as anything but normalized
+ * addresses — and callers must never log them (see otpExposureWarningMessage).
+ */
+export function parseEmailAllowlist(rawList: string): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const part of rawList.split(',')) {
+    const value = part.trim().toLowerCase();
+    if (value.length === 0 || seen.has(value)) continue;
+    seen.add(value);
+    out.push(value);
+  }
+  return out;
+}
+
+/**
+ * Constant-time membership test for the staging-only dev-OTP allowlist
+ * (ADR 0009). The caller passes the account's ALREADY HASHED lookup hash, so
+ * the raw target email and the raw list entries never meet: every candidate is
+ * normalized + HMAC'd with the same pepper and compared to the same digest.
+ * The whole list is always scanned — there is no early exit that would leak
+ * whether (or where) a match occurred.
+ */
+export function isEmailAllowlisted(lookupHash: string, rawList: string, pepper: string): boolean {
+  let matched = false;
+  for (const candidate of parseEmailAllowlist(rawList)) {
+    if (timingSafeHexEqual(lookupHash, emailLookupHash(candidate, pepper))) matched = true;
+  }
+  return matched;
+}
+
 /** Session / link tokens: only SHA-256 hash is persisted; the raw token lives in the cookie. */
 export function hashSessionToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex');

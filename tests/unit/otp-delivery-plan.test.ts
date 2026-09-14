@@ -16,6 +16,8 @@ const baseInput = {
   devExposeOtp: false,
   exposeDemoOtp: false,
   isDemo: false,
+  exposeOtpEmails: false,
+  emailAllowlisted: false,
 };
 
 test('plan: production + RESEND_API_KEY → real delivery', () => {
@@ -65,6 +67,55 @@ test('plan: AUTH_DEV_EXPOSE_OTP is dev-only — ignored in production', () => {
 
 test('plan: AUTH_DEV_EXPOSE_OTP in development → expose (pre-existing test mechanism)', () => {
   const plan = planOtpDelivery({ ...baseInput, appEnv: 'development', devExposeOtp: true });
+  assert.deepEqual(plan, { action: 'expose' });
+});
+
+// ---------------------------------------------------------------------------
+// ADR 0009 — staging-only dev-OTP allowlist branch.
+// Invariant: BOTH the switch and a list match are required. The switch alone
+// must never expose a code for an arbitrary account, and a list match with the
+// switch off must never expose one either.
+// ---------------------------------------------------------------------------
+
+test('plan(ADR 0009): production + switch on + email allowlisted → expose (no provider needed)', () => {
+  const plan = planOtpDelivery({ ...baseInput, exposeOtpEmails: true, emailAllowlisted: true });
+  assert.deepEqual(plan, { action: 'expose' });
+});
+
+test('plan(ADR 0009): switch on but email NOT on the list → reject (no blanket exposure)', () => {
+  const plan = planOtpDelivery({ ...baseInput, exposeOtpEmails: true, emailAllowlisted: false });
+  assert.equal(plan.action, 'reject', 'the switch alone must never expose a code');
+  assert.equal(plan.code, 'email_channel_disabled');
+});
+
+test('plan(ADR 0009): email on the list but switch OFF → reject', () => {
+  const plan = planOtpDelivery({ ...baseInput, exposeOtpEmails: false, emailAllowlisted: true });
+  assert.equal(plan.action, 'reject', 'membership alone must never expose a code');
+});
+
+test('plan(ADR 0009): allowlist is OFF by default', () => {
+  const plan = planOtpDelivery(baseInput);
+  assert.equal(plan.action, 'reject');
+});
+
+test('plan(ADR 0009): a configured provider still wins over an unrelated allowlist miss', () => {
+  const plan = planOtpDelivery({ ...baseInput, exposeOtpEmails: true, emailAllowlisted: false, resendApiKey: 're_x' });
+  assert.deepEqual(plan, { action: 'deliver' });
+});
+
+test('plan(ADR 0009): demo branch is untouched by the new fields', () => {
+  const plan = planOtpDelivery({ ...baseInput, exposeDemoOtp: true, isDemo: true });
+  assert.deepEqual(plan, { action: 'expose' });
+});
+
+test('plan(ADR 0009): dev-expose branch takes precedence over the allowlist branch', () => {
+  const plan = planOtpDelivery({
+    ...baseInput,
+    appEnv: 'development',
+    devExposeOtp: true,
+    exposeOtpEmails: true,
+    emailAllowlisted: false,
+  });
   assert.deepEqual(plan, { action: 'expose' });
 });
 

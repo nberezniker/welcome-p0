@@ -141,3 +141,137 @@ test('otp request: production + is_demo + demo flag → devCode (demo login work
     },
   );
 });
+
+// ---------------------------------------------------------------------------
+// ADR 0009 — staging-only dev-OTP allowlist, exercised through the REAL route.
+// The decisive scenario: an ordinary (non-demo) account on a production build
+// can log in without a provider IF AND ONLY IF it is on the operator's list.
+// ---------------------------------------------------------------------------
+
+/** The env across the ADR 0009 cases: no dev flag, no demo flag, no provider. */
+const allowlistEnv = (list: string): Record<string, string | undefined> => ({
+  APP_ENV: 'development',
+  AUTH_DEV_EXPOSE_OTP: 'false',
+  AUTH_EXPOSE_DEMO_OTP: undefined,
+  RESEND_API_KEY: undefined,
+  AUTH_EXPOSE_OTP_EMAILS: 'true',
+  AUTH_EXPOSE_OTP_EMAIL_ALLOWLIST: list,
+});
+
+test('otp request (ADR 0009): allowlisted address + switch → devCode in development', async () => {
+  const email = uniqueEmail('f01-allow-dev');
+  await withEnv(allowlistEnv(email), async () => {
+    const res = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email } }));
+    assertStatus(res, 200);
+    const body = (await res.json()) as { ok: boolean; devCode?: string };
+    assert.equal(body.ok, true);
+    assert.match(body.devCode ?? '', /^\d{6}$/, 'an allowlisted address must receive the code');
+  });
+});
+
+test('otp request (ADR 0009): allowlisted address works on APP_ENV=production without a provider', async () => {
+  const email = uniqueEmail('f01-allow-prod');
+  await withEnv(allowlistEnv(email), async () => {
+    // Create the account while still in development mode.
+    await otpRequest(makeRequest('/api/auth/otp/request', { body: { email } }));
+
+    process.env.APP_ENV = 'production';
+    try {
+      const res = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email } }));
+      assertStatus(res, 200);
+      const body = (await res.json()) as { ok: boolean; devCode?: string };
+      assert.equal(body.ok, true);
+      assert.match(body.devCode ?? '', /^\d{6}$/);
+    } finally {
+      process.env.APP_ENV = 'development';
+    }
+  });
+});
+
+test('otp request (ADR 0009): production + switch on but address NOT on the list → 503, no devCode', async () => {
+  const allowlisted = uniqueEmail('f01-list-only');
+  const other = uniqueEmail('f01-not-listed');
+  await withEnv(allowlistEnv(allowlisted), async () => {
+    process.env.APP_ENV = 'production';
+    try {
+      const res = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email: other } }));
+      assert.equal(res.status, 503);
+      const body = (await res.json()) as { code: string; devCode?: string };
+      assert.equal(body.code, 'email_channel_disabled');
+      assert.equal(body.devCode, undefined, 'the switch alone must never expose a code');
+    } finally {
+      process.env.APP_ENV = 'development';
+    }
+  });
+});
+
+test('otp request (ADR 0009): list match with the switch OFF → no devCode (membership alone is inert)', async () => {
+  const email = uniqueEmail('f01-switch-off');
+  await withEnv(
+    { ...allowlistEnv(email), AUTH_EXPOSE_OTP_EMAILS: 'false' },
+    async () => {
+      const res = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email } }));
+      assertStatus(res, 200);
+      const body = (await res.json()) as { ok: boolean; devCode?: string };
+      assert.equal(body.ok, true);
+      assert.equal(body.devCode, undefined);
+    },
+  );
+});
+
+test('otp request (ADR 0009): operator formatting (case + spaces) still matches the allowlist', async () => {
+  const email = uniqueEmail('f01-allow-case');
+  await withEnv(allowlistEnv(`  ${email.toUpperCase()}  `), async () => {
+    const res = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email } }));
+    assertStatus(res, 200);
+    const body = (await res.json()) as { ok: boolean; devCode?: string };
+    assert.match(body.devCode ?? '', /^\d{6}$/);
+  });
+});
+
+test('otp request (ADR 0009): flag on for OTHER addresses does not disturb the is_demo path', async () => {
+  const email = uniqueEmail('f01-allow-demo');
+  await withEnv(
+    { ...allowlistEnv('someone-else@welcome.test'), AUTH_EXPOSE_DEMO_OTP: 'true' },
+    async () => {
+      await otpRequest(makeRequest('/api/auth/otp/request', { body: { email } }));
+      await markDemo(email);
+      const res = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email } }));
+      assertStatus(res, 200);
+      const body = (await res.json()) as { ok: boolean; devCode?: string };
+      assert.match(body.devCode ?? '', /^\d{6}$/);
+    },
+  );
+});
+
+test('otp request (ADR 0009): enumeration shape unchanged — non-allowlisted prod response leaks nothing about the account', async () => {
+  const freshEmail = uniqueEmail('f01-enum-fresh');
+  const existingEmail = uniqueEmail('f01-enum-existing');
+  await withEnv(allowlistEnv('nobody@welcome.test'), async () => {
+    // Pre-create one account, leave the other unknown, then compare responses.
+    await otpRequest(makeRequest('/api/auth/otp/request', { body: { email: existingEmail } }));
+
+    process.env.APP_ENV = 'production';
+    try {
+      const fresh = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email: freshEmail } }));
+      const existing = await otpRequest(makeRequest('/api/auth/otp/request', { body: { email: existingEmail } }));
+      assert.equal(fresh.status, 503);
+      assert.equal(existing.status, 503);
+      const freshBody = (await fresh.json()) as Record<string, unknown>;
+      const existingBody = (await existing.json()) as Record<string, unknown>;
+      assert.equal(freshBody.code, 'email_channel_disabled');
+      assert.equal(existingBody.code, 'email_channel_disabled');
+      // Same shape either way: only correlation_id differs.
+      assert.deepEqual(
+        Object.keys(freshBody).sort(),
+        Object.keys(existingBody).sort(),
+        'account existence must not change the response shape',
+      );
+      assert.equal(freshBody.devCode, undefined);
+      assert.equal(existingBody.devCode, undefined);
+    } finally {
+      process.env.APP_ENV = 'development';
+    }
+  });
+});
+

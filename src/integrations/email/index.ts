@@ -46,6 +46,10 @@ export interface OtpDeliveryInput {
   exposeDemoOtp: boolean;
   /** The target account is a synthetic demo account (accounts.is_demo). */
   isDemo: boolean;
+  /** AUTH_EXPOSE_OTP_EMAILS=true (staging-only allowlist switch, ADR 0009). */
+  exposeOtpEmails: boolean;
+  /** The target account's email is on the ADR 0009 allowlist. */
+  emailAllowlisted: boolean;
 }
 
 /**
@@ -59,14 +63,23 @@ export interface OtpDeliveryInput {
  *      response so the demo login flow works WITHOUT any email provider.
  *      OFF by default; never applies to non-demo accounts, so real users are
  *      unaffected even if the flag is left on by mistake.
- *   3. A configured provider → real delivery.
- *   4. No provider outside production → dev log file.
- *   5. No provider in production → explicit reject (the F-01 fix: honest 503
+ *   3. STAGING ALLOWLIST (ADR 0009) — AUTH_EXPOSE_OTP_EMAILS=true AND the
+ *      account's email present in AUTH_EXPOSE_OTP_EMAIL_ALLOWLIST. Same
+ *      motivation as the demo branch (works without a provider) but scoped to
+ *      a named list of synthetic addresses instead of the is_demo column, so a
+ *      staging-test deploy running APP_ENV=production can exercise the real
+ *      login flow. OFF by default, and the switch alone exposes nothing: an
+ *      address must also match the list.
+ *   4. A configured provider → real delivery.
+ *   5. No provider outside production → dev log file.
+ *   6. No provider in production → explicit reject (the F-01 fix: honest 503
  *      instead of an unconditional dev-log write crashing with 500).
  */
 export function planOtpDelivery(input: OtpDeliveryInput): OtpDeliveryPlan {
   if (input.appEnv !== 'production' && input.devExposeOtp) return { action: 'expose' };
   if (input.exposeDemoOtp && input.isDemo) return { action: 'expose' };
+  // ADR 0009: both the switch and a list match are required.
+  if (input.exposeOtpEmails && input.emailAllowlisted) return { action: 'expose' };
   if (input.resendApiKey && input.resendApiKey.length > 0) return { action: 'deliver' };
   if (input.appEnv !== 'production') return { action: 'deliver' }; // dev log transport
   return { action: 'reject', status: 503, code: 'email_channel_disabled', retryable: false };

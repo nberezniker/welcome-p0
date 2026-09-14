@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../../../lib/db';
-import { appEnv, devExposeOtp, requireHashPepper } from '../../../../../lib/env';
-import { emailLookupHash, generateOtpCode, hashOtpCode } from '../../../../../lib/crypto';
+import {
+  allowDevOtpEmailsRaw,
+  appEnv,
+  devExposeOtp,
+  exposeOtpEmails,
+  requireHashPepper,
+  warnIfOtpExposureOnProduction,
+} from '../../../../../lib/env';
+import { emailLookupHash, generateOtpCode, hashOtpCode, isEmailAllowlisted } from '../../../../../lib/crypto';
 import { internalError, jsonError, jsonOk, normalizeEmail, readJsonBody, withApi } from '../../../../../lib/http';
 import { otpEmailTask, planOtpDelivery, selectEmailTransport } from '../../../../../integrations/email';
 
@@ -12,6 +19,10 @@ const OTP_TTL_MINUTES = 10;
 
 async function postRoute(req: NextRequest) {
   try {
+    // ADR 0009: warn (at most once per process) when the staging allowlist is
+    // live on a production build. Never logs the addresses themselves.
+    warnIfOtpExposureOnProduction();
+
     const body = await readJsonBody(req);
     const b = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
     const email = normalizeEmail(b.email);
@@ -22,6 +33,11 @@ async function postRoute(req: NextRequest) {
     const pepper = requireHashPepper();
     const sql = getSql();
     const lookupHash = emailLookupHash(email, pepper);
+
+    // ADR 0009 allowlist: gated by the switch so the list is not even hashed
+    // when the feature is off (the `&&` short-circuits).
+    const otpEmailsEnabled = exposeOtpEmails();
+    const emailAllowlisted = otpEmailsEnabled && isEmailAllowlisted(lookupHash, allowDevOtpEmailsRaw(), pepper);
 
     // Create the account if absent (status active). Enumeration-safe: same response either way.
     let rows = await sql<{ id: string; is_demo: boolean }[]>`
@@ -72,7 +88,7 @@ async function postRoute(req: NextRequest) {
       `;
     });
 
-    // F-01 delivery decision (matrix + demo fallback — see
+    // F-01 delivery decision (matrix + demo fallback + ADR 0009 allowlist — see
     // src/integrations/email/index.ts). The old unconditional writeDevOtpLog
     // (a 500 on Vercel's read-only FS) is gone.
     const plan = planOtpDelivery({
@@ -81,10 +97,13 @@ async function postRoute(req: NextRequest) {
       devExposeOtp: devExposeOtp(),
       exposeDemoOtp: process.env.AUTH_EXPOSE_DEMO_OTP === 'true',
       isDemo: account.is_demo,
+      exposeOtpEmails: otpEmailsEnabled,
+      emailAllowlisted,
     });
 
     if (plan.action === 'expose') {
-      // dev/tests mechanism or the documented is_demo fallback — code in the response.
+      // dev/tests mechanism, the documented is_demo fallback, or the ADR 0009
+      // staging allowlist — the code goes into the response.
       return NextResponse.json({ ok: true, devCode: code });
     }
     if (plan.action === 'reject') {
