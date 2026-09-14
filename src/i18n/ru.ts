@@ -597,6 +597,7 @@ export const ru: Partial<Dictionary> = {
   'org.backToOrganizer': 'Все события',
   'org.campaignsLink': 'Рассылки',
   'org.eventLink': 'Публичная страница события',
+  'org.badgesLink': 'QR-бейджи',
   'org.forbidden': 'Вы не управляете этим событием.',
   'org.organizerHeading': 'Организатор: {name}',
 
@@ -620,6 +621,22 @@ export const ru: Partial<Dictionary> = {
   'org.importMapErrorUnknownColumn': 'В CSV нет такой колонки. Проверьте сопоставление и пересчитайте.',
   'org.importMapErrorDuplicate': 'Поле может брать только одну колонку. Уберите дублирующее сопоставление.',
   'org.importMapErrorInvalid': 'Сопоставление колонок некорректно.',
+
+  // Printable QR badge sheet
+  'org.badgesTitle': 'QR-бейджи: {name}',
+  'org.badgesSubtitle': 'Листы A4, по 8 бейджей на страницу. Печатаются только имя и QR-код.',
+  'org.badgesPrint': 'Печать',
+  'org.badgesQrAlt': 'QR-код для {name}',
+  'org.badgesNameFallback': 'Гость',
+  'org.badgesLinksTitle': 'Claim-ссылки для бейджей',
+  'org.badgesLinksHint':
+    'Гостям без карточки QR ведёт на страницу события. Выпустите одноразовые claim-ссылки, чтобы поставить на бейдж персональный QR. Ссылки живут 7 дней.',
+  'org.badgesGenerate': 'Выпустить claim-ссылки',
+  'org.badgesDownloadCsv': 'Скачать CSV со claim-ссылками',
+  'org.badgesLinksIssued': 'Выпущено claim-ссылок: {n}.',
+  'org.badgesExcludedQuarantined': '{n} регистраций в карантине — не печатаем.',
+  'org.badgesEmpty': 'Пока нечего печатать. Сначала импортируйте гостей.',
+  'org.backToEvent': 'К событию',
 
   // ── Campaigns ─────────────────────────────────────────────────────────────
   'camp.title': 'Рассылки',

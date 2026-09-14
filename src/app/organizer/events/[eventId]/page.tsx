@@ -53,9 +53,14 @@ export default async function OrganizerEventPage({ params }: { params: Promise<{
             {t('org.eventLink')}
           </Link>
           {canManage ? (
-            <Link href={`/organizer/events/${event.id}/campaigns`} className="btn-light btn-small">
-              {t('org.campaignsLink')}
-            </Link>
+            <>
+              <Link href={`/organizer/events/${event.id}/badges`} className="btn-light btn-small">
+                {t('org.badgesLink')}
+              </Link>
+              <Link href={`/organizer/events/${event.id}/campaigns`} className="btn-light btn-small">
+                {t('org.campaignsLink')}
+              </Link>
+            </>
           ) : null}
         </div>
       </div>

@@ -599,6 +599,7 @@ export const es: Partial<Dictionary> = {
   'org.backToOrganizer': 'Todos los eventos',
   'org.campaignsLink': 'Campañas',
   'org.eventLink': 'Página pública del evento',
+  'org.badgesLink': 'Credenciales QR',
   'org.forbidden': 'No gestionas este evento.',
   'org.organizerHeading': 'Organizador: {name}',
 
@@ -622,6 +623,22 @@ export const es: Partial<Dictionary> = {
   'org.importMapErrorUnknownColumn': 'El CSV no tiene esa columna. Revisa la asignación y recalcula.',
   'org.importMapErrorDuplicate': 'Cada campo admite una sola columna. Quita la asignación duplicada.',
   'org.importMapErrorInvalid': 'La asignación de columnas no es válida.',
+
+  // Printable QR badge sheet
+  'org.badgesTitle': 'Credenciales QR: {name}',
+  'org.badgesSubtitle': 'Hojas A4, 8 credenciales por página. Solo se imprimen el nombre y el código QR.',
+  'org.badgesPrint': 'Imprimir',
+  'org.badgesQrAlt': 'Código QR de {name}',
+  'org.badgesNameFallback': 'Invitado',
+  'org.badgesLinksTitle': 'Enlaces de reclamación para credenciales',
+  'org.badgesLinksHint':
+    'Quien no tiene tarjeta recibe un QR a la página del evento. Emite enlaces de reclamación de un solo uso para poner un QR personal en su credencial. Duran 7 días.',
+  'org.badgesGenerate': 'Emitir enlaces de reclamación',
+  'org.badgesDownloadCsv': 'Descargar CSV con enlaces',
+  'org.badgesLinksIssued': 'Enlaces emitidos: {n}.',
+  'org.badgesExcludedQuarantined': '{n} registro(s) en cuarentena no se imprimen.',
+  'org.badgesEmpty': 'Aún no hay nada que imprimir. Importa invitados primero.',
+  'org.backToEvent': 'Volver al evento',
 
   // ── Campaigns ─────────────────────────────────────────────────────────────
   'camp.title': 'Campañas',

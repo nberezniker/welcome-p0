@@ -612,6 +612,7 @@ export const en = {
   'org.backToOrganizer': 'All events',
   'org.campaignsLink': 'Campaigns',
   'org.eventLink': 'Public event page',
+  'org.badgesLink': 'QR badges',
   'org.forbidden': 'You do not manage this event.',
   'org.organizerHeading': 'Organizer: {name}',
 
@@ -635,6 +636,22 @@ export const en = {
   'org.importMapErrorUnknownColumn': 'The CSV has no such column. Check the mapping and recalculate.',
   'org.importMapErrorDuplicate': 'Each field can take only one column. Remove the duplicate mapping.',
   'org.importMapErrorInvalid': 'The column mapping is not valid.',
+
+  // Printable QR badge sheet
+  'org.badgesTitle': 'QR badges: {name}',
+  'org.badgesSubtitle': 'A4 sheets, 8 badges per page. Only the name and the QR code are printed.',
+  'org.badgesPrint': 'Print',
+  'org.badgesQrAlt': 'QR code for {name}',
+  'org.badgesNameFallback': 'Guest',
+  'org.badgesLinksTitle': 'Claim links for badges',
+  'org.badgesLinksHint':
+    'Guests without a card get a QR to the event page. Issue one-time claim links to put a personal claim QR on their badge instead. Links last 7 days.',
+  'org.badgesGenerate': 'Issue claim links',
+  'org.badgesDownloadCsv': 'Download claim-link CSV',
+  'org.badgesLinksIssued': 'Issued {n} claim link(s).',
+  'org.badgesExcludedQuarantined': '{n} quarantined registration(s) are not printed.',
+  'org.badgesEmpty': 'No registrations to print yet. Import guests first.',
+  'org.backToEvent': 'Back to event',
 
   // ── Campaigns ─────────────────────────────────────────────────────────────
   'camp.title': 'Campaigns',

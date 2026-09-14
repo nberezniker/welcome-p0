@@ -127,3 +127,66 @@ body {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ── Printable QR badge sheet (/organizer/events/[eventId]/badges) ──────────
+   A4 sheets, 2 columns × 4 rows. The screen shows the same grid as the paper so
+   the organizer sees exactly what will print. Plain CSS (no external assets) so
+   a printed sheet never depends on a network fetch. */
+@page {
+  size: A4;
+  margin: 10mm;
+}
+
+.badge-sheet {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+  gap: 6mm;
+}
+
+.badge-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3mm;
+  padding: 6mm 4mm;
+  text-align: center;
+  border: 1px dashed var(--color-line);
+  border-radius: 4mm;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.badge-card img {
+  width: 34mm;
+  height: 34mm;
+}
+
+.badge-name {
+  font-size: 12pt;
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+@media print {
+  /* Controls and notices are for the screen only. */
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .badge-sheet {
+    page-break-after: always;
+  }
+  /* No trailing blank sheet after the last page. */
+  .badge-sheet:last-child {
+    page-break-after: auto;
+  }
+  /* Borders are a cut guide on screen; on paper they only waste toner. */
+  .badge-card {
+    border-color: #bbb;
+  }
+}

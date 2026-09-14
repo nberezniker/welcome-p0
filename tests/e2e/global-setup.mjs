@@ -15,17 +15,21 @@ const databaseUrl = process.env.E2E_DATABASE_URL || 'postgres://localhost:5432/w
 const baseURL = `http://127.0.0.1:${process.env.E2E_PORT ?? 3111}`;
 
 const WARMUP_PATHS = [
-  '/', '/login', '/legal/privacy', '/legal/terms', '/me', '/me/profile', '/me/contacts', '/me/privacy', '/organizer',
+  '/', '/login', '/legal/privacy', '/legal/terms', '/me', '/me/profile', '/me/contacts', '/me/privacy', '/me/security',
+  '/organizer',
   // API route handlers also compile on demand — prove each family compiles.
   '/api/locale', '/api/auth/otp/request', '/api/auth/otp/verify', '/api/auth/logout', '/api/auth/demo-login-info',
-  '/api/me/profile', '/api/me/contacts', '/api/me/notes', '/api/me/export',
+  '/api/me/profile', '/api/me/contacts', '/api/me/notes', '/api/me/export', '/api/me/sessions',
   '/api/me/memberships/00000000-0000-0000-0000-000000000000',
   '/api/events/00000000-0000-0000-0000-000000000000',
   '/api/events/00000000-0000-0000-0000-000000000000/join',
   '/api/introductions', '/api/blocks', '/api/reports', '/api/consents',
   '/api/organizer/events', '/api/organizer/campaigns',
   '/api/organizer/events/00000000-0000-0000-0000-000000000000/analytics',
+  '/api/organizer/events/00000000-0000-0000-0000-000000000000/badge-links',
   '/api/channels/telegram', '/api/registration-claims',
+  // Param-bearing pages compile on demand too (signed out → /login redirect).
+  '/organizer/events/00000000-0000-0000-0000-000000000000/badges',
 ];
 
 async function warmup() {
