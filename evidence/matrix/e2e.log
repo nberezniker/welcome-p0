@@ -53,17 +53,18 @@ applied 006 006_mfa_step_up.sql
 applied 007 007_taxonomy_v3.sql
 applied 008 008_profile_card_fields.sql
 
-Running 6 tests using 1 worker
+Running 7 tests using 1 worker
 
-  ✓  1 tests/e2e/demo-login.spec.ts:23:5 › demo login enabled: the link appears and prefills the seeded demo account (771ms)
-  ✓  2 tests/e2e/demo-login.spec.ts:48:5 › demo login disabled: no demo affordance is rendered (318ms)
-  ✓  3 tests/e2e/onboarding-landing.spec.ts:41:5 › onboarding (3 questions) → mini-landing is public, localized and free of private data (3.5s)
-  ✓  4 tests/e2e/onboarding-landing.spec.ts:159:5 › the onboarding draft survives a reload and /me/profile edits the axes (1.9s)
+  ✓  1 tests/e2e/demo-login.spec.ts:23:5 › demo login enabled: the link appears and prefills the seeded demo account (693ms)
+  ✓  2 tests/e2e/demo-login.spec.ts:48:5 › demo login disabled: no demo affordance is rendered (314ms)
+  ✓  3 tests/e2e/onboarding-landing.spec.ts:41:5 › onboarding (3 questions) → mini-landing is public, localized and free of private data (3.3s)
+  ✓  4 tests/e2e/onboarding-landing.spec.ts:159:5 › the onboarding draft survives a reload and /me/profile edits the axes (1.8s)
 [WebServer] ⨯ Error: The destination stream closed early.
 [WebServer]     at ignore-listed frames {
 [WebServer]   digest: '2891471267'
 [WebServer] }
-  ✓  5 tests/e2e/smoke.spec.ts:68:7 › WELCOME P0 smoke › landing, OTP login, profile, public card, event directory, mutual intro reveal (14.4s)
-  ✓  6 tests/e2e/smoke.spec.ts:196:7 › WELCOME P0 smoke › security headers on /, /login and legal pages (F-04, F-15) (632ms)
+  ✓  5 tests/e2e/smoke.spec.ts:68:7 › WELCOME P0 smoke › landing, OTP login, profile, public card, event directory, mutual intro reveal (14.0s)
+  ✓  6 tests/e2e/smoke.spec.ts:195:7 › WELCOME P0 smoke › ?lang= switches the landing language and is remembered (R1) (1.2s)
+  ✓  7 tests/e2e/smoke.spec.ts:221:7 › WELCOME P0 smoke › security headers on /, /login and legal pages (F-04, F-15) (585ms)
 
-  6 passed (27.9s)
+  7 passed (28.2s)

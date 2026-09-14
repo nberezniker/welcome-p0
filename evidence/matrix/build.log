@@ -4,18 +4,18 @@
 
 ▲ Next.js 16.3.4 (Turbopack)
 - Environments: .env.local
-✓ Running next.config.ts took 23ms
+✓ Running next.config.ts took 25ms
 
   Creating an optimized production build ...
-✓ Compiled successfully in 940ms
+✓ Compiled successfully in 885ms
   Running TypeScript ...
-  Finished TypeScript in 1453ms ...
+  Finished TypeScript in 1454ms ...
   Collecting page data using 9 workers ...
   Generating static pages using 9 workers (0/33) ...
   Generating static pages using 9 workers (8/33) 
   Generating static pages using 9 workers (16/33) 
   Generating static pages using 9 workers (24/33) 
-✓ Generating static pages using 9 workers (33/33) in 127ms
+✓ Generating static pages using 9 workers (33/33) in 130ms
   Finalizing page optimization ...
 
 Route (app)
@@ -94,6 +94,8 @@ Route (app)
 ├ ƒ /organizer/events/[eventId]/campaigns
 └ ƒ /p/[slug]
 
+
+ƒ Proxy (Middleware)
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
