@@ -1,26 +1,32 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { en, type Dictionary, type DictKey } from './en';
 import { ru } from './ru';
 import { es } from './es';
+import {
+  DEFAULT_LOCALE,
+  LOCALES,
+  LOCALE_COOKIE,
+  LOCALE_COOKIE_MAX_AGE,
+  LOCALE_QUERY_PARAM,
+  isLocale,
+  resolveLocale,
+  resolveRequestLocale,
+  type Locale,
+} from './locale';
 
-export type Locale = 'en' | 'ru' | 'es';
+export type { Locale };
+export { DEFAULT_LOCALE, LOCALES, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, LOCALE_QUERY_PARAM, isLocale, resolveLocale, resolveRequestLocale };
 
-export const LOCALES: readonly Locale[] = ['en', 'ru', 'es'] as const;
-export const DEFAULT_LOCALE: Locale = 'en';
-/** Cookie name for the locale preference. Set by POST /api/locale. */
-export const LOCALE_COOKIE = 'welcome_locale';
-export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+/**
+ * Request header the locale middleware sets when `?lang=` is present. It exists
+ * because the cookie has to be written on the RESPONSE (it is a preference for
+ * the next visit) while the CURRENT render must already use the requested
+ * language — and only the layout can pick `<html lang>`. Harmless to forge: it
+ * only selects a dictionary, never a consent or an authorization decision.
+ */
+export const LOCALE_HEADER = 'x-welcome-locale';
 
 const DICTIONARIES: Record<Locale, Partial<Dictionary>> = { en, ru, es };
-
-/** Validates a raw cookie/header value into a known locale. */
-export function resolveLocale(value: string | undefined | null): Locale {
-  return value === 'ru' || value === 'es' || value === 'en' ? value : DEFAULT_LOCALE;
-}
-
-export function isLocale(value: unknown): value is Locale {
-  return value === 'ru' || value === 'es' || value === 'en';
-}
 
 export type { Dictionary, DictKey };
 
@@ -55,12 +61,21 @@ export function t(
   return interpolate(value, vars);
 }
 
-/** Server-side locale resolution for pages/layouts: reads the locale cookie.
+/** Server-side locale resolution for pages/layouts.
+ *
+ * Resolution order (src/i18n/locale.ts documents the inputs):
+ *   1. the header the middleware sets for a valid `?lang=` — already validated,
+ *      so the current render matches the query the visitor just asked for;
+ *   2. the `welcome_locale` cookie;
+ *   3. English.
  * Falls back to the default locale when called outside a request scope
- * (e.g. when component-level tests render a page directly). */
+ * (e.g. when component-level tests render a page directly, or a route handler
+ * is invoked without a Next request context). */
 export async function getLocale(): Promise<Locale> {
   try {
-    const jar = await cookies();
+    const [jar, requestHeaders] = await Promise.all([cookies(), headers()]);
+    const override = requestHeaders.get(LOCALE_HEADER);
+    if (isLocale(override)) return override;
     return resolveLocale(jar.get(LOCALE_COOKIE)?.value);
   } catch {
     return DEFAULT_LOCALE;

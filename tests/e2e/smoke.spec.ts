@@ -189,6 +189,31 @@ test.describe('WELCOME P0 smoke', () => {
     await ctxB.close();
   });
 
+  // R1: `?lang=` on the public pages (locale query override + cookie).
+  // A shared link can carry the language and the choice survives the visit;
+  // without the parameter (or with an invalid one) nothing changes.
+  test('?lang= switches the landing language and is remembered (R1)', async ({ page, browser }) => {
+    const res = await page.goto('/?lang=ru');
+    expect(res?.status()).toBe(200);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Один QR.');
+
+    // The choice is persisted: the plain landing URL is Russian now.
+    await page.goto('/');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Один QR.');
+
+    // A fresh visitor with an invalid value keeps the English default.
+    const fresh = await browser.newContext();
+    const freshPage = await fresh.newPage();
+    await freshPage.goto('/?lang=de');
+    await expect(freshPage.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(freshPage.getByRole('heading', { level: 1 })).toContainText('One QR.');
+    await freshPage.goto('/');
+    await expect(freshPage.locator('html')).toHaveAttribute('lang', 'en');
+    await fresh.close();
+  });
+
   // F-04: the security header set must be present on page routes. The rest of
   // the smoke (hydration marker, locale switch, OTP flow) doubles as the proof
   // that the CSP does not break the Next.js client bootstrap.

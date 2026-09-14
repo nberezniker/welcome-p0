@@ -1,6 +1,8 @@
 'use client';
 
-/** Footer locale links (cookie-based locale: POST then reload server tree). */
+/** Footer locale links: the href is a working no-JS fallback (`?lang=`, resolved
+ * and persisted by the locale middleware), while the click handler keeps the
+ * in-place switch on a hydrated page (POST /api/locale + refresh). */
 export function FooterLocaleLinks({
   current,
   links,
@@ -15,7 +17,7 @@ export function FooterLocaleLinks({
       {links.map((l) => (
         <a
           key={l.locale}
-          href={`/?locale=${l.locale}`}
+          href={`/?lang=${l.locale}`}
           lang={l.locale}
           className="underline underline-offset-2 hover:text-ink"
           aria-current={current === l.locale ? 'true' : undefined}
