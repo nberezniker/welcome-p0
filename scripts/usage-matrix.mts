@@ -28,7 +28,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
-import { emailLookupHash } from '../src/lib/crypto.ts';
+import { emailLookupHash, encryptValue } from '../src/lib/crypto.ts';
 import { totpAt } from '../src/lib/totp.ts';
 import { en } from '../src/i18n/en.ts';
 import { ru } from '../src/i18n/ru.ts';
@@ -82,6 +82,9 @@ const DB_URL =
   process.env.DATABASE_URL ||
   '';
 const PEPPER = SECRETS['HASH_PEPPER'] || process.env.HASH_PEPPER || '';
+/** Only used to plant a claimed registration email the deployment can decrypt (ADR 0011 checks). */
+const ENCRYPTION_KEY = SECRETS['ENCRYPTION_KEY'] || process.env.ENCRYPTION_KEY || '';
+const RESEND_CONFIGURED = Boolean(SECRETS['RESEND_API_KEY'] || process.env.RESEND_API_KEY);
 const WORKER_TICK_SECRET = SECRETS['WORKER_TICK_SECRET'] || process.env.WORKER_TICK_SECRET || '';
 const WEBHOOK_SECRET = SECRETS['TELEGRAM_WEBHOOK_SECRET'] || process.env.TELEGRAM_WEBHOOK_SECRET || '';
 
@@ -413,6 +416,74 @@ async function grantConsent(accountId: string, purpose: string, eventId: string 
   await sql`
     INSERT INTO consent_events (account_id, purpose, scope_type, scope_id, policy_version, action)
     VALUES (${accountId}, ${purpose}, ${eventId ? 'event' : 'global'}, ${eventId}, ${'matrix-2026-09-14'}, 'grant')`;
+}
+
+/** A fixture account created on demand (purged by slug/email like the rest). */
+async function ensureFixtureUser(key: string, displayName: string, axes: Record<string, unknown> = {}): Promise<FixtureUser> {
+  const existing = users.get(key);
+  if (existing) return existing;
+  return createUser(key, displayName, axes);
+}
+
+/** Active membership, created once (UNIQUE(event_id, profile_id) would reject a repeat). */
+async function ensureEventMember(user: FixtureUser, eventId: string): Promise<void> {
+  if (!sql) throw new Error('DATABASE_URL unavailable');
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM event_memberships
+    WHERE event_id = ${eventId} AND profile_id = ${user.profileId}`;
+  if ((rows[0]?.count ?? 0) === 0) await addMembership(user, eventId);
+}
+
+/**
+ * Gives an account a decryptable email the way the product does: an imported
+ * registration it CLAIMED (membership.registration_id is what proves ownership).
+ * Returns the plaintext address, which the caller must never print.
+ */
+async function attachRegisteredEmail(user: FixtureUser, eventId: string, email: string): Promise<string> {
+  if (!sql) throw new Error('DATABASE_URL unavailable');
+  must(ENCRYPTION_KEY.length > 0, 'ENCRYPTION_KEY unavailable — cannot attach a claimed email');
+  const lookup = hash(email);
+  const rows = await sql<{ id: string }[]>`
+    INSERT INTO registrations (event_id, provider, external_guest_id, email_lookup_hash, encrypted_email,
+                               imported_name, claim_state)
+    VALUES (${eventId}, 'csv', ${'matrix-' + rand(4)}, ${lookup}, ${encryptValue(email, ENCRYPTION_KEY)},
+            ${user.displayName}, 'claimed')
+    RETURNING id`;
+  created.registrations.push(rows[0]!.id);
+  await sql`
+    UPDATE event_memberships SET registration_id = ${rows[0]!.id}
+    WHERE event_id = ${eventId} AND profile_id = ${user.profileId}`;
+  return email;
+}
+
+/** Job id behind a dedupe key (used to read the worker's per-job outcome). */
+async function jobIdByKey(dedupeKey: string): Promise<string | null> {
+  if (!sql) return null;
+  const rows = await sql<{ id: string }[]>`SELECT id FROM outbox_jobs WHERE dedupe_key = ${dedupeKey} LIMIT 1`;
+  return rows[0]?.id ?? null;
+}
+
+/** Ticks the worker until the given jobs are terminal (or the tick budget runs out). */
+async function drainUntilTerminal(dedupeKeys: string[], maxTicks = 4): Promise<Record<string, string>> {
+  const outcomes: Record<string, string> = {};
+  for (let i = 0; i < maxTicks; i++) {
+    const res = await tick();
+    equals(res.status, 200, 'worker tick status');
+    for (const r of (res.json as { results?: { job_id: string; outcome: string }[] }).results ?? []) {
+      outcomes[r.job_id] = r.outcome;
+    }
+    const ids = await Promise.all(dedupeKeys.map((k) => jobIdByKey(k)));
+    const rows = await Promise.all(ids.filter((x): x is string => x !== null).map((id) => jobRowById(id)));
+    if (rows.length === dedupeKeys.length && rows.every((r) => r && r.status !== 'pending' && r.status !== 'leased')) break;
+  }
+  return outcomes;
+}
+
+async function jobRowById(jobId: string): Promise<{ status: string; attempt: number } | null> {
+  if (!sql) return null;
+  const rows = await sql<{ status: string; attempt: number }[]>`
+    SELECT status, attempt FROM outbox_jobs WHERE id = ${jobId} LIMIT 1`;
+  return rows[0] ?? null;
 }
 
 async function createEvent(opts: {
@@ -1767,6 +1838,81 @@ async function modeJ(): Promise<void> {
       evidence: `delivery_attempts: ${declinedKey} → ${declined.state}/${declined.code}; ${withdrawnNoticeKey} → ${withdrawn.state}/${withdrawn.code}`,
     };
   });
+
+  await check('J11', 'J', 'email-канал уведомлений: выбор канала и подавление', 'без привязки + email + согласие → email (не no_channel); с активной привязкой → telegram (email не используется); email без согласия → suppressed:consent_revoked; адрес не хранится в джобе', async () => {
+    // Three fixtures with a CLAIMED registration email in event A:
+    //   mailOnly      — no binding,  email, consent            → email
+    //   mailBound     — active binding, email, consent         → telegram (priority)
+    //   mailNoConsent — no binding,  email, NO consent         → suppressed:consent_revoked
+    const alpha = users.get('alpha')!;
+    const mailOnly = await ensureFixtureUser('mailecho', `${MARK}MailEcho`, { interests: ['ai-ml'] });
+    const mailBound = await ensureFixtureUser('mailfox', `${MARK}MailFox`, { interests: ['ai-ml'] });
+    const mailNoConsent = await ensureFixtureUser('mailrate', `${MARK}MailRate`, { interests: ['ai-ml'] });
+    for (const u of [mailOnly, mailBound, mailNoConsent]) await ensureEventMember(u, F.eventA);
+
+    const addressOf: Record<string, string> = {};
+    for (const u of [mailOnly, mailBound, mailNoConsent]) {
+      addressOf[u.key] = await attachRegisteredEmail(u, F.eventA, emailFor(u.key));
+    }
+    // The intro notices carry the GLOBAL service_channel scope (no consent_scope).
+    await grantConsent(mailOnly.accountId, 'service_channel', null);
+    await grantConsent(mailBound.accountId, 'service_channel', null);
+    await sql!`DELETE FROM channel_bindings WHERE account_id = ${mailOnly.accountId} OR account_id = ${mailNoConsent.accountId}`;
+    await sql!`
+      INSERT INTO channel_bindings (account_id, provider, external_id, state)
+      VALUES (${mailBound.accountId}, 'telegram', ${`matrix-mailfox-${rand(4)}`}, 'active')
+      ON CONFLICT (account_id, provider) DO UPDATE SET external_id = EXCLUDED.external_id, state = 'active'`;
+
+    const s = await userSession(alpha);
+    const keys: Record<string, string> = {};
+    for (const u of [mailOnly, mailBound, mailNoConsent]) {
+      const res = await s.post('/api/introductions', { target_profile_id: u.profileId, event_id: F.eventA });
+      equals(res.status, 200, `intro to ${u.key} status`);
+      const introId = (res.json as { introduction?: { id: string } }).introduction!.id;
+      keys[u.key] = `intro_requested:${introId}:${u.accountId}`;
+    }
+
+    const outcomes = await drainUntilTerminal([keys['mailecho']!, keys['mailfox']!, keys['mailrate']!]);
+    const outcomeOf = async (key: string): Promise<string> => {
+      const id = await jobIdByKey(keys[key]!);
+      must(id !== null, `job ${key} missing`);
+      const jobId = id as string;
+      return outcomes[jobId] ?? `${(await jobRowById(jobId))!.status} (tick outcome unavailable)`;
+    };
+
+    const onlyOutcome = await outcomeOf('mailecho');
+    const boundOutcome = await outcomeOf('mailfox');
+    const noConsentOutcome = await outcomeOf('mailrate');
+
+    // email chosen: either really sent, or honestly suppressed because THIS
+    // instance has no provider (RESEND_API_KEY) — never no_channel.
+    must(
+      /^sent:email/.test(onlyOutcome) || onlyOutcome === 'suppressed:channel_disabled',
+      `mailOnly outcome must be the email branch, got ${onlyOutcome}`,
+    );
+    // telegram priority: the bound recipient is never routed to email.
+    must(!boundOutcome.includes(':email'), `bound recipient must not use email, got ${boundOutcome}`);
+    must(!/suppressed:(no_channel|channel_disabled)/.test(boundOutcome), `bound recipient must not be suppressed as unreachable, got ${boundOutcome}`);
+    // consent decides before email existence is even considered.
+    equals(noConsentOutcome, 'suppressed:consent_revoked', 'email without consent');
+
+    // PII: the address never lands in the job payload.
+    const payloads = await sql!<{ payload: Record<string, unknown> }[]>`
+      SELECT payload FROM outbox_jobs WHERE dedupe_key LIKE ${`intro_requested:%:${mailOnly.accountId}`}`;
+    for (const row of payloads) {
+      must(!JSON.stringify(row.payload).includes(addressOf['mailecho']!), 'recipient email must never be stored in the job payload');
+    }
+
+    return {
+      status: 'PASS',
+      actual:
+        `mailOnly=${onlyOutcome}${RESEND_CONFIGURED ? '' : ' (провайдера у экземпляра нет — подавление честное, канал всё равно email, не no_channel)'}; ` +
+        `mailBound=${boundOutcome} (telegram приоритетнее); mailNoConsent=${noConsentOutcome}`,
+      evidence:
+        `delivery_attempts: ${keys['mailecho']} → ${onlyOutcome}; ${keys['mailfox']} → ${boundOutcome}; ${keys['mailrate']} → ${noConsentOutcome}; ` +
+        `адрес не встречается в payload джоб (проверено)`,
+    };
+  });
 }
 
 async function isPhonePrivate(user: FixtureUser): Promise<boolean> {
@@ -1881,6 +2027,7 @@ async function modeL(): Promise<void> {
 // ---------------------------------------------------------------------------
 
 let campaignId = '';
+let segmentCampaignId = '';
 
 async function modeN(): Promise<void> {
   const owner = F.owner;
@@ -2004,6 +2151,159 @@ async function modeN(): Promise<void> {
     return {
       actual: `джоба кампании для Alpha: ${before!.status} → ${after!.status}`,
       evidence: `outbox_jobs.status ${before!.status} → ${after!.status}; аккаунт остался в снимке аудитории, отправка подавлена`,
+    };
+  });
+
+  await check('N10', 'N', 'сегмент кампании отбирает только подходящих участников', 'без сегмента 2 подходящих, с сегментом need_intents=seeking-cofounder — 1; в ответе есть применённый filter', async () => {
+    const owner = F.owner;
+    const alpha = users.get('alpha')!;
+    const bravo = users.get('bravo')!;
+    // The check owns its consent state: mode L revoked Alpha's market-ing grant
+    // on purpose earlier in the run, so both members are granted HERE. Only
+    // Alpha carries the intent axis the segment selects on.
+    await grantConsent(alpha.accountId, 'organizer_marketing', F.eventA);
+    await grantConsent(bravo.accountId, 'organizer_marketing', F.eventA);
+
+    const s = await userSession(owner);
+    const createRes = await s.post('/api/organizer/campaigns', {
+      event_id: F.eventA,
+      purpose: 'organizer_marketing',
+      body_text: `${MARK} segmented campaign`,
+      audience_filter: { need_intents: ['seeking-cofounder'] },
+    });
+    equals(createRes.status, 201, 'segmented campaign create status');
+    segmentCampaignId = (createRes.json as { campaign?: { id: string } }).campaign!.id;
+    created.campaigns.push(segmentCampaignId);
+
+    const full = await s.get(`/api/organizer/campaigns/${segmentCampaignId}/audience?need_intents=&offer_intents=&interests=&job_function=&industry=`);
+    equals(full.status, 200, 'audience without segment');
+    const fullBody = full.json as { audience?: { count: number; segment: boolean } };
+    const segmented = await s.get(`/api/organizer/campaigns/${segmentCampaignId}/audience`);
+    equals(segmented.status, 200, 'audience with segment');
+    const segmentBody = segmented.json as { audience?: { count: number; segment: boolean; filter: Record<string, unknown>; sample: { display_name: string }[] } };
+
+    const fullCount = fullBody.audience?.count ?? 0;
+    const segmentCount = segmentBody.audience?.count ?? 0;
+    must(
+      fullCount >= 2,
+      `expected >= 2 eligible without a segment, got ${fullCount}: ${clip(JSON.stringify(full.json), 220)}`,
+    );
+    equals(segmentBody.audience?.segment, true, 'segment flag');
+    equals(segmentCount, 1, 'only the member with the selected intent');
+    must(segmentCount < fullCount, 'the segment must narrow the audience');
+    equals((segmentBody.audience?.filter as { need_intents?: string[] }).need_intents?.[0], 'seeking-cofounder', 'filter echoed');
+    must(
+      segmentBody.audience!.sample.every((x) => x.display_name !== bravo.displayName),
+      'the non-matching member must not appear in the sample',
+    );
+    return {
+      actual: `без сегмента ${fullCount} → с сегментом ${segmentCount} (${segmentBody.audience!.sample.map((x) => x.display_name).join(', ')})`,
+      evidence: `${ev(full, 'audience')} | ${ev(segmented, 'audience')}`,
+    };
+  });
+
+  await check('N11', 'N', 'сегмент кампании: счётчик превью == число созданных джоб при send', 'audience_count при approve = count превью = queued при send', async () => {
+    const s = await userSession(F.owner);
+    const preview = await s.get(`/api/organizer/campaigns/${segmentCampaignId}/audience`);
+    equals(preview.status, 200, 'preview status');
+    const previewCount = (preview.json as { audience?: { count: number } }).audience!.count;
+
+    const approve = await s.post(`/api/organizer/campaigns/${segmentCampaignId}/approve`);
+    equals(approve.status, 200, 'approve status');
+    const audienceCount = (approve.json as { audience_count?: number }).audience_count!;
+    equals(audienceCount, previewCount, 'approve froze the segmented audience');
+
+    const snapshot = await sql!<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM campaign_audience WHERE campaign_id = ${segmentCampaignId}`;
+    equals(snapshot[0]!.count, previewCount, 'snapshot size');
+
+    const send = await s.post(`/api/organizer/campaigns/${segmentCampaignId}/send`);
+    equals(send.status, 202, 'send status');
+    const queued = (send.json as { queued?: number }).queued!;
+    equals(queued, previewCount, 'queued == preview count');
+
+    const jobs = await sql!<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM outbox_jobs
+      WHERE kind = 'campaign_message' AND payload->>'campaign_id' = ${segmentCampaignId}`;
+    equals(jobs[0]!.count, previewCount, 'jobs created == preview count');
+    return {
+      actual: `preview=${previewCount}, approve audience_count=${audienceCount}, snapshot=${snapshot[0]!.count}, queued=${queued}, джоб=${jobs[0]!.count}`,
+      evidence: `${ev(preview, 'audience')} | ${ev(approve, 'audience_count')} | ${ev(send, 'queued', 'state')}`,
+    };
+  });
+
+  await check('N12', 'N', 'сегмент кампании: невалидный каталог-ид → 400 (ничего не расширяется)', 'create/edit/override с неизвестным id → 400 invalid_*', async () => {
+    const s = await userSession(F.owner);
+    const badCreate = await s.post('/api/organizer/campaigns', {
+      event_id: F.eventA,
+      purpose: 'service_channel',
+      body_text: `${MARK} bad segment`,
+      audience_filter: { interests: ['not-a-topic'] },
+    });
+    equals(badCreate.status, 400, 'create with an unknown interest id');
+    const badOverride = await s.get(`/api/organizer/campaigns/${segmentCampaignId}/audience?interests=not-a-topic`);
+    equals(badOverride.status, 400, 'audience override with an unknown id');
+    equals((badOverride.json as { code?: string }).code, 'invalid_audience_filter', 'override error code');
+    const badEdit = await s.patch(`/api/organizer/campaigns/${segmentCampaignId}`, { audience_filter: { industry: 'not-an-industry' } });
+    equals(badEdit.status, 400, 'edit with an unknown industry id');
+
+    const stored = await sql!<{ audience_filter: Record<string, unknown> }[]>`
+      SELECT audience_filter FROM campaigns WHERE id = ${segmentCampaignId}`;
+    equals((stored[0]!.audience_filter as { need_intents?: string[] }).need_intents?.[0], 'seeking-cofounder', 'stored segment unchanged by the rejected edits');
+    return {
+      actual: 'create → 400, override → 400 invalid_audience_filter, edit → 400; сохранённый сегмент не изменился',
+      evidence: `${ev(badCreate)} | ${ev(badOverride)} | ${ev(badEdit)}`,
+    };
+  });
+
+  await check('N13', 'N', 'воронка события: агрегаты без PII для владельца', '200 со всеми 10 метриками и by_day из 30 дней', async () => {
+    const s = await userSession(F.owner);
+    const res = await s.get(`/api/organizer/events/${F.eventA}/analytics`);
+    equals(res.status, 200, 'analytics status');
+    const analytics = (res.json as { analytics?: Record<string, unknown> }).analytics;
+    must(!!analytics, 'analytics payload missing');
+    const keys = [
+      'registrations_total', 'registrations_claimed', 'members_active', 'members_directory_visible',
+      'intros_requested', 'intros_mutual', 'intros_declined', 'reveals_total', 'notes_created',
+      'attendance_self_reported', 'by_day',
+    ];
+    for (const k of keys) must(k in analytics!, `analytics.${k} missing`);
+    for (const k of keys.slice(0, -1)) {
+      must(typeof analytics![k] === 'number', `analytics.${k} must be a number`);
+    }
+    const byDay = analytics!['by_day'] as { date: string; registrations: number; intros: number; mutual: number }[];
+    equals(byDay.length, 30, 'by_day length');
+    for (const day of byDay) {
+      must(/^\d{4}-\d{2}-\d{2}$/.test(day.date), 'by_day date format');
+      must(typeof day.registrations === 'number' && typeof day.intros === 'number' && typeof day.mutual === 'number', 'by_day counters');
+    }
+    must((analytics!['members_active'] as number) >= 1, 'event A has active members');
+    must((analytics!['intros_requested'] as number) >= 1, 'mode J created introductions in event A');
+    // Aggregates only: no participant, no contact, no note text.
+    const raw = JSON.stringify(analytics);
+    for (const leak of [users.get('alpha')!.displayName, users.get('bravo')!.displayName, '@welcome.test', 'matrix-']) {
+      must(!raw.includes(leak), `analytics must not contain "${leak}"`);
+    }
+    return {
+      actual:
+        `members_active=${analytics!['members_active']}, intros_requested=${analytics!['intros_requested']}, ` +
+        `mutual=${analytics!['intros_mutual']}, declined=${analytics!['intros_declined']}, by_day=${byDay.length} дн.`,
+      evidence: clip(JSON.stringify(analytics), 240),
+    };
+  });
+
+  await check('N14', 'N', 'воронка события: 403 для staff и чужого организатора, 401 без сессии', 'staff → 403, организатор чужого события → 403, anon → 401, несуществующий id → 403', async () => {
+    const staffRes = await (await userSession(F.staff)).get(`/api/organizer/events/${F.eventA}/analytics`);
+    equals(staffRes.status, 403, 'staff analytics');
+    const foreign = await (await userSession(F.orgB)).get(`/api/organizer/events/${F.eventA}/analytics`);
+    equals(foreign.status, 403, 'foreign organizer analytics');
+    const anonRes = await anon.get(`/api/organizer/events/${F.eventA}/analytics`);
+    equals(anonRes.status, 401, 'anonymous analytics');
+    const unknown = await (await userSession(F.owner)).get('/api/organizer/events/00000000-0000-0000-0000-000000000000/analytics');
+    equals(unknown.status, 403, 'unknown event analytics');
+    return {
+      actual: 'staff=403, чужой организатор=403, anon=401, неизвестное событие=403',
+      evidence: `${ev(staffRes)} | ${ev(foreign)} | ${ev(anonRes)} | ${ev(unknown)}`,
     };
   });
 }
