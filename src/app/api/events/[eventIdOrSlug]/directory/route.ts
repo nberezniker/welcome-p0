@@ -17,6 +17,10 @@ export const dynamic = 'force-dynamic';
  * members only. Strict field allowlist (profile_id + display fields + the three
  * taxonomy axes); no contacts, notes, emails, account ids or keywords.
  * Blocks suppress visibility in BOTH directions. directory_close_at closes it.
+ * The viewer is NEVER part of their own result, in every mode: the list is of
+ * OTHER members (recommendations already excluded self, and a card that shows
+ * you to yourself is noise — guaranteed noise in mode=interest, where the
+ * viewer trivially shares their own interests).
  *
  * Filter modes (TAXONOMY_V3.md §Search/UX):
  *   mode=all (default)   — everyone visible, optional facet filters
@@ -89,13 +93,19 @@ export async function GET(
     if (!event) return jsonError(404, 'not_found', 'Event not found');
 
     // Membership override wins over the profile default, exactly like tags.
+    // pr.id is selected so the members query can exclude the viewer's own row:
+    // a directory that lists the person reading it is not an honest list, and
+    // in mode=interest it is guaranteed noise (the viewer always shares their
+    // own interests with themselves).
     const viewerRows = await sql<{
       id: string;
+      profile_id: string;
       need_intents: string[];
       offer_intents: string[];
       interests: string[];
     }[]>`
       SELECT m.id,
+             pr.id AS profile_id,
              COALESCE(NULLIF(m.need_intents, '{}'), pr.need_intents) AS need_intents,
              COALESCE(NULLIF(m.offer_intents, '{}'), pr.offer_intents) AS offer_intents,
              COALESCE(NULLIF(m.interests, '{}'), pr.interests) AS interests
@@ -151,6 +161,7 @@ export async function GET(
       JOIN accounts a ON a.id = pr.account_id
       WHERE m.event_id = ${event.id}
         AND m.state = 'active'
+        AND pr.id <> ${viewer.profile_id}
         AND m.directory_visible = true
         AND a.status = 'active'
         AND NOT EXISTS (
