@@ -777,7 +777,7 @@ async function modeA(): Promise<void> {
       evidence: `unknown: ${ev(unknown)}\nknown(${users.get('plain')!.email}): ${ev(known)}`,
       deviation:
         unknown.status !== 200
-          ? `ожидалось {ok:true}; фактически HTTP ${unknown.status} email_send_failed — на staging-деплое почтовый транспорт в owner-test режиме, поэтому код на не-демо адрес не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.`
+          ? `ожидалось {ok:true}; фактически HTTP ${unknown.status} ${(unknown.json as { code?: string } | null)?.code ?? ''} — у экземпляра под тестом нет почтового транспорта для не-демо адреса (на staging-деплое это owner-test режим Resend, на локальном прогоне — отсутствие RESEND_API_KEY), поэтому код не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.`
           : undefined,
     };
   });
@@ -1051,9 +1051,10 @@ async function modeF(): Promise<void> {
       const res = await s.post('/api/me/enrich');
       attempts.push(`#${i + 1}: HTTP ${res.status} ${clip(redact(res.text), 90)}`);
       if (res.status === 200) {
-        const body = res.json as { draft?: unknown; sources?: unknown[]; provider?: string };
+        const body = res.json as { draft?: unknown; sources?: unknown[]; provider?: string; degraded?: boolean };
         must(body.draft !== undefined, 'draft missing');
-        return { actual: `200 draft + ${body.sources?.length ?? 0} source(s), provider=${body.provider ?? 'n/a'}`, evidence: attempts.join(' | ') };
+        const how = body.degraded ? 'degraded-черновик из профиля (провайдер не дал draft даже после повтора)' : 'черновик провайдера';
+        return { actual: `200 draft + ${body.sources?.length ?? 0} source(s), provider=${body.provider ?? 'n/a'} — ${how}`, evidence: attempts.join(' | ') };
       }
       if (i === 0) await sleep(2000);
     }
@@ -1062,7 +1063,7 @@ async function modeF(): Promise<void> {
       actual: `оба вызова не дали draft (${attempts.join(' | ')})`,
       evidence: `${attempts.join('\n')}\nлокальный repro тем же ключом: transport.enrich({displayName, company:null, industry:'ai-saas', links:[]}) → state=failed code=no_draft (9.0s); с одной ссылкой → state=ok (8.2s)`,
       deviation:
-        'живая ручка отвечает 502 enrichment_failed (retryable) за ~6.6с для профиля без собственных ссылок — 4 вызова в двух прогонах, все красные. ' +
+        'живая ручка отвечает 502 enrichment_failed (retryable) — 4 вызова в двух прогонах, все красные. ' +
         'Локальный repro тем же ключом/моделью: transport.enrich({links:[]}) → no_draft. Контроль F1b (профиль с website-ссылкой) в этом же прогоне тоже красный, ' +
         'поэтому гипотеза «виновато только отсутствие ссылок» не подтверждена — фактическая картина в BUG-3: провайдер отвечает 502 на живом деплое, код провайдера скрыт маршрутом (BUG-4).',
     };
@@ -1078,9 +1079,10 @@ async function modeF(): Promise<void> {
       const res = await s.post('/api/me/enrich');
       attempts.push(`#${i + 1}: HTTP ${res.status} ${clip(redact(res.text), 90)}`);
       if (res.status === 200) {
-        const body = res.json as { draft?: unknown; sources?: unknown[]; provider?: string };
+        const body = res.json as { draft?: unknown; sources?: unknown[]; provider?: string; degraded?: boolean };
         must(body.draft !== undefined, 'draft missing');
-        return { actual: `200 draft + ${body.sources?.length ?? 0} source(s), provider=${body.provider ?? 'n/a'}`, evidence: attempts.join(' | ') };
+        const how = body.degraded ? 'degraded-черновик из профиля' : 'черновик провайдера';
+        return { actual: `200 draft + ${body.sources?.length ?? 0} source(s), provider=${body.provider ?? 'n/a'} — ${how}`, evidence: attempts.join(' | ') };
       }
       if (i === 0) await sleep(2000);
     }
@@ -2149,15 +2151,23 @@ async function modeR(): Promise<void> {
     for (const lang of ['ru', 'es', 'en']) {
       const res = await anon.get(`/?lang=${lang}`);
       equals(res.status, 200, `?lang=${lang} status`);
-      observed.push(`?lang=${lang} → ${(res.text.match(/<html lang="([a-z]+)"/) ?? [, '?'])[1]}`);
+      const html = (res.text.match(/<html lang="([a-z]+)"/) ?? [, '?'])[1];
+      observed.push(`?lang=${lang} → ${html}`);
+      equals(html, lang, `?lang=${lang} must render in ${lang}`);
+      // The choice must be persisted for the next visit (same cookie the
+      // switcher writes), not only applied to this response.
+      const cookie = res.headers.get('set-cookie') ?? '';
+      must(new RegExp(`welcome_locale=${lang}`).test(cookie), `?lang=${lang} did not persist welcome_locale`);
     }
-    const allEnglish = observed.every((o) => o.endsWith('→ en'));
+    // An invalid value is ignored: it must not render as that locale nor write a cookie.
+    const bogus = await anon.get('/?lang=de');
+    equals(bogus.status, 200, '?lang=de status');
+    const bogusHtml = (bogus.text.match(/<html lang="([a-z]+)"/) ?? [, '?'])[1];
+    must(bogusHtml !== 'de', 'invalid ?lang=de must be ignored');
+    must(!/welcome_locale=de/.test(bogus.headers.get('set-cookie') ?? ''), 'invalid ?lang=de must not be stored');
     return {
-      status: allEnglish ? 'FAIL' : 'PASS',
-      actual: allEnglish ? `query-параметр игнорируется: ${observed.join(', ')}` : observed.join(', '),
-      evidence: `${observed.join(' | ')}; рабочая механика — cookie welcome_locale (см. R2)`,
-      deviation:
-        'язык выбирается только cookie `welcome_locale` (POST /api/locale), `?lang=` не читается нигде (проверено grep по src/app и src/lib). Задокументировано в src/i18n/README.md; в подвале есть fallback-ссылки `/?locale=xx`, которые перехватываются onClick → POST /api/locale.',
+      actual: `${observed.join(', ')}; ?lang=de → ${bogusHtml} (игнорируется, cookie не перезаписан)`,
+      evidence: `${observed.join(' | ')} | cookie welcome_locale сохранён для каждого валидного значения`,
     };
   });
 
@@ -2315,6 +2325,45 @@ interface Bug {
   recommendation?: string;
 }
 
+/** Fixes landed since the previous matrix run; rendered as its own section. */
+const FIXES: { id: string; fix: string; tests: string }[] = [
+  {
+    id: 'BUG-2',
+    fix:
+      'src/infra/cleanup.ts: новый шаг 6a удаляет claim-челленджи ровно тех registrations, которые удаляет шаг 6b (то же 30-дневное окно, батчи ORDER BY id), до любого DELETE registrations; CHECK не ослаблен, миграции не тронуты.',
+    tests:
+      'tests/integration/cleanup.test.ts «cleanup: a live claim challenge never breaks the registration batch (BUG-2 regression)» — без 6a падает с 23514, с 6a проходит; claimed/young контроль не задет, второй проход идемпотентен.',
+  },
+  {
+    id: 'BUG-3',
+    fix:
+      'Промпт требует best-effort черновик всегда (в т.ч. из собственных полей) и строго один JSON; транспорт делает РОВНО один внутренний повтор при пустом ответе/неразбираемом теле (тот же запрос, тот же бюджет токенов, общий wall-clock бюджет 30с); маршрут отвечает 200 {ok, draft, sources: [], degraded: true} детерминированным черновиком из полей профиля (industry/job_function резолвятся через каталог), а не 502.',
+    tests:
+      'tests/unit/enrichment-degraded.test.ts (повтор ровно один, восстановление на втором ответе, 429/5xx/4xx без повтора, промпт, детерминированный fallback) + tests/integration/enrichment.test.ts «provider answers without a draft twice → 200 + degraded draft» (реальный транспорт против заглушки апстрима).',
+  },
+  {
+    id: 'BUG-4',
+    fix:
+      'Оба исхода маршрута enrich теперь пишут одну структурную строку console.error (provider/state/code/retryable) — без PII, без секретов, без тел запросов; клиент по-прежнему не получает деталей провайдера.',
+    tests:
+      'tests/integration/enrichment.test.ts «a real provider failure is still a 502 with a server-side trace (BUG-4)» — строка есть, содержит code=upstream_5xx и не содержит токена, имени проекта и имени профиля.',
+  },
+  {
+    id: 'R1',
+    fix:
+      '?lang=en|ru|es на публичных страницах (/, /login, /p/*, /legal/*): src/proxy.ts валидирует параметр, форвардит x-welcome-locale и переписанный Cookie текущему рендеру (включая <html lang> в layout) и сохраняет выбор в cookie welcome_locale; невалидное значение игнорируется и не затирает сохранённую локаль. Подписанные разделы остались cookie-only.',
+    tests:
+      'tests/unit/locale-query.test.ts (резолвер + контракт прокси) + tests/e2e/smoke.spec.ts «?lang= switches the landing language and is remembered (R1)».',
+  },
+  {
+    id: 'Отклонения (API)',
+    fix:
+      'DELETE /api/me/contacts?kind=… (владелец, 400/404/200, значение никогда не эхоится) и GET /api/me (минимальная секретless-обёртка {ok, account}), которых не хватало по списку отклонений отчёта.',
+    tests:
+      'tests/integration/authz-negative.test.ts «contacts DELETE is session-scoped…» и «GET /api/me is owner-only, minimal and secretless».',
+  },
+];
+
 const BUGS: Bug[] = [
   {
     id: 'BUG-1',
@@ -2333,7 +2382,7 @@ const BUGS: Bug[] = [
   {
     id: 'BUG-2',
     severity: 'medium',
-    status: 'open',
+    status: 'fixed',
     title: 'Удаление registration с действующим claim-челленджем падает: ON DELETE SET NULL конфликтует с CHECK link_challenges_claim_shape_check',
     repro:
       'DELETE FROM registrations WHERE id = <registration с link_challenges.purpose=\'registration_claim\'>; → ERROR 23514 ' +
@@ -2342,31 +2391,36 @@ const BUGS: Bug[] = [
     evidence:
       'db/migrations/003_link_challenges_claim.sql: CHECK ((purpose=\'registration_claim\' AND registration_id IS NOT NULL AND account_id IS NULL) OR (purpose<>\'registration_claim\' AND registration_id IS NULL)); ' +
       'FK link_challenges.registration_id → registrations(id) ON DELETE SET NULL. ' +
-      'Латентный риск в src/infra/cleanup.ts шаг 6 (DELETE FROM registrations для событий, закончившихся >30 дней назад): шаг 3 удаляет только челленджи, просроченные >30 дней, поэтому «свежий» claim-челлендж старого события ломает весь батч.',
+      'Латентный риск в src/infra/cleanup.ts шаг 6 (DELETE FROM registrations для событий, закончившихся >30 дней назад): шаг 3 удаляет только челленджи, просроченные >30 дней, поэтому «свежий» claim-челлендж старого события ломает весь батч. ' +
+      'ИСПРАВЛЕНО: шаг 6a (delete link_challenges по тому же предикату, drained до конца) выполняется до 6b; CHECK сохранён, схема не менялась. ' +
+      'Регрессионный тест tests/integration/cleanup.test.ts «…(BUG-2 regression)»: без 6a — 23514 и fail, с 6a — pass; claimed/young регистрации и их челленджи не тронуты, повторный проход — no-op.',
     recommendation:
-      'Перед DELETE FROM registrations удалять связанные claim-челленджи (DELETE FROM link_challenges WHERE registration_id IN (…)) — так же сделано в purge этого скрипта; либо сменить FK на ON DELETE CASCADE.',
+      'Достаточно 6a; перевод FK на ON DELETE CASCADE не нужен (он бы молча терял привязку челленджа вместо явного удаления).',
   },
   {
     id: 'BUG-3',
     severity: 'medium',
-    status: 'open',
+    status: 'fixed',
     title: 'Живой enrichment нестабилен: 502 enrichment_failed (мода F1 красная)',
     repro:
       'POST /api/me/enrich с сессией аккаунта с профилем → 502 (code: enrichment_failed, retryable:true) за ~6.6с. Профиль БЕЗ своих ссылок — стабильно красный (4 вызова в двух прогонах). Профиль С website-ссылкой — плавающий: FAIL в двух прогонах, PASS (200 + draft) в третьем. Локальный repro тем же ключом/моделью: transport.enrich({links:[]}) → state=failed code=no_draft; transport.enrich({links:[website]}) → state=ok.',
     evidence:
-      'Код провайдера в ответ не попадает (см. BUG-4), поэтому наблюдаемый факт — 502. Локальный прогон VertexEnrichmentTransport с ключом из .env.deploy.secrets: 2 ok / 1 no_draft из 3 вызовов — ответы grounded-модели периодически не парсятся в черновик (no_draft). Итог: draft иногда приходит, но на бедном профиле — надёжно нет.',
+      'Код провайдера в ответ не попадает (см. BUG-4), поэтому наблюдаемый факт — 502. Прямое измерение живого апстрима тем же ключом/моделью (2026-09-14): HTTP 200, finishReason STOP, grounded=true, но видимых частей нет (textLen=0, thoughts 248–400 и 3307 у трёх вызовов) — то есть бюджет НЕ исчерпан, модель периодически просто возвращает пустой видимый ответ. ' +
+      'ИСПРАВЛЕНО в три слоя: (1) промпт требует best-effort черновик всегда и строго один JSON; (2) транспорт повторяет такой ответ ровно один раз с тем же бюджетом токенов (в живом прогоне повтор восстанавливает черновик); (3) если и повтор пуст, маршрут отдаёт 200 с детерминированным degraded-черновиком из полей профиля и флагом degraded:true — UI получает результат всегда, ничего не выдумано и не сохранено. ' +
+      'Тесты: tests/unit/enrichment-degraded.test.ts, tests/integration/enrichment.test.ts («provider answers without a draft twice → 200 + degraded draft»).',
     recommendation:
-      'Проверить на деплое GCP_MODEL/GCP_LOCATION (значения env скрыты) и устойчивость парсинга: no_draft = ответ grounded-модели без разбираемого JSON. Добавить серверный лог кода провайдера (BUG-4) и, при необходимости, retry/более строгий контракт ответа в промпте.',
+      'Остаточный риск честно задокументирован: сам провайдер по-прежнему стохастичен (ручной LIVE-тест ENRICHMENT_LIVE=1 может не получить draft с первого-второго раза); контракт ручки теперь от него не зависит.',
   },
   {
     id: 'BUG-4',
     severity: 'low',
-    status: 'open',
+    status: 'fixed',
     title: '502 enrichment_failed не оставляет серверного следа: код провайдера теряется',
     repro: 'Сравнить: ответ 502 без кода провайдера + отсутствие записи в Vercel runtime logs с этим кодом (проверено vercel logs).',
     evidence:
-      'src/app/api/me/enrich/route.ts: `return jsonError(502, \'enrichment_failed\', …)` без console.error и без кода (`result.code`) — при этом клиенту код и не должен отдаваться (правильно), но в логи он обязан попадать.',
-    recommendation: 'console.error(`[enrich] provider failed code=${result.code}`) перед ответом 502 — без PII и без утечки деталей клиенту.',
+      'src/app/api/me/enrich/route.ts: `return jsonError(502, \'enrichment_failed\', …)` без console.error и без кода (`result.code`) — при этом клиенту код и не должен отдаваться (правильно), но в логи он обязан попадать. ' +
+      'ИСПРАВЛЕНО: и degraded-, и failure-ветка пишут одну строку `[enrich] … provider=… state=… code=… retryable=…` (без PII, секретов и тел); тест tests/integration/enrichment.test.ts «…server-side trace (BUG-4)» проверяет наличие строки с code=upstream_5xx и отсутствие токена/имени проекта/имени профиля.',
+    recommendation: 'Готово; для алертинга по деградации искать `[enrich] degraded fallback`.',
   },
 ];
 
@@ -2497,6 +2551,12 @@ function writeReports(cleanupNotes: string[], startedAt: string, finishedAt: str
   lines.push('# USAGE MATRIX — живой прогон всех режимов');
   lines.push('');
   lines.push(`- **BASE:** ${BASE} (\`--live\`=${LIVE})`);
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/.test(BASE)) {
+    lines.push(
+      '- **Цель прогона:** локальный production-билд текущего дерева (`next start`) с теми же прод-секретами, что у деплоя (Neon, Vertex, Telegram, worker-tick). ' +
+        'Деплой в этом задании запрещён, поэтому «живой» прогон идёт против локального экземпляра, а не против staging-URL; секреты в отчёты не попадают (редакция в скрипте).',
+    );
+  }
   lines.push(`- **Прогон:** ${startedAt} → ${finishedAt}`);
   lines.push(`- **Итог:** ${summary.pass} PASS / ${summary.fail} FAIL / ${summary.skip} SKIP / ${summary.blocked} BLOCKED (всего ${summary.total})`);
   lines.push('- **Машинный отчёт:** [usage-matrix.json](usage-matrix.json)');
@@ -2513,6 +2573,15 @@ function writeReports(cleanupNotes: string[], startedAt: string, finishedAt: str
     lines.push('Сырые логи гейтов: `evidence/matrix/*.log`.');
   }
   lines.push('');
+  lines.push('## Исправления в этом прогоне');
+  lines.push('');
+  for (const f of FIXES) {
+    lines.push(`### ${f.id}`);
+    lines.push('');
+    lines.push(`- **Фикс:** ${cell(f.fix)}`);
+    lines.push(`- **Тесты:** ${cell(f.tests)}`);
+    lines.push('');
+  }
   lines.push('## Найденные баги');
   lines.push('');
   for (const b of BUGS) {
