@@ -1,5 +1,14 @@
 import type { Sql, TransactionSql } from 'postgres';
 import type { OrganizerRole } from './organizer';
+import type { Validated } from './profile';
+import {
+  validateIndustry,
+  validateInterests,
+  validateJobFunction,
+  validateNeedIntents,
+  validateOfferIntents,
+} from './taxonomy';
+import type { Validation } from './taxonomy';
 
 /** Campaign row projection used by the organizer routes. */
 export interface CampaignRow {
@@ -69,6 +78,96 @@ export interface CampaignCreateInput {
   eventId: string;
   purpose: CampaignPurpose;
   bodyText: string;
+  audienceFilter: AudienceFilter;
+}
+
+// ---------------------------------------------------------------------------
+// Audience segments (audience_filter)
+// ---------------------------------------------------------------------------
+
+/**
+ * Which participants a campaign reaches, expressed in the taxonomy v3 axes.
+ *
+ * Every axis is OPTIONAL and an empty value means "no constraint": empty arrays
+ * and null facets are dropped from the predicate, so the default filter (`{}`)
+ * keeps the pre-segment behaviour — every eligible member of the event.
+ *
+ * Semantics per axis (mirroring the event directory, which reads the same axes
+ * with the same membership-overrides-profile rule):
+ *   - array axes: keep members whose EFFECTIVE value OVERLAPS the selection
+ *     ("has any of these");
+ *   - facet axes: keep members whose EFFECTIVE value EQUALS the selection.
+ *
+ * The `index signature` keeps unknown keys from older/newer clients intact
+ * instead of rejecting the payload: the registry is additive, and the SQL only
+ * ever reads the five known keys.
+ */
+export interface AudienceFilter {
+  need_intents: string[];
+  offer_intents: string[];
+  interests: string[];
+  job_function: string | null;
+  industry: string | null;
+  [key: string]: unknown;
+}
+
+export const AUDIENCE_FILTER_KEYS = ['need_intents', 'offer_intents', 'interests', 'job_function', 'industry'] as const;
+
+export function emptyAudienceFilter(): AudienceFilter {
+  return { need_intents: [], offer_intents: [], interests: [], job_function: null, industry: null };
+}
+
+/** True when the filter constrains nothing (an empty segment = everyone eligible). */
+export function audienceFilterIsEmpty(filter: AudienceFilter): boolean {
+  return (
+    filter.need_intents.length === 0 &&
+    filter.offer_intents.length === 0 &&
+    filter.interests.length === 0 &&
+    filter.job_function === null &&
+    filter.industry === null
+  );
+}
+
+/**
+ * Validates and normalizes an `audience_filter` body field. Every id must exist
+ * in the taxonomy v3 catalogue (the catalogue is the single source of truth for
+ * the vocabulary), arrays are deduped, and `prefer-not-to-say` normalizes to
+ * "no constraint" exactly as it does on a profile.
+ *
+ * Unknown keys are preserved verbatim rather than rejected — the column is
+ * additive by design.
+ */
+export function validateAudienceFilter(raw: unknown): Validated<AudienceFilter> {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return { ok: false, code: 'invalid_audience_filter', message: 'audience_filter must be an object' };
+  }
+  const b = raw as Record<string, unknown>;
+  const checks: [string, Validation<string[]> | Validation<string | null>][] = [
+    ['need_intents', validateNeedIntents(b['need_intents'])],
+    ['offer_intents', validateOfferIntents(b['offer_intents'])],
+    ['interests', validateInterests(b['interests'])],
+    ['job_function', validateJobFunction(b['job_function'])],
+    ['industry', validateIndustry(b['industry'])],
+  ];
+  const filter = emptyAudienceFilter();
+  for (const [key, result] of checks) {
+    if (!result.ok) return { ok: false, code: result.code, message: result.message };
+    (filter as Record<string, unknown>)[key] = result.value;
+  }
+  for (const [key, value] of Object.entries(b)) {
+    if (!(AUDIENCE_FILTER_KEYS as readonly string[]).includes(key)) filter[key] = value;
+  }
+  return { ok: true, value: filter };
+}
+
+/**
+ * Reads a stored `audience_filter` (jsonb) back into the typed shape. Defensive:
+ * a row written before a key existed — or by hand — must degrade to "no
+ * constraint on that axis", never to a 500 on the audience endpoint.
+ */
+export function normalizeAudienceFilter(raw: unknown): AudienceFilter {
+  const parsed = validateAudienceFilter(raw);
+  return parsed.ok ? parsed.value : emptyAudienceFilter();
 }
 
 export function validateCampaignCreate(body: unknown): { ok: true; value: CampaignCreateInput } | { ok: false; code: string; message: string } {
@@ -87,13 +186,19 @@ export function validateCampaignCreate(body: unknown): { ok: true; value: Campai
   if (bodyText.length < 1 || bodyText.length > BODY_MAX) {
     return { ok: false, code: 'invalid_body_text', message: `body_text must be 1..${BODY_MAX} chars` };
   }
-  return { ok: true, value: { eventId: b['event_id'], purpose: b['purpose'], bodyText } };
+  let audienceFilter = emptyAudienceFilter();
+  if (b['audience_filter'] !== undefined) {
+    const parsed = validateAudienceFilter(b['audience_filter']);
+    if (!parsed.ok) return parsed;
+    audienceFilter = parsed.value;
+  }
+  return { ok: true, value: { eventId: b['event_id'], purpose: b['purpose'], bodyText, audienceFilter } };
 }
 
 export interface CampaignEditInput {
   purpose?: CampaignPurpose;
   bodyText?: string;
-  audienceFilter?: Record<string, unknown>;
+  audienceFilter?: AudienceFilter;
 }
 
 export function validateCampaignEdit(body: unknown): { ok: true; value: CampaignEditInput } | { ok: false; code: string; message: string } {
@@ -123,7 +228,9 @@ export function validateCampaignEdit(body: unknown): { ok: true; value: Campaign
     if (JSON.stringify(b['audience_filter']).length > AUDIENCE_FILTER_MAX_BYTES) {
       return { ok: false, code: 'invalid_audience_filter', message: `audience_filter must serialize to ≤ ${AUDIENCE_FILTER_MAX_BYTES} bytes` };
     }
-    value.audienceFilter = b['audience_filter'] as Record<string, unknown>;
+    const filter = validateAudienceFilter(b['audience_filter']);
+    if (!filter.ok) return filter;
+    value.audienceFilter = filter.value;
   }
   if (value.purpose === undefined && value.bodyText === undefined && value.audienceFilter === undefined) {
     return { ok: false, code: 'empty_edit', message: 'at least one of purpose, body_text, audience_filter is required' };
@@ -184,16 +291,23 @@ export interface AudienceMember {
  * members with an open (unresolved) report — "reported-quarantined" — minus
  * explicitly revoked/blocked channel bindings. Members with NO binding stay
  * eligible: at send time their jobs are suppressed with code 'no_channel'
- * (documented P0 behaviour, not emailed).
+ * (documented P0 behaviour) or delivered by email (ADR 0011).
  *
  * organizer_marketing additionally requires directory_visible (privacy:
  * marketing reaches only members who opted into visibility); service_channel
  * does not.
+ *
+ * `filter` narrows the audience further to a saved segment (audience_filter).
+ * Each axis is applied only when it constrains something, and the ACTIVE axes
+ * are ANDed together; within an array axis the match is an overlap ("any of").
+ * The effective value of every axis follows the directory rule — the
+ * membership value wins when it is set, otherwise the profile value.
  */
 export async function currentEligibleAudience(
   sql: Sql | TransactionSql,
-  params: { eventId: string; purpose: CampaignPurpose; senderAccountId: string },
+  params: { eventId: string; purpose: CampaignPurpose; senderAccountId: string; filter?: AudienceFilter },
 ): Promise<AudienceMember[]> {
+  const filter = params.filter ?? emptyAudienceFilter();
   return sql<AudienceMember[]>`
     SELECT pr.account_id, pr.id AS profile_id, pr.display_name
     FROM event_memberships m
@@ -221,6 +335,26 @@ export async function currentEligibleAudience(
       AND NOT EXISTS (
         SELECT 1 FROM channel_bindings cb
         WHERE cb.account_id = a.id AND cb.provider = 'telegram' AND cb.state IN ('revoked', 'blocked')
+      )
+      AND (
+        ${filter.need_intents}::text[] = '{}'
+        OR COALESCE(NULLIF(m.need_intents, '{}'), pr.need_intents) && ${filter.need_intents}::text[]
+      )
+      AND (
+        ${filter.offer_intents}::text[] = '{}'
+        OR COALESCE(NULLIF(m.offer_intents, '{}'), pr.offer_intents) && ${filter.offer_intents}::text[]
+      )
+      AND (
+        ${filter.interests}::text[] = '{}'
+        OR COALESCE(NULLIF(m.interests, '{}'), pr.interests) && ${filter.interests}::text[]
+      )
+      AND (
+        ${filter.job_function}::text IS NULL
+        OR COALESCE(m.job_function, pr.job_function) = ${filter.job_function}
+      )
+      AND (
+        ${filter.industry}::text IS NULL
+        OR COALESCE(m.industry, pr.industry) = ${filter.industry}
       )
     ORDER BY pr.display_name ASC, pr.id ASC
   `;

@@ -3,7 +3,12 @@ import { getSql } from '../../../../../../lib/db';
 import { requireAccount, requireMfaFresh } from '../../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, withApi } from '../../../../../../lib/http';
 import { recordAudit } from '../../../../../../lib/audit';
-import { canSend, currentEligibleAudience, loadCampaignWithRole } from '../../../../../../domain/campaigns';
+import {
+  canSend,
+  currentEligibleAudience,
+  loadCampaignWithRole,
+  normalizeAudienceFilter,
+} from '../../../../../../domain/campaigns';
 import { enqueueOutbox } from '../../../../../../infra/outbox';
 
 /**
@@ -40,11 +45,14 @@ async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: s
       return jsonError(409, 'not_approved', 'Campaign must be approved with the current content revision before sending');
     }
 
-    // Live re-validation of the frozen snapshot (AC-41).
+    // Live re-validation of the frozen snapshot (AC-41), with the campaign's
+    // saved segment applied: consent, blocks, bindings AND the audience_filter
+    // are all read from the live row at this moment, never from the snapshot.
     const stillEligible = await currentEligibleAudience(sql, {
       eventId: campaign.event_id,
       purpose: campaign.purpose,
       senderAccountId: auth.accountId,
+      filter: normalizeAudienceFilter(campaign.audience_filter),
     });
     const eligibleIds = new Set(stillEligible.map((m) => m.account_id));
     const snapshot = await sql<{ account_id: string }[]>`

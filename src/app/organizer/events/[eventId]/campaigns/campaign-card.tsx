@@ -4,6 +4,9 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Modal, Toast, useToast } from '../../../../../components/modal';
 import { fill } from '../../../../../components/fill';
+import type { TaxonomyCatalog, UiLocale } from '../../../../../domain/picker';
+import type { AudienceFilter } from '../../../../../domain/campaigns';
+import { SegmentPicker, type SegmentStrings } from './segment-picker';
 
 export interface CampaignItem {
   id: string;
@@ -12,6 +15,7 @@ export interface CampaignItem {
   content_revision: number;
   approved_revision: number | null;
   body_text: string | null;
+  audience_filter: AudienceFilter;
 }
 
 type StatsCounters = {
@@ -43,6 +47,9 @@ type Strings = {
   audienceCountTemplate: string;
   audienceEmpty: string;
   audienceNote: string;
+  segment: SegmentStrings;
+  segmentPreview: string;
+  segmentCountTemplate: string;
   approve: string;
   approvedTemplate: string;
   send: string;
@@ -64,20 +71,34 @@ type Strings = {
   mfaVerifying: string;
 };
 
-type AudienceData = { count: number; channel_ready: number; sample: { display_name: string }[] };
+type AudienceData = {
+  count: number;
+  channel_ready: number;
+  sample: { display_name: string }[];
+  filter?: AudienceFilter;
+  segment?: boolean;
+};
 
 /** One campaign card: edit (resets approval), audience preview, approve (owner), send with confirm, live stats. */
 export function CampaignCard({
   campaign,
   isOwner,
+  catalog,
+  locale,
   strings,
 }: {
   campaign: CampaignItem;
   isOwner: boolean;
+  catalog: TaxonomyCatalog;
+  locale: UiLocale;
   strings: Strings;
 }) {
   const router = useRouter();
   const [body, setBody] = useState(campaign.body_text ?? '');
+  // The segment is edited as local state and only persisted on save; the preview
+  // sizes the UNSAVED selection (query overrides) so the organizer can try a
+  // segment before writing it to the campaign.
+  const [segment, setSegment] = useState<AudienceFilter>(campaign.audience_filter);
   const [editing, setEditing] = useState(false);
   const [audience, setAudience] = useState<AudienceData | null>(null);
   const [stats, setStats] = useState<{ counters: StatsCounters; outcome_codes: { state: string; code: string; count: number }[]; state: string } | null>(null);
@@ -109,8 +130,21 @@ export function CampaignCard({
     }
   };
 
-  const loadAudience = async () => {
-    const res = await call(`/api/organizer/campaigns/${campaign.id}/audience`);
+  /** Query string for an unsaved segment: every axis is ALWAYS sent, so an
+   * emptied selection means "no segment" instead of falling back to the stored one. */
+  const segmentQuery = (filter: AudienceFilter): string => {
+    const sp = new URLSearchParams();
+    sp.set('need_intents', filter.need_intents.join(','));
+    sp.set('offer_intents', filter.offer_intents.join(','));
+    sp.set('interests', filter.interests.join(','));
+    sp.set('job_function', filter.job_function ?? '');
+    sp.set('industry', filter.industry ?? '');
+    return sp.toString();
+  };
+
+  const loadAudience = async (withFormSegment = false) => {
+    const query = withFormSegment ? `?${segmentQuery(segment)}` : '';
+    const res = await call(`/api/organizer/campaigns/${campaign.id}/audience${query}`);
     if (!res) return;
     const payload = (await res.json().catch(() => null)) as { audience?: AudienceData } | null;
     if (res.ok && payload?.audience) setAudience(payload.audience);
@@ -125,16 +159,20 @@ export function CampaignCard({
     const res = await call(`/api/organizer/campaigns/${campaign.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ body_text: body }),
+      // AC-40: editing the body OR the segment bumps the content revision and
+      // drops a prior approval — the segment decides who receives the message.
+      body: JSON.stringify({ body_text: body, audience_filter: segment }),
     });
-    if (res && res.ok) {
+    if (!res) return;
+    if (res.ok) {
       setEditing(false);
       setNote(null);
       setAudience(null);
       toast.show(strings.savedToast);
       router.refresh();
-    } else if (res) {
-      setError(strings.errorGeneric);
+    } else {
+      const payload = (await res.json().catch(() => null)) as { message?: string } | null;
+      setError(payload?.message ?? strings.errorGeneric);
     }
   };
 
@@ -267,9 +305,32 @@ export function CampaignCard({
                 maxLength={4000}
                 onChange={(e) => setBody(e.target.value)}
               />
-              <div className="mt-2 flex gap-2">
-                <button type="button" className="btn-primary btn-small" disabled={busy} onClick={() => void doEdit()}>
+              <SegmentPicker
+                catalog={catalog}
+                locale={locale}
+                value={segment}
+                onChange={setSegment}
+                strings={strings.segment}
+                testId={`segment-${campaign.id}`}
+              />
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="btn-primary btn-small"
+                  disabled={busy}
+                  onClick={() => void doEdit()}
+                  data-testid={`campaign-save-${campaign.id}`}
+                >
                   {busy ? strings.saving : strings.save}
+                </button>
+                <button
+                  type="button"
+                  className="btn-light btn-small"
+                  disabled={busy}
+                  onClick={() => void loadAudience(true)}
+                  data-testid={`campaign-segment-preview-${campaign.id}`}
+                >
+                  {strings.segmentPreview}
                 </button>
                 <button type="button" className="btn-light btn-small" onClick={() => setEditing(false)}>
                   {strings.cancel}
@@ -310,6 +371,11 @@ export function CampaignCard({
       {audience ? (
         <div className="mt-3 rounded-xl bg-paper p-3 text-sm" data-testid={`audience-${campaign.id}`}>
           <p className="font-semibold">{fill(strings.audienceCountTemplate, { count: audience.count, channelReady: audience.channel_ready })}</p>
+          {audience.segment ? (
+            <p className="mt-1 font-semibold" data-testid={`audience-segment-${campaign.id}`}>
+              {fill(strings.segmentCountTemplate, { count: audience.count, channelReady: audience.channel_ready })}
+            </p>
+          ) : null}
           <p className="mt-1 text-xs text-muted">{strings.audienceNote}</p>
         </div>
       ) : null}

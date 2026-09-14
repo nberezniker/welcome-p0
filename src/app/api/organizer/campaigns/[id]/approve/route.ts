@@ -3,7 +3,11 @@ import { getSql } from '../../../../../../lib/db';
 import { requireAccount, requireMfaFresh } from '../../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, withApi } from '../../../../../../lib/http';
 import { recordAudit } from '../../../../../../lib/audit';
-import { currentEligibleAudience, loadCampaignWithRole } from '../../../../../../domain/campaigns';
+import {
+  currentEligibleAudience,
+  loadCampaignWithRole,
+  normalizeAudienceFilter,
+} from '../../../../../../domain/campaigns';
 
 /**
  * POST /api/organizer/campaigns/[id]/approve — OWNER ONLY (staff AND admin →
@@ -43,10 +47,14 @@ async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: s
 
     const result = await sql.begin(async (tx) => {
       // Sender for block checks = the approving owner (the organizer persona).
+      // The frozen snapshot is the SEGMENTED audience: the campaign's
+      // audience_filter narrows the freeze exactly as it narrows the preview
+      // and the send-time re-validation.
       const audience = await currentEligibleAudience(tx, {
         eventId: campaign.event_id,
         purpose: campaign.purpose,
         senderAccountId: auth.accountId,
+        filter: normalizeAudienceFilter(campaign.audience_filter),
       });
 
       // Frozen snapshot: full replace on every approve.
