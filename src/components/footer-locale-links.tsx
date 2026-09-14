@@ -12,8 +12,10 @@ export function FooterLocaleLinks({
   links: { locale: string; label: string }[];
   label: string;
 }) {
+  // A labelled NAV, not a labelled div: `aria-label` is prohibited on a generic
+  // element (axe aria-prohibited-attr), and this genuinely is a navigation group.
   return (
-    <div className="mt-1 flex gap-2" aria-label={label}>
+    <nav className="mt-1 flex gap-2" aria-label={label}>
       {links.map((l) => (
         <a
           key={l.locale}
@@ -35,6 +37,6 @@ export function FooterLocaleLinks({
           {l.label}
         </a>
       ))}
-    </div>
+    </nav>
   );
 }

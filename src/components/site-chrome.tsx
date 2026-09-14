@@ -113,13 +113,18 @@ export function SiteFooter({
               {repoLabel}
             </a>
           ) : null}
-          <div className="mt-1 flex gap-2" aria-label="Locale links">
-            {localeLinks.map((l) => (
-              <a key={l.locale} href={l.href} lang={l.locale} className="underline underline-offset-2 hover:text-ink">
-                {l.label}
-              </a>
-            ))}
-          </div>
+          {/* Only rendered when there IS something to navigate: an empty labelled
+              element is both meaningless and an axe aria-prohibited-attr finding
+              (aria-label is not permitted on a generic div). */}
+          {localeLinks.length > 0 ? (
+            <nav className="mt-1 flex gap-2" aria-label="Locale links">
+              {localeLinks.map((l) => (
+                <a key={l.locale} href={l.href} lang={l.locale} className="underline underline-offset-2 hover:text-ink">
+                  {l.label}
+                </a>
+              ))}
+            </nav>
+          ) : null}
         </div>
       </div>
     </footer>

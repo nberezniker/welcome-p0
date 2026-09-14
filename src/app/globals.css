@@ -3,13 +3,18 @@
 /* WELCOME design tokens — ported from the reference landing visual language
  * (reference-landing/styles.css): ink/muted text on paper, coral accent, mint
  * highlights, soft rounded cards. Utilities: bg-ink, text-muted, border-line,
- * bg-accent, text-accent, bg-mint, text-pine, bg-paper, bg-accent-pale, etc. */
+ * bg-accent, text-accent, bg-mint, text-pine, bg-paper, bg-accent-pale, etc.
+ *
+ * `--color-accent` is one step darker than the reference coral (#d84932) so it
+ * clears WCAG AA (4.5:1) in BOTH directions it is actually used: white text on
+ * an accent button, and accent text on white/paper. The original shade measured
+ * 4.27:1 — a real contrast failure, not a rounding difference. */
 @theme {
   --color-ink: #18241f;
   --color-muted: #59665e;
   --color-paper: #f5f4ee;
   --color-line: #dce0d6;
-  --color-accent: #d84932;
+  --color-accent: #c93d26;
   --color-accent-pale: #fff0e9;
   --color-pine: #284d3d;
   --color-mint: #e6efe4;

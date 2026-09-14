@@ -21,6 +21,7 @@
     "scan:secrets": "node --env-file-if-exists=.env.local scripts/scan-secrets.mjs",
     "audit:deps": "pnpm audit --prod --audit-level high",
     "test:e2e": "playwright test",
+    "test:a11y": "playwright test tests/e2e/a11y.spec.ts",
     "drill:defect": "node --env-file-if-exists=.env.local scripts/defect-drill.mjs",
     "load:smoke": "node --env-file-if-exists=.env.local scripts/load-smoke.mjs"
   },
@@ -41,6 +42,7 @@
     }
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.1.13",
     "@types/node": "^22.18.0",
