@@ -2348,14 +2348,13 @@ const BUGS: Bug[] = [
     id: 'BUG-3',
     severity: 'medium',
     status: 'open',
-    title: 'Живой enrichment отдаёт 502 enrichment_failed (мода F красная)',
+    title: 'Живой enrichment нестабилен: 502 enrichment_failed (мода F1 красная)',
     repro:
-      'POST /api/me/enrich с сессией аккаунта у которого есть профиль → 502 (code: enrichment_failed, retryable:true) за ~6.6с (4 вызова: профиль без ссылок и профиль с website-ссылкой). ' +
-      'Локально тем же ключом/моделью transport.enrich(...) возвращает: links=[] → state=failed code=no_draft; links=[website] → state=ok draft.',
+      'POST /api/me/enrich с сессией аккаунта с профилем → 502 (code: enrichment_failed, retryable:true) за ~6.6с. Профиль БЕЗ своих ссылок — стабильно красный (4 вызова в двух прогонах). Профиль С website-ссылкой — плавающий: FAIL в двух прогонах, PASS (200 + draft) в третьем. Локальный repro тем же ключом/моделью: transport.enrich({links:[]}) → state=failed code=no_draft; transport.enrich({links:[website]}) → state=ok.',
     evidence:
-      'Скрытая причина: маршрут не логирует код провайдера (см. BUG-4), поэтому виден только 502. Локальный прогон VertexEnrichmentTransport с ключом из .env.deploy.secrets: 2 ok / 1 no_draft из 3 вызовов — то есть ответы модели периодически не парсятся в черновик (no_draft), а на живом деплое это происходит на 4/4 вызовах.',
+      'Код провайдера в ответ не попадает (см. BUG-4), поэтому наблюдаемый факт — 502. Локальный прогон VertexEnrichmentTransport с ключом из .env.deploy.secrets: 2 ok / 1 no_draft из 3 вызовов — ответы grounded-модели периодически не парсятся в черновик (no_draft). Итог: draft иногда приходит, но на бедном профиле — надёжно нет.',
     recommendation:
-      'Проверить на деплое GCP_MODEL/GCP_LOCATION (env-значения скрыты) и устойчивость парсинга ответа: no_draft = ответ grounded-модели не содержит разбираемого JSON. Добавить серверный лог кода провайдера (BUG-4).',
+      'Проверить на деплое GCP_MODEL/GCP_LOCATION (значения env скрыты) и устойчивость парсинга: no_draft = ответ grounded-модели без разбираемого JSON. Добавить серверный лог кода провайдера (BUG-4) и, при необходимости, retry/более строгий контракт ответа в промпте.',
   },
   {
     id: 'BUG-4',
@@ -2388,8 +2387,14 @@ async function purgeMatrix(): Promise<string[]> {
   must(hashes.length > 0, 'no fixture email hashes: HASH_PEPPER missing');
 
   const accountRows = await sql<{ id: string }[]>`
-    SELECT id FROM accounts
-    WHERE email_lookup_hash = ANY(${hashes}) OR auth_subject LIKE 'matrix:%'`;
+    SELECT DISTINCT a.id FROM accounts a
+    LEFT JOIN profiles p ON p.account_id = a.id
+    WHERE a.email_lookup_hash = ANY(${hashes})
+       OR a.auth_subject LIKE 'matrix:%'
+       -- Soft-deleted fixtures: mode M2 runs the REAL DELETE /api/me, which NULLs
+       -- email_lookup_hash and rewrites auth_subject to 'deleted:<id>' — the public
+       -- slug is then the only remaining marker.
+       OR p.public_slug LIKE 'matrix-%'`;
   const accountIds = accountRows.map((r) => r.id);
 
   if (accountIds.length) {
