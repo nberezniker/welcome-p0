@@ -189,6 +189,79 @@ test('cleanup: deleting accounts past grace are purged — user rows gone, conse
   assert.equal(controlState[0]!.status, 'deleting');
 });
 
+test('cleanup: a live claim challenge never breaks the registration batch (BUG-2 regression)', async () => {
+  // Repro of the 2026-09-14 usage-matrix finding: link_challenges.registration_id
+  // is ON DELETE SET NULL while link_challenges_claim_shape_check demands
+  // registration_id NOT NULL for purpose='registration_claim'. Deleting the
+  // registration first raised 23514 and aborted the whole cleanup pass.
+  const sql = getSql();
+  const org = await sql<{ id: string }[]>`
+    INSERT INTO organizers (display_name) VALUES ('Claim Cleanup Org') RETURNING id
+  `;
+  const oldEvent = await sql<{ id: string }[]>`
+    INSERT INTO events (organizer_id, slug, name, status, ends_at)
+    VALUES (${org[0]!.id}, ${'claim-old-' + randomUUID()}, 'Claim Old', 'completed', now() - interval '45 days')
+    RETURNING id
+  `;
+  const freshEvent = await sql<{ id: string }[]>`
+    INSERT INTO events (organizer_id, slug, name, status, ends_at)
+    VALUES (${org[0]!.id}, ${'claim-fresh-' + randomUUID()}, 'Claim Fresh', 'active', now() - interval '1 day')
+    RETURNING id
+  `;
+  const insertReg = (eventId: string, state: string) =>
+    sql<{ id: string }[]>`
+      INSERT INTO registrations (event_id, provider, claim_state)
+      VALUES (${eventId}, 'csv', ${state}) RETURNING id
+    `;
+  const claimChallenge = (registrationId: string, token: string) =>
+    sql`
+      INSERT INTO link_challenges (account_id, purpose, registration_id, token_hash, expires_at)
+      VALUES (NULL, 'registration_claim', ${registrationId}, ${token}, now() + interval '7 days')
+    `;
+
+  // Doomed: old event, unclaimed, with a claim challenge that is NOT yet past
+  // step 3's 30-day retention (its expiry is in the future).
+  const doomed = await insertReg(oldEvent[0]!.id, 'unclaimed');
+  await claimChallenge(doomed[0]!.id, `claim-doomed-${randomUUID()}`);
+  // Kept: claimed registration of the same old event (organizer audience record).
+  const claimed = await insertReg(oldEvent[0]!.id, 'claimed');
+  await claimChallenge(claimed[0]!.id, `claim-kept-claimed-${randomUUID()}`);
+  // Kept: unclaimed, but the event ended inside the grace window.
+  const young = await insertReg(freshEvent[0]!.id, 'unclaimed');
+  await claimChallenge(young[0]!.id, `claim-young-${randomUUID()}`);
+
+  const report = await runCleanupPass({ sql }); // must not throw (no 23514)
+  assert.equal(report.registrations_unclaimed, 1, 'only the unclaimed registration of the long-ended event goes');
+
+  const gone = await sql<{ count: number }[]>`
+    SELECT
+      (SELECT count(*) FROM registrations WHERE id = ${doomed[0]!.id})::int AS registrations,
+      (SELECT count(*) FROM link_challenges WHERE registration_id = ${doomed[0]!.id})::int AS challenges
+  `;
+  assert.deepEqual(gone[0], { registrations: 0, challenges: 0 }, 'the claim challenge dies with its registration');
+
+  const survivors = await sql<{ registration_id: string | null; purpose: string }[]>`
+    SELECT lc.registration_id, lc.purpose FROM link_challenges lc
+    WHERE lc.token_hash LIKE 'claim-%'
+    ORDER BY lc.purpose
+  `;
+  assert.deepEqual(
+    survivors.map((r) => r.registration_id).sort(),
+    [claimed[0]!.id, young[0]!.id].sort(),
+    'challenges of kept registrations are untouched',
+  );
+  // The shape CHECK still holds: every surviving claim challenge keeps its registration.
+  assert.equal(survivors.every((r) => r.purpose === 'registration_claim' && r.registration_id !== null), true);
+
+  // Idempotent: a second pass has nothing left to do and cannot fail.
+  const second = await runCleanupPass({ sql });
+  assert.equal(second.registrations_unclaimed, 0, 'nothing left to purge on the second pass');
+  const keptAfter = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM link_challenges WHERE token_hash LIKE 'claim-%'
+  `;
+  assert.equal(keptAfter[0]!.count, 2, 'no further challenge is deleted by the idempotent re-run');
+});
+
 test('cleanup: runCleanupIfDue is gated to at least 6h between runs', async () => {
   const sql = getSql();
   await sql`INSERT INTO worker_heartbeat (id, beat_at, last_cleanup_at) VALUES (true, now(), null) ON CONFLICT (id) DO UPDATE SET last_cleanup_at = null`;

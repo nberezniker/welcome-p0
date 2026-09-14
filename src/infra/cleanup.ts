@@ -21,7 +21,11 @@ import { getSql } from '../lib/db';
  *                       (delivery_attempts cascade with the job)
  *   inbox_events        received_at < now() - 90 days
  *   registrations       claim_state='unclaimed' for events with
- *                       ends_at < now() - 30 days (unactivated imports)
+ *                       ends_at < now() - 30 days (unactivated imports);
+ *                       their registration_claim link_challenges are removed
+ *                       first — the FK is ON DELETE SET NULL and the claim
+ *                       shape CHECK forbids a claim challenge without its
+ *                       registration (see step 6a)
  *   accounts            status='deleting' + updated_at < now() - 7 days →
  *                       purge user rows (sessions, channel_bindings,
  *                       link_challenges, profiles → cascades contact_fields/
@@ -139,9 +143,39 @@ export async function runCleanupPass(deps: { sql?: Sql } = {}): Promise<CleanupR
     return rows.length;
   });
 
-  // 6. Unclaimed registrations for events that ended > 30 days ago — the
-  //    import was never activated. CLAIMED registrations belong to the
-  //    organizer's audience record and are kept.
+  // 6a. Claim challenges attached to the registrations step 6b is about to
+  //     delete. They MUST go first: link_challenges.registration_id is
+  //     ON DELETE SET NULL while link_challenges_claim_shape_check requires a
+  //     registration_claim row to keep registration_id NOT NULL — so deleting
+  //     the registration first raises 23514 and aborts the whole batch (found
+  //     by the usage-matrix run 2026-09-14). A challenge whose registration is
+  //     gone unlocks nothing, so removing it is the valid state; the CHECK is
+  //     never weakened. Drained to completion BEFORE any registration goes, so
+  //     the two statements cannot disagree on which rows are doomed (step 3
+  //     only removes challenges expired > 30 days — a *fresh* claim challenge
+  //     on an old event is exactly the case this step exists for).
+  await drainBatches(async () => {
+    const rows = await sql<{ id: string }[]>`
+      DELETE FROM link_challenges
+      WHERE id IN (
+        SELECT lc.id FROM link_challenges lc
+        JOIN registrations r ON r.id = lc.registration_id
+        JOIN events e ON e.id = r.event_id
+        WHERE r.claim_state = 'unclaimed'
+          AND e.ends_at IS NOT NULL
+          AND e.ends_at < now() - (${REGISTRATION_GRACE_DAYS} * interval '1 day')
+        ORDER BY lc.id
+        LIMIT ${BATCH}
+      )
+      RETURNING id
+    `;
+    return rows.length;
+  });
+
+  // 6b. Unclaimed registrations for events that ended > 30 days ago — the
+  //     import was never activated. CLAIMED registrations belong to the
+  //     organizer's audience record and are kept. No dependent claim challenge
+  //     survives 6a, so the FK's SET NULL can no longer violate the shape CHECK.
   report.registrations_unclaimed += await drainBatches(async () => {
     const rows = await sql<{ id: string }[]>`
       DELETE FROM registrations
@@ -151,6 +185,7 @@ export async function runCleanupPass(deps: { sql?: Sql } = {}): Promise<CleanupR
         WHERE r.claim_state = 'unclaimed'
           AND e.ends_at IS NOT NULL
           AND e.ends_at < now() - (${REGISTRATION_GRACE_DAYS} * interval '1 day')
+        ORDER BY r.id
         LIMIT ${BATCH}
       )
       RETURNING id
