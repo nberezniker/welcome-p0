@@ -1,12 +1,12 @@
 {
-  "base": "http://localhost:3300",
+  "base": "https://welcome-p0-nikiti4.vercel.app",
   "live": true,
-  "started_at": "2026-09-14T13:23:57.621Z",
-  "finished_at": "2026-09-14T13:27:12.071Z",
+  "started_at": "2026-09-14T13:29:52.027Z",
+  "finished_at": "2026-09-14T13:33:23.591Z",
   "summary": {
     "total": 99,
-    "pass": 98,
-    "fail": 0,
+    "pass": 96,
+    "fail": 2,
     "skip": 1,
     "blocked": 0
   },
@@ -99,11 +99,12 @@
     }
   ],
   "deviations": [
-    "A8: ожидалось {ok:true}; фактически HTTP 503 email_channel_disabled — у экземпляра под тестом нет почтового транспорта для не-демо адреса (на staging-деплое это owner-test режим Resend, на локальном прогоне — отсутствие RESEND_API_KEY), поэтому код не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.",
+    "A8: ожидалось {ok:true}; фактически HTTP 503 email_send_failed — у экземпляра под тестом нет почтового транспорта для не-демо адреса (на staging-деплое это owner-test режим Resend, на локальном прогоне — отсутствие RESEND_API_KEY), поэтому код не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.",
     "F2: квота тратилась аккаунтом без профиля (400 profile_required), чтобы не жечь живые Vertex-вызовы; порядок проверок (квота раньше профиля) подтверждён.",
     "G2: ожидание задания «403/429 после 20 попыток lockout» проверено отдельной строкой G3 на выделенном событии (lockout блокирует и верный код — совместно на одном событии не сходится).",
     "G5: позитивный контроль: Bravo/Charlie/Delta видны до интро; отсутствие пары с активным интро проверяется в J7",
     "H1: в ответе preview нет ключей `mapping` и `would_update` из задания — фактический контракт: totalRows/validEmails/invalidEmails/quarantined/duplicatesInFile/sample. Mapping — входной параметр, не часть отчёта.",
+    "H5: тело >~4.5МБ отклоняет сама платформа Vercel до входа в функцию, поэтому прикладной лимит 5МиБ на этом деплое недостижим: отказ есть (413), но на платформенном слое, с другим телом ответа.",
     "L4: ключ называется `consents`, а не `consent_events` как в задании; содержимое — append-only история согласий.",
     "O5: /stop выполнен на синтетической MATRIX-привязке, а не на реальной привязке владельца: отзыв реальной привязки — деструктивная операция с существующими данными (запрещена заданием вне режима «проверить отказ»). /help на реальной привязке владельца проверен в O4."
   ],
@@ -117,7 +118,7 @@
   },
   "cleanup": [
     "outbox_jobs removed: 13; audit_events unlinked (actor → NULL, как в собственном cleanup приложения)",
-    "accounts hard-deleted: 25/25 (каскадом — profiles, contacts, memberships, consents, sessions, challenges, mfa, blocks, reports)",
+    "accounts hard-deleted: 24/24 (каскадом — profiles, contacts, memberships, consents, sessions, challenges, mfa, blocks, reports)",
     "link_challenges (registration_claim) removed before their registrations: 1",
     "organizers hard-deleted: 2 (каскадом — events, campaigns, registrations, memberships, introductions)"
   ],
@@ -127,20 +128,20 @@
       "mode": "A",
       "description": "демо-вход через OTP + devCode (demo1)",
       "expect": "200 + сессия, GET /api/me 200",
-      "status": "PASS",
-      "actual": "OTP verify 200, cookie set, /api/me 200",
-      "evidence": "HTTP 200 {\"ok\":true,\"profile\":{\"public_slug\":\"dFh7Eze5Dlr5SgXKDqH7ZQ\",\"display_name\":\"Анна Смирнова\",\"headline\":\"Product Designer\",\"company\":\"Freelance\",\"short_bio\":\"Дизайн интерфейсов и исследования пользователей. Люблю быстрые прототипы.\",\"languages\":[\"ru\",\"en\"],\"off…",
-      "ms": 932
+      "status": "FAIL",
+      "actual": "otp/request → HTTP 429 {\"code\":\"rate_limited\",\"message\":\"Too many codes requested. Try again later.\",\"correlation_id\":\"«token»\",\"retryable\":tru… (номера OTP исчерпаны; окно 15 мин, бюджет ожидания 240s)",
+      "evidence": "",
+      "ms": 339
     },
     {
       "id": "A1b",
       "mode": "A",
       "description": "вторая демо-личность (marta.demo) входит тем же путём",
       "expect": "200 + сессия",
-      "status": "PASS",
-      "actual": "OTP+devCode → 200, приватная ручка 200",
-      "evidence": "HTTP 200 {\"ok\":true}",
-      "ms": 586
+      "status": "FAIL",
+      "actual": "otp/request → HTTP 429 {\"code\":\"rate_limited\",\"message\":\"Too many codes requested. Try again later.\",\"correlation_id\":\"«token»\",\"retryable\":tru… (номера OTP исчерпаны; окно 15 мин, бюджет ожидания 240s)",
+      "evidence": "",
+      "ms": 141
     },
     {
       "id": "A2",
@@ -150,7 +151,7 @@
       "status": "PASS",
       "actual": "owner session ok ({\"ok\":true})",
       "evidence": "HTTP 200 {\"ok\":true,\"profile\":{\"public_slug\":\"1v-klDrM0Uw_fyvu7akQgg\",\"display_name\":\"Nikita Berezniker\",\"headline\":\"AI Transformation & Automation Lead · Barcelona\",\"company\":\"2AI\",\"short_bio\":\"Turns expensive, fragmented business operations into controlled systems wi…",
-      "ms": 629
+      "ms": 468
     },
     {
       "id": "A3",
@@ -160,7 +161,7 @@
       "status": "PASS",
       "actual": "401 invalid_code → 200 ok",
       "evidence": "HTTP 401 {\"code\":\"invalid_code\",\"message\":\"Invalid or expired code\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 200 {\"ok\":true}",
-      "ms": 760
+      "ms": 251
     },
     {
       "id": "A4",
@@ -170,7 +171,7 @@
       "status": "PASS",
       "actual": "200,200,200 → 429 (Retry-After 900s)",
       "evidence": "HTTP 429 {\"code\":\"rate_limited\",\"message\":\"Too many codes requested. Try again later.\",\"correlation_id\":\"«token»\",\"retryable\":true} retry-after=900",
-      "ms": 748
+      "ms": 328
     },
     {
       "id": "A5",
@@ -180,7 +181,7 @@
       "status": "PASS",
       "actual": "/api/me/profile:401 /api/me/contacts:401 /api/me/notes:401 /api/events/welcome-demo-meetup/directory:401",
       "evidence": "/api/me/profile:401 /api/me/contacts:401 /api/me/notes:401 /api/events/welcome-demo-meetup/directory:401",
-      "ms": 17
+      "ms": 317
     },
     {
       "id": "A6",
@@ -190,7 +191,7 @@
       "status": "PASS",
       "actual": "200 → logout 200 → GET /api/me/profile 401",
       "evidence": "HTTP 200 {\"ok\":true} | HTTP 401 {\"code\":\"unauthorized\",\"message\":\"Sign in required\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 645
+      "ms": 368
     },
     {
       "id": "A7",
@@ -200,7 +201,7 @@
       "status": "PASS",
       "actual": "403 csrf_origin (same-origin 200)",
       "evidence": "HTTP 403 {\"code\":\"csrf_origin\",\"message\":\"Cross-origin request rejected\",\"correlation_id\":\"«token»\",\"retryable\":false} | control HTTP 200 {\"ok\":true,\"action\":\"grant\"}",
-      "ms": 618
+      "ms": 354
     },
     {
       "id": "A8",
@@ -208,10 +209,10 @@
       "description": "enumeration: неизвестный email неотличим от известного",
       "expect": "одинаковые ответы, без devCode",
       "status": "PASS",
-      "actual": "оба ответа идентичны: HTTP 503 {\"code\":\"email_channel_disabled\",\"message\":\"Email delivery is not conf…",
-      "evidence": "unknown: HTTP 503 {\"code\":\"email_channel_disabled\",\"message\":\"Email delivery is not configured. Please try again later.\",\"correlation_id\":\"«token»\",\"retryable\":false}\nknown(matrix-plain@welcome.test): HTTP 503 {\"code\":\"email_channel_disabled\",\"message\":\"Email delivery is not configured. Please try again later.\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "deviation": "ожидалось {ok:true}; фактически HTTP 503 email_channel_disabled — у экземпляра под тестом нет почтового транспорта для не-демо адреса (на staging-деплое это owner-test режим Resend, на локальном прогоне — отсутствие RESEND_API_KEY), поэтому код не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.",
-      "ms": 395
+      "actual": "оба ответа идентичны: HTTP 503 {\"code\":\"email_send_failed\",\"message\":\"Email delivery is temporarily u…",
+      "evidence": "unknown: HTTP 503 {\"code\":\"email_send_failed\",\"message\":\"Email delivery is temporarily unavailable. Please try again.\",\"correlation_id\":\"«token»\",\"retryable\":true}\nknown(matrix-plain@welcome.test): HTTP 503 {\"code\":\"email_send_failed\",\"message\":\"Email delivery is temporarily unavailable. Please try again.\",\"correlation_id\":\"«token»\",\"retryable\":true}",
+      "deviation": "ожидалось {ok:true}; фактически HTTP 503 email_send_failed — у экземпляра под тестом нет почтового транспорта для не-демо адреса (на staging-деплое это owner-test режим Resend, на локальном прогоне — отсутствие RESEND_API_KEY), поэтому код не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.",
+      "ms": 20915
     },
     {
       "id": "B1",
@@ -221,7 +222,7 @@
       "status": "PASS",
       "actual": "enrolled: secret+otpauth+qr+8 recovery codes",
       "evidence": "HTTP 200 {\"ok\":true,\"otpauth_uri\":\"otpauth://totp/WELCOME:matrix-mfa%40welcome.test?secret=«token»&issuer=WELCOME&algorithm=SHA1&digits=6&period=30\"}",
-      "ms": 1210
+      "ms": 37537
     },
     {
       "id": "B2",
@@ -231,7 +232,7 @@
       "status": "PASS",
       "actual": "400 mfa_invalid_code",
       "evidence": "HTTP 400 {\"code\":\"mfa_invalid_code\",\"message\":\"Invalid or expired code\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 189
+      "ms": 86
     },
     {
       "id": "B3",
@@ -241,7 +242,7 @@
       "status": "PASS",
       "actual": "200 confirmed:true (TOTP посчитан локально)",
       "evidence": "HTTP 200 {\"ok\":true,\"confirmed\":true}",
-      "ms": 248
+      "ms": 147
     },
     {
       "id": "B4",
@@ -251,7 +252,7 @@
       "status": "PASS",
       "actual": "400 invalid_input → 400 mfa_invalid_code → 200 enabled:false",
       "evidence": "HTTP 400 {\"code\":\"invalid_input\",\"message\":\"A current TOTP code is required\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 400 {\"code\":\"mfa_invalid_code\",\"message\":\"Invalid or expired code\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 200 {\"ok\":true,\"enabled\":false}",
-      "ms": 463
+      "ms": 351
     },
     {
       "id": "B5",
@@ -271,7 +272,7 @@
       "status": "PASS",
       "actual": "revision=1",
       "evidence": "HTTP 200 {\"ok\":true}",
-      "ms": 62
+      "ms": 145
     },
     {
       "id": "C2",
@@ -281,7 +282,7 @@
       "status": "PASS",
       "actual": "1 → 2",
       "evidence": "HTTP 200 {\"ok\":true,\"revision\":2}",
-      "ms": 281
+      "ms": 215
     },
     {
       "id": "C3",
@@ -291,7 +292,7 @@
       "status": "PASS",
       "actual": "409 revision_conflict (x-current-revision: 2)",
       "evidence": "HTTP 409 {\"code\":\"revision_conflict\",\"message\":\"Profile was changed by another request\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 124
+      "ms": 137
     },
     {
       "id": "C4",
@@ -301,7 +302,7 @@
       "status": "PASS",
       "actual": "400 invalid_interests + 400 invalid_industry",
       "evidence": "HTTP 400 {\"code\":\"invalid_interests\",\"message\":\"Unknown interests \\\"matrix-not-an-interest\\\". See GET /api/taxonomy for the catalogue.\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 400 {\"code\":\"invalid_industry\",\"message\":\"Unknown industry \\\"matrix-nope\\\". See GET /api/taxonomy for the catalogue.\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 185
+      "ms": 353
     },
     {
       "id": "C5",
@@ -311,7 +312,7 @@
       "status": "PASS",
       "actual": "400 invalid_interests (6 интересов)",
       "evidence": "HTTP 400 {\"code\":\"invalid_interests\",\"message\":\"at most 5 interests values are allowed (got 6)\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 94
+      "ms": 135
     },
     {
       "id": "C6",
@@ -321,7 +322,7 @@
       "status": "PASS",
       "actual": "400 invalid_keywords → 200 (5)",
       "evidence": "HTTP 400 {\"code\":\"invalid_keywords\",\"message\":\"at most 5 keywords are allowed (got 6)\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 200 {\"ok\":true,\"revision\":3}",
-      "ms": 250
+      "ms": 300
     },
     {
       "id": "C7",
@@ -331,7 +332,7 @@
       "status": "PASS",
       "actual": "website public, phone private, invalid_public_enabled → 400",
       "evidence": "HTTP 200 {\"ok\":true}",
-      "ms": 431
+      "ms": 285
     },
     {
       "id": "D1",
@@ -341,7 +342,7 @@
       "status": "PASS",
       "actual": "200; секции: interests«data-testid=\"pubcard-interests\"> Interes…», needs«data-testid=\"pubcard-needs\"> Looking for…», offers«data-testid=\"pubcard-offers\"> …»; телефон отсутствует",
       "evidence": "{\"interests\":\"data-testid=\\\"pubcard-interests\\\"> Interests AI / ML Dev tools <section class=\\\"mt-6 border-t border-line pt-5\\\"\",\"needs\":\"data-testid=\\\"pubcard-needs\\\"> Looking for a co-founder <section class=\\\"mt-6\\\"\",\"o…",
-      "ms": 387
+      "ms": 674
     },
     {
       "id": "D2",
@@ -351,7 +352,7 @@
       "status": "PASS",
       "actual": "contacts=[website]",
       "evidence": "HTTP 200 {\"slug\":\"«token»\",\"display_name\":\"MATRIX-Alpha\",\"contacts\":[{\"kind\":\"website\",\"value\":\"https://matrix.example/alpha\"}]}",
-      "ms": 63
+      "ms": 84
     },
     {
       "id": "D3",
@@ -361,7 +362,7 @@
       "status": "PASS",
       "actual": "text/vcard, FN экранирован (\\, \\;), phone отсутствует",
       "evidence": "FN:MATRIX-Alpha\\, Inc.\\; \"Ltd\" | URL:https://matrix.example/alpha",
-      "ms": 300
+      "ms": 270
     },
     {
       "id": "D4",
@@ -370,8 +371,8 @@
       "expect": "200 + <svg",
       "status": "PASS",
       "actual": "200 image/svg+xml",
-      "evidence": "HTTP 200 image/svg+xml; charset=utf-8 bytes=2008",
-      "ms": 62
+      "evidence": "HTTP 200 image/svg+xml; charset=utf-8 bytes=2410",
+      "ms": 90
     },
     {
       "id": "D5",
@@ -381,7 +382,7 @@
       "status": "PASS",
       "actual": "404 JSON + 404 HTML + 404 vCard",
       "evidence": "HTTP 404 {\"code\":\"not_found\",\"message\":\"Profile not found\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTML 404",
-      "ms": 104
+      "ms": 867
     },
     {
       "id": "E1",
@@ -391,7 +392,7 @@
       "status": "PASS",
       "actual": "vv3: 16/94/14/12",
       "evidence": "{\"intents\":16,\"interests\":94,\"functions\":14,\"industries\":12,\"interest_groups\":14}",
-      "ms": 7
+      "ms": 203
     },
     {
       "id": "E2",
@@ -401,7 +402,7 @@
       "status": "PASS",
       "actual": "валидные id → 200, неизвестный → 400 invalid_job_function",
       "evidence": "HTTP 200 {\"ok\":true,\"revision\":2} | HTTP 400 {\"code\":\"invalid_job_function\",\"message\":\"Unknown job_function \\\"matrix-nope\\\". See GET /api/taxonomy for the catalogue.\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 52180
+      "ms": 432
     },
     {
       "id": "F1",
@@ -410,8 +411,8 @@
       "expect": "200 + draft/sources",
       "status": "PASS",
       "actual": "200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера",
-      "evidence": "#1: HTTP 200 {\"ok\":true,\"draft\":{\"headline\":\"Professional\",\"short_bio\":\"Connecting with professionals i…",
-      "ms": 6774
+      "evidence": "#1: HTTP 200 {\"ok\":true,\"draft\":{\"headline\":\"Professional Profile for MATRIX-Bravo\",\"short_bio\":\"MATRIX…",
+      "ms": 5096
     },
     {
       "id": "F1b",
@@ -421,7 +422,7 @@
       "status": "PASS",
       "actual": "200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера",
       "evidence": "#1: HTTP 200 {\"ok\":true,\"draft\":{\"headline\":\"Founder & CEO in AI SaaS\",\"short_bio\":\"MATRIX-Charlie is a…",
-      "ms": 8601
+      "ms": 10137
     },
     {
       "id": "F2",
@@ -432,7 +433,7 @@
       "actual": "400,400,400,400,400 → 429 (limit 5)",
       "evidence": "HTTP 429 {\"code\":\"rate_limited\",\"message\":\"Too many enrichment requests. Try again later.\",\"correlation_id\":\"«token»\",\"retryable\":true} x-ratelimit-limit=5",
       "deviation": "квота тратилась аккаунтом без профиля (400 profile_required), чтобы не жечь живые Vertex-вызовы; порядок проверок (квота раньше профиля) подтверждён.",
-      "ms": 1170
+      "ms": 759
     },
     {
       "id": "F3",
@@ -442,7 +443,7 @@
       "status": "PASS",
       "actual": "401 unauthorized",
       "evidence": "HTTP 401 {\"code\":\"unauthorized\",\"message\":\"Sign in required\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 2
+      "ms": 71
     },
     {
       "id": "G1",
@@ -452,7 +453,7 @@
       "status": "PASS",
       "actual": "200 «WELCOME Demo Meetup — Product & Growth» (access_mode=public), viewer.is_member=false",
       "evidence": "HTTP 200 {\"ok\":true,\"event\":{\"id\":\"«token»\",\"slug\":\"welcome-demo-meetup\",\"name\":\"WELCOME Demo Meetup — Product & Growth\",\"mode\":\"offline\",\"access_mode\":\"public\",\"status\":\"active\",\"starts_at\":\"2026-09-12T16:00:00.000Z\",\"ends_at\":\"2026-09-12T19:00:00.000Z\",\"timezone\":\"Eu…",
-      "ms": 64
+      "ms": 97
     },
     {
       "id": "G2",
@@ -463,7 +464,7 @@
       "actual": "403 join_forbidden (без кода) → 403 (неверный) → 200 (верный, state=active) → 200 already_member:true",
       "evidence": "HTTP 403 {\"code\":\"join_forbidden\",\"message\":\"This event requires a valid join code or registration claim\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 403 {\"code\":\"join_forbidden\",\"message\":\"This event requires a valid join code or registration claim\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 200 {\"ok\":true,\"already_member\":false,\"membership\":{\"id\":\"«token»\",\"state\":\"active\",\"directory_visible\":false}} | HTTP 200 {\"ok\":true,\"already_member\":true}",
       "deviation": "ожидание задания «403/429 после 20 попыток lockout» проверено отдельной строкой G3 на выделенном событии (lockout блокирует и верный код — совместно на одном событии не сходится).",
-      "ms": 1562
+      "ms": 355
     },
     {
       "id": "G3",
@@ -471,9 +472,9 @@
       "description": "закрытое событие: 20 неверных попыток → lockout",
       "expect": "после 20 фейлов верный код тоже 429 join_code_locked",
       "status": "PASS",
-      "actual": "20× 403 join_forbidden (2× придержал per-IP bucket) → верный код 429 join_code_locked",
+      "actual": "20× 403 join_forbidden (3× придержал per-IP bucket) → верный код 429 join_code_locked",
       "evidence": "HTTP 429 {\"code\":\"join_code_locked\",\"message\":\"Too many failed attempts. Try again later.\",\"correlation_id\":\"«token»\",\"retryable\":true} retry-after=900",
-      "ms": 69724
+      "ms": 95801
     },
     {
       "id": "G4",
@@ -483,7 +484,7 @@
       "status": "PASS",
       "actual": "all/intent/interest/function/industry/q → 200 (q=Bravo нашёл 1); невалидные → 400 invalid_mode / invalid_job_function",
       "evidence": "HTTP 200 {\"ok\":true,\"mode\":\"all\"} members=3 | HTTP 400 {\"code\":\"invalid_mode\",\"message\":\"mode must be one of: all, intent, interest\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 400 {\"code\":\"invalid_job_function\",\"message\":\"Unknown job_function \\\"matrix-nope\\\". See GET /api/taxonomy for the catalogue.\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 855
+      "ms": 923
     },
     {
       "id": "G5",
@@ -491,10 +492,10 @@
       "description": "recommendations: топ-3 + причины (коды и параметры)",
       "expect": "200, ≤3, reasons с code+params, без себя",
       "status": "PASS",
-      "actual": "3/3: MATRIX-Charlie(88), MATRIX-Bravo(80), MATRIX-Delta(80); первый reason=intent_need_covered {\"need\":\"seeking-cofounder\",\"offer\":\"open-to-cofound\"}",
+      "actual": "3/3: MATRIX-Charlie(88), MATRIX-Delta(80), MATRIX-Bravo(80); первый reason=intent_need_covered {\"need\":\"seeking-cofounder\",\"offer\":\"open-to-cofound\"}",
       "evidence": "{\"profile_id\":\"«token»\",\"display_name\":\"MATRIX-Charlie\",\"headline\":null,\"company\":null,\"score\":88,\"reasons_for_me\":[{\"code\":\"intent_need_covered\",\"params\":{\"need\":\"seeking-cofounder\",\"offer\":\"open-to-cofound\"}},{\"code\":\"shared_interests\",\"p…",
       "deviation": "позитивный контроль: Bravo/Charlie/Delta видны до интро; отсутствие пары с активным интро проверяется в J7",
-      "ms": 382
+      "ms": 112
     },
     {
       "id": "G6",
@@ -514,7 +515,7 @@
       "status": "PASS",
       "actual": "403 forbidden ×2",
       "evidence": "HTTP 403 {\"code\":\"forbidden\",\"message\":\"Only active members can see the event directory\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 403 {\"code\":\"forbidden\",\"message\":\"Only active members can get recommendations\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 201
+      "ms": 149
     },
     {
       "id": "G8",
@@ -524,7 +525,7 @@
       "status": "PASS",
       "actual": "self отсутствует во всех трёх режимах (all=3, intent=0, interest=3); рекомендации тоже без себя (3)",
       "evidence": "alpha.profileId отсутствует в members: all=3, intent=0, interest=3; recommendations=3",
-      "ms": 551
+      "ms": 301
     },
     {
       "id": "H1",
@@ -535,7 +536,7 @@
       "actual": "preview.totalRows=3, validEmails=3, quarantined=1",
       "evidence": "{\"totalRows\":3,\"validEmails\":3,\"invalidEmails\":0,\"quarantined\":1,\"duplicatesInFile\":0,\"sample\":[{\"name\":\"MATRIX-Import One\",\"email\":\"matrix-claim@welcome.test\",\"company\":\"MATRIX-Co\",\"role\":\"founder\",\"…",
       "deviation": "в ответе preview нет ключей `mapping` и `would_update` из задания — фактический контракт: totalRows/validEmails/invalidEmails/quarantined/duplicatesInFile/sample. Mapping — входной параметр, не часть отчёта.",
-      "ms": 149
+      "ms": 81
     },
     {
       "id": "H2",
@@ -545,7 +546,7 @@
       "status": "PASS",
       "actual": "created=3 updated=0 skipped=0 quarantined=1",
       "evidence": "{\"created\":3,\"updated\":0,\"skipped\":0,\"quarantined\":1}",
-      "ms": 410
+      "ms": 92
     },
     {
       "id": "H3",
@@ -555,7 +556,7 @@
       "status": "PASS",
       "actual": "created=0 updated=3; регистраций 3 → 3",
       "evidence": "{\"created\":0,\"updated\":3,\"skipped\":0,\"quarantined\":1}",
-      "ms": 471
+      "ms": 194
     },
     {
       "id": "H4",
@@ -565,7 +566,7 @@
       "status": "PASS",
       "actual": "ячейка экспортирована с защитным апострофом: «'=cmd|' /C calc'!A0,unclaimed,approved\r»",
       "evidence": "'=cmd|' /C calc'!A0,unclaimed,approved\r",
-      "ms": 289
+      "ms": 119
     },
     {
       "id": "H5",
@@ -573,9 +574,10 @@
       "description": "лимиты импорта: >5000 строк и >5МБ отклоняются",
       "expect": "413 (приложение для строк; платформа для байт)",
       "status": "PASS",
-      "actual": "5001 строка → 413 payload_too_large; >5МиБ → 413 (уровень приложения)",
-      "evidence": "HTTP 413 {\"code\":\"payload_too_large\",\"message\":\"CSV exceeds the 5000-row limit\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 413 {\"code\":\"payload_too_large\",\"message\":\"CSV exceeds the 5 MB limit\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 271
+      "actual": "5001 строка → 413 payload_too_large; >5МиБ → 413 (уровень платформы: Request Entity Too Large\n\n«token»\n\ncdg1::«token»\n)",
+      "evidence": "HTTP 413 {\"code\":\"payload_too_large\",\"message\":\"CSV exceeds the 5000-row limit\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 413 {\"_nonJson\":\"Request Entity Too Large\\n\\«token»\\n\\ncdg1::«token»\\n\"}",
+      "deviation": "тело >~4.5МБ отклоняет сама платформа Vercel до входа в функцию, поэтому прикладной лимит 5МиБ на этом деплое недостижим: отказ есть (413), но на платформенном слое, с другим телом ответа.",
+      "ms": 2227
     },
     {
       "id": "H6",
@@ -585,7 +587,7 @@
       "status": "PASS",
       "actual": "approval_status='quarantined' в БД; invite → 403 claim_not_allowed",
       "evidence": "HTTP 403 {\"code\":\"claim_not_allowed\",\"message\":\"Quarantined registrations cannot be invited\",\"correlation_id\":\"«token»\",\"retryable\":false} (status=quarantined)",
-      "ms": 183
+      "ms": 149
     },
     {
       "id": "I1",
@@ -594,8 +596,8 @@
       "expect": "200 + claim_url/expires_at",
       "status": "PASS",
       "actual": "200 + claim_url=/claim/«token» (7 дней)",
-      "evidence": "HTTP 200 {\"ok\":true,\"claim_url\":\"/claim/«token»\",\"expires_at\":\"2026-09-21T13:26:34.631Z\"}",
-      "ms": 295
+      "evidence": "HTTP 200 {\"ok\":true,\"claim_url\":\"/claim/«token»\",\"expires_at\":\"2026-09-21T13:32:57.438Z\"}",
+      "ms": 144
     },
     {
       "id": "I2",
@@ -605,7 +607,7 @@
       "status": "PASS",
       "actual": "GET ×2 → 200; consumed_at остался NULL",
       "evidence": "HTTP 200/200, link_challenges.consumed_at = null",
-      "ms": 134
+      "ms": 415
     },
     {
       "id": "I3",
@@ -615,7 +617,7 @@
       "status": "PASS",
       "actual": "403 email_mismatch",
       "evidence": "HTTP 403 {\"code\":\"email_mismatch\",\"message\":\"This claim link belongs to a different email address\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 1073
+      "ms": 296
     },
     {
       "id": "I4",
@@ -625,7 +627,7 @@
       "status": "PASS",
       "actual": "200: membership active, profile_created=false",
       "evidence": "HTTP 200 {\"ok\":true,\"event_id\":\"«token»\",\"membership\":{\"id\":\"«token»\",\"state\":\"active\",\"directory_visible\":false},\"profile_created\":false,\"notice\":\"Данные из регистрации — проверьте, что всё верно. Имя и роль можно поправить в профиле.\"}",
-      "ms": 1098
+      "ms": 419
     },
     {
       "id": "I5",
@@ -635,7 +637,7 @@
       "status": "PASS",
       "actual": "409 already_used",
       "evidence": "HTTP 409 {\"code\":\"already_used\",\"message\":\"This claim link has already been used\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 59
+      "ms": 66
     },
     {
       "id": "J1",
@@ -645,7 +647,7 @@
       "status": "PASS",
       "actual": "200 pending, already_existed=false; у инициатора my_decision=accept, other_accepted=false",
       "evidence": "HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"pending\",\"profile_a\":\"«token»\",\"profile_b\":\"«token»\",\"context_key\":\"event:«token»\"},\"already_existed\":false} | HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"pending\",\"my_decision\":\"accept\",\"other_accepted\":false}}",
-      "ms": 942
+      "ms": 551
     },
     {
       "id": "J2",
@@ -655,7 +657,7 @@
       "status": "PASS",
       "actual": "200 already_existed=true, тот же id, одна строка пары",
       "evidence": "HTTP 200 {\"ok\":true,\"already_existed\":true}",
-      "ms": 433
+      "ms": 162
     },
     {
       "id": "J3",
@@ -665,7 +667,7 @@
       "status": "PASS",
       "actual": "decline → 200; у обеих сторон state=declined; джоба intro_declined_notice для alpha, текст нейтральный",
       "evidence": "HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"declined\",\"my_decision\":\"decline\"}} | HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"declined\",\"my_decision\":\"accept\",\"other_accepted\":false}} | outbox intro_declined_notice text=WELCOME: знакомство не состоялось.",
-      "ms": 646
+      "ms": 247
     },
     {
       "id": "J4",
@@ -675,7 +677,7 @@
       "status": "PASS",
       "actual": "pending → mutual после ОДНОГО accept контрагента; revealed=[phone: +34600999888] при public_enabled=false",
       "evidence": "HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"pending\",\"my_decision\":\"accept\",\"other_accepted\":false},\"revealed\":[]} | HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"mutual\",\"my_decision\":\"accept\"}} | HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"mutual\",\"my_decision\":\"accept\",\"other_accepted\":true},\"revealed\":[{\"kind\":\"phone\",\"value\":\"+34600999888\"}]}",
-      "ms": 1510
+      "ms": 550
     },
     {
       "id": "J5",
@@ -685,7 +687,7 @@
       "status": "PASS",
       "actual": "revealed=[] после сужения пересечения полей",
       "evidence": "HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"mutual\",\"my_decision\":\"accept\",\"other_accepted\":true},\"revealed\":[]}",
-      "ms": 347
+      "ms": 163
     },
     {
       "id": "J6",
@@ -695,7 +697,7 @@
       "status": "PASS",
       "actual": "revealed=[] (state mutual) + create → 403 blocked",
       "evidence": "HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"mutual\",\"my_decision\":\"accept\",\"other_accepted\":true},\"revealed\":[]} | HTTP 403 {\"code\":\"blocked\",\"message\":\"Introduction is not available\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 475
+      "ms": 222
     },
     {
       "id": "J7",
@@ -704,8 +706,8 @@
       "expect": "Bravo исчез из рекомендаций после decline",
       "status": "PASS",
       "actual": "до интро Bravo был в рекомендациях (3 шт.), после decline отсутствует; сейчас 1 шт.",
-      "evidence": "before=[MATRIX-Charlie, MATRIX-Bravo, MATRIX-Delta], after=[1]",
-      "ms": 203
+      "evidence": "before=[MATRIX-Charlie, MATRIX-Delta, MATRIX-Bravo], after=[1]",
+      "ms": 84
     },
     {
       "id": "J8",
@@ -715,7 +717,7 @@
       "status": "PASS",
       "actual": "Charlie отсутствует в directory (2 записей) и рекомендациях (1)",
       "evidence": "members=2, recommendations=1, blocked=Charlie",
-      "ms": 324
+      "ms": 167
     },
     {
       "id": "J9",
@@ -725,7 +727,7 @@
       "status": "PASS",
       "actual": "withdraw → 200 revoked (повтор → 409); джоба intro_withdrawn_notice для delta, текст нейтральный, ровно одна",
       "evidence": "HTTP 200 {\"ok\":true,\"introduction\":{\"id\":\"«token»\",\"state\":\"revoked\",\"my_decision\":\"withdraw\"}} | HTTP 409 {\"code\":\"invalid_state\",\"message\":\"This introduction is revoked; only pending introductions can be answered\",\"correlation_id\":\"«token»\",\"retryable\":false} | outbox intro_withdrawn_notice text=WELCOME: знакомство отозвано.",
-      "ms": 1003
+      "ms": 355
     },
     {
       "id": "J10",
@@ -734,8 +736,8 @@
       "expect": "decline → suppressed:no_channel; withdraw при активном binding без service_channel-согласия → suppressed:consent_revoked",
       "status": "PASS",
       "actual": "decline=suppressed:no_channel (нет канала), withdraw=suppressed:consent_revoked (binding активен, согласие отозвано)",
-      "evidence": "delivery_attempts: intro_declined:a116eba8-b3de-4bd2-9a68-7a8ff9bd8c10:25f25a69-2649-4fa8-a58f-4005a2a0429b → suppressed/no_channel; intro_withdrawn:66a8d4b1-7082-4e71-bf32-07ca112922e0:2fedc4d2-0a37-4151-ac14-af2632a45621 → suppressed/consent_revoked",
-      "ms": 2047
+      "evidence": "delivery_attempts: intro_declined:f60096ae-453b-429c-a7d7-4d660a7d123f:bf2a9bab-a89e-4815-a250-3f9d9afdc718 → suppressed/no_channel; intro_withdrawn:72d38b21-5b01-4c8f-8baa-1e9b7a34c61f:03b52f35-0184-481c-8851-3f7987138482 → suppressed/consent_revoked",
+      "ms": 544
     },
     {
       "id": "K1",
@@ -744,8 +746,8 @@
       "expect": "200; заметка видна в своём списке",
       "status": "PASS",
       "actual": "200 + заметка в /api/me/notes",
-      "evidence": "HTTP 200 {\"ok\":true,\"note\":{\"other_profile_id\":\"«token»\",\"note_text\":\"MATRIX- note about Delta\",\"next_step\":\"ping\",\"next_step_status\":\"proposed\",\"updated_at\":\"2026-09-14T13:26:45.168Z\"}}",
-      "ms": 326
+      "evidence": "HTTP 200 {\"ok\":true,\"note\":{\"other_profile_id\":\"«token»\",\"note_text\":\"MATRIX- note about Delta\",\"next_step\":\"ping\",\"next_step_status\":\"proposed\",\"updated_at\":\"2026-09-14T13:33:01.769Z\"}}",
+      "ms": 169
     },
     {
       "id": "K2",
@@ -755,7 +757,7 @@
       "status": "PASS",
       "actual": "список Bravo: 0 заметок, чужих нет",
       "evidence": "HTTP 200 {\"ok\":true} notes=0",
-      "ms": 58
+      "ms": 64
     },
     {
       "id": "K3",
@@ -765,7 +767,7 @@
       "status": "PASS",
       "actual": "organizer → 403 not_connected; self → 400 self_note",
       "evidence": "HTTP 403 {\"code\":\"not_connected\",\"message\":\"Notes can only be kept about people you actually met\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 400 {\"code\":\"self_note\",\"message\":\"Notes are about other people\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 695
+      "ms": 350
     },
     {
       "id": "L1",
@@ -775,7 +777,7 @@
       "status": "PASS",
       "actual": "200 grant organizer_marketing@event",
       "evidence": "HTTP 200 {\"ok\":true,\"action\":\"grant\",\"purpose\":\"organizer_marketing\",\"scope_type\":\"event\"}",
-      "ms": 89
+      "ms": 379
     },
     {
       "id": "L2",
@@ -785,7 +787,7 @@
       "status": "PASS",
       "actual": "200 withdraw; неизвестный purpose → 400 invalid_purpose",
       "evidence": "HTTP 200 {\"ok\":true,\"action\":\"withdraw\"} | HTTP 400 {\"code\":\"invalid_purpose\",\"message\":\"purpose must be one of: public_card, event_directory, introduction_fields, service_channel, organizer_marketing, product_marketing\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 181
+      "ms": 149
     },
     {
       "id": "L3",
@@ -795,7 +797,7 @@
       "status": "PASS",
       "actual": "джоба intro_requested…: suppressed → suppressed",
       "evidence": "outbox_jobs.status suppressed → suppressed (purpose=service_channel, account=Bravo)",
-      "ms": 238
+      "ms": 199
     },
     {
       "id": "L4",
@@ -804,9 +806,9 @@
       "expect": "консенты grant+withdraw присутствуют в export",
       "status": "PASS",
       "actual": "export.consents: 5 записей (grant+withdraw organizer_marketing)",
-      "evidence": "[{\"purpose\":\"organizer_marketing\",\"scope_type\":\"event\",\"scope_id\":\"f81bb1c2-958f-4615-9324-a5a6c45f7fff\",\"field_set\":[],\"policy_version\":\"matrix-2026-09-14\",\"action\":\"grant\",\"created_at\":\"2026-09-14T1…",
+      "evidence": "[{\"purpose\":\"organizer_marketing\",\"scope_type\":\"event\",\"scope_id\":\"f1d7b835-dfbf-4814-b0d9-4b4215f130a1\",\"field_set\":[],\"policy_version\":\"matrix-2026-09-14\",\"action\":\"grant\",\"created_at\":\"2026-09-14T1…",
       "deviation": "ключ называется `consents`, а не `consent_events` как в задании; содержимое — append-only история согласий.",
-      "ms": 378
+      "ms": 154
     },
     {
       "id": "N1",
@@ -816,7 +818,7 @@
       "status": "PASS",
       "actual": "201 draft (content_revision=1)",
       "evidence": "HTTP 201 {\"ok\":true,\"campaign\":{\"id\":\"«token»\",\"event_id\":\"«token»\",\"purpose\":\"service_channel\",\"state\":\"draft\",\"content_revision\":\"1\",\"approved_revision\":null}}",
-      "ms": 215
+      "ms": 89
     },
     {
       "id": "N2",
@@ -826,7 +828,7 @@
       "status": "PASS",
       "actual": "count=4, channel_ready=1, sample=4",
       "evidence": "HTTP 200 {\"ok\":true,\"audience\":{\"count\":4,\"channel_ready\":1,\"sample\":[{\"display_name\":\"MATRIX-Alpha, Inc.; \\\"Ltd\\\"\"},{\"display_name\":\"MATRIX-Bravo\"},{\"display_name\":\"MATRIX-Charlie\"},{\"display_name\":\"MATRIX-Delta\"}]},\"snapshot_note\":\"The binding audience snapshot is fr…",
-      "ms": 307
+      "ms": 114
     },
     {
       "id": "N3",
@@ -836,7 +838,7 @@
       "status": "PASS",
       "actual": "200 approved (approved_revision=1, снимок аудитории заморожен)",
       "evidence": "HTTP 200 {\"ok\":true,\"campaign\":{\"id\":\"«token»\",\"state\":\"approved\",\"content_revision\":1,\"approved_revision\":1},\"audience_count\":4}",
-      "ms": 689
+      "ms": 127
     },
     {
       "id": "N4",
@@ -846,7 +848,7 @@
       "status": "PASS",
       "actual": "403 forbidden ×4 (staff)",
       "evidence": "HTTP 403 {\"code\":\"forbidden\",\"message\":\"Only the organizer owner can approve campaigns\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 403 {\"code\":\"forbidden\",\"message\":\"Only the organizer owner or admin can send campaigns\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 403 {\"code\":\"forbidden\",\"message\":\"Only the organizer owner or admin can view campaign stats\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 604
+      "ms": 344
     },
     {
       "id": "N5",
@@ -856,7 +858,7 @@
       "status": "PASS",
       "actual": "approved_revision 1 → null, content_revision 1 → 2",
       "evidence": "HTTP 200 {\"ok\":true,\"campaign\":{\"id\":\"«token»\",\"state\":\"draft\",\"content_revision\":2,\"approved_revision\":null}}",
-      "ms": 549
+      "ms": 232
     },
     {
       "id": "N6",
@@ -866,7 +868,7 @@
       "status": "PASS",
       "actual": "200 approved (approved_revision=2)",
       "evidence": "HTTP 200 {\"ok\":true,\"campaign\":{\"id\":\"«token»\",\"state\":\"approved\",\"content_revision\":2,\"approved_revision\":2},\"audience_count\":4}",
-      "ms": 693
+      "ms": 152
     },
     {
       "id": "N7",
@@ -876,7 +878,7 @@
       "status": "PASS",
       "actual": "202 queued=4, state=running",
       "evidence": "HTTP 202 {\"ok\":true,\"campaign_id\":\"«token»\",\"queued\":4,\"state\":\"running\"}",
-      "ms": 648
+      "ms": 116
     },
     {
       "id": "N8",
@@ -886,7 +888,7 @@
       "status": "PASS",
       "actual": "counters={\"pending\":4,\"leased\":0,\"sent\":0,\"delivered\":0,\"failed\":0,\"unknown\":0,\"suppressed\":0,\"cancelled\":0}, queued_total=4",
       "evidence": "{\"counters\":{\"pending\":4,\"leased\":0,\"sent\":0,\"delivered\":0,\"failed\":0,\"unknown\":0,\"suppressed\":0,\"cancelled\":0},\"queued_total\":4}",
-      "ms": 210
+      "ms": 82
     },
     {
       "id": "N9",
@@ -896,7 +898,7 @@
       "status": "PASS",
       "actual": "джоба кампании для Alpha: pending → suppressed",
       "evidence": "outbox_jobs.status pending → suppressed; аккаунт остался в снимке аудитории, отправка подавлена",
-      "ms": 246
+      "ms": 155
     },
     {
       "id": "O1",
@@ -906,7 +908,7 @@
       "status": "PASS",
       "actual": "401 unauthorized_webhook (без секрета и с неверным)",
       "evidence": "HTTP 401 {\"code\":\"unauthorized_webhook\",\"message\":\"Invalid webhook secret\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 401 {\"code\":\"unauthorized_webhook\",\"message\":\"Invalid webhook secret\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 5
+      "ms": 159
     },
     {
       "id": "O2",
@@ -916,7 +918,7 @@
       "status": "PASS",
       "actual": "accepted:true → accepted:false (идемпотентность по update_id)",
       "evidence": "HTTP 200 {\"ok\":true,\"accepted\":true} | HTTP 200 {\"ok\":true,\"accepted\":false}",
-      "ms": 305
+      "ms": 201
     },
     {
       "id": "O3",
@@ -926,7 +928,7 @@
       "status": "PASS",
       "actual": "400 stale_update (окно 24ч)",
       "evidence": "HTTP 400 {\"code\":\"stale_update\",\"message\":\"Update is older than the accepted window\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 2
+      "ms": 56
     },
     {
       "id": "O4",
@@ -936,7 +938,7 @@
       "status": "PASS",
       "actual": "200 accepted:true; telegram_reply → sent (attempt 1)",
       "evidence": "outbox_jobs(kind=telegram_reply, owner) status=sent; tick processed the update and the reply",
-      "ms": 3820
+      "ms": 3339
     },
     {
       "id": "O5",
@@ -945,9 +947,9 @@
       "expect": "binding state=revoked; новое автосообщение suppressed",
       "status": "PASS",
       "actual": "/stop → 200; binding state=revoked; сообщение после отзыва → suppressed",
-      "evidence": "channel_bindings.state=revoked; pre-stop job=failed (мог быть подхвачен cron до отзыва), post-stop job=suppressed (подавлено воркером)",
+      "evidence": "channel_bindings.state=revoked; pre-stop job=suppressed (мог быть подхвачен cron до отзыва), post-stop job=suppressed (подавлено воркером)",
       "deviation": "/stop выполнен на синтетической MATRIX-привязке, а не на реальной привязке владельца: отзыв реальной привязки — деструктивная операция с существующими данными (запрещена заданием вне режима «проверить отказ»). /help на реальной привязке владельца проверен в O4.",
-      "ms": 4863
+      "ms": 2985
     },
     {
       "id": "O6",
@@ -957,7 +959,7 @@
       "status": "PASS",
       "actual": "/start без confirm → 0 привязок; после confirm + /start → active (тот же аккаунт)",
       "evidence": "HTTP 201 {\"ok\":true,\"deep_link\":\"https://t.me/«secret»?start=«token»\",\"next\":\"Confirm the link in this web session, then send /start with the link in Telegram.\"} | HTTP 200 {\"ok\":true}",
-      "ms": 3532
+      "ms": 3135
     },
     {
       "id": "O7",
@@ -967,7 +969,7 @@
       "status": "PASS",
       "actual": "401 без секрета → 200 processed=0",
       "evidence": "HTTP 401 {\"code\":\"«token»\",\"message\":\"Invalid worker tick secret\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 200 {\"ok\":true,\"processed\":0,\"requeued_leases\":0}",
-      "ms": 210
+      "ms": 327
     },
     {
       "id": "Q1",
@@ -977,7 +979,7 @@
       "status": "PASS",
       "actual": "403 forbidden ×2 (role-проверка раньше проверки состояния)",
       "evidence": "HTTP 403 {\"code\":\"forbidden\",\"message\":\"Only the organizer owner can approve campaigns\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 403 {\"code\":\"forbidden\",\"message\":\"Only the organizer owner or admin can send campaigns\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 177
+      "ms": 144
     },
     {
       "id": "Q2",
@@ -987,7 +989,7 @@
       "status": "PASS",
       "actual": "кампания A → 404 not_found (скрытие существования), export A → 403, directory A → 403; своё событие B → 200",
       "evidence": "HTTP 404 {\"code\":\"not_found\",\"message\":\"Campaign not found\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 403 {\"code\":\"forbidden\",\"message\":\"You do not manage this event\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 403 {\"code\":\"forbidden\",\"message\":\"Only active members can see the event directory\",\"correlation_id\":\"«token»\",\"retryable\":false} | own HTTP 200 {\"ok\":true}",
-      "ms": 1307
+      "ms": 507
     },
     {
       "id": "P1",
@@ -997,7 +999,7 @@
       "status": "PASS",
       "actual": "200 {\"status\":\"ok\",\"db\":\"up\",\"worker\":\"up\"} (без migration_version)",
       "evidence": "HTTP 200 {\"status\":\"ok\",\"db\":\"up\",\"worker\":\"up\"}",
-      "ms": 123
+      "ms": 82
     },
     {
       "id": "P2",
@@ -1007,7 +1009,7 @@
       "status": "PASS",
       "actual": "200 migrations=applied, migration_version=009",
       "evidence": "HTTP 200 {\"status\":\"ok\",\"db\":\"up\",\"migrations\":\"applied\",\"migration_version\":\"009\",\"worker\":\"up\"}",
-      "ms": 118
+      "ms": 76
     },
     {
       "id": "P3",
@@ -1017,7 +1019,7 @@
       "status": "PASS",
       "actual": "4/4 на / и /login (content-security-policy, x-frame-options, referrer-policy, permissions-policy)",
       "evidence": "/: 4/4 | /login: 4/4",
-      "ms": 34
+      "ms": 386
     },
     {
       "id": "P4",
@@ -1025,9 +1027,9 @@
       "description": "rate limit на OTP: per-IP bucket (10/мин)",
       "expect": "11-й запрос с одного IP → 429 + X-RateLimit-Limit",
       "status": "PASS",
-      "actual": "статусы 503,503,503,503,503,503,503,503,503,503,429 → 429 (X-RateLimit-Limit=10)",
+      "actual": "статусы 503,503,503,503,503,503,503,503,503,429 → 429 (X-RateLimit-Limit=10)",
       "evidence": "HTTP 429 {\"code\":\"rate_limited\",\"message\":\"Too many requests. Slow down and try again later.\",\"correlation_id\":\"«token»\",\"retryable\":true} x-ratelimit-limit=10",
-      "ms": 2561
+      "ms": 2643
     },
     {
       "id": "P5",
@@ -1037,7 +1039,7 @@
       "status": "PASS",
       "actual": "/api/me/profile: no-store, private | /api/me/notes: no-store, private",
       "evidence": "/api/me/profile: no-store, private | /api/me/notes: no-store, private",
-      "ms": 212
+      "ms": 143
     },
     {
       "id": "P6",
@@ -1047,7 +1049,7 @@
       "status": "PASS",
       "actual": "header 200, Bearer 200, ?secret= 401 (носитель удалён)",
       "evidence": "HTTP 200 {\"ok\":true,\"processed\":0} | HTTP 200 {\"ok\":true,\"processed\":0} | HTTP 401 {\"code\":\"«token»\",\"message\":\"Invalid worker tick secret\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 385
+      "ms": 746
     },
     {
       "id": "R1",
@@ -1057,7 +1059,7 @@
       "status": "PASS",
       "actual": "?lang=ru → ru, ?lang=es → es, ?lang=en → en; ?lang=de → en (игнорируется, cookie не перезаписан)",
       "evidence": "?lang=ru → ru | ?lang=es → es | ?lang=en → en | cookie welcome_locale сохранён для каждого валидного значения",
-      "ms": 54
+      "ms": 548
     },
     {
       "id": "R2",
@@ -1067,7 +1069,7 @@
       "status": "PASS",
       "actual": "en«networking» / ru«профиль» / es«útiles» — все найдены на страницах",
       "evidence": "{\"en\":\"networking\",\"ru\":\"профиль\",\"es\":\"útiles\"}",
-      "ms": 34
+      "ms": 555
     },
     {
       "id": "R3",
@@ -1077,7 +1079,7 @@
       "status": "PASS",
       "actual": "360px: scrollWidth=360 (clientWidth=360) — overflow нет",
       "evidence": "{\"scrollWidth\":360,\"clientWidth\":360,\"bodyScrollWidth\":360}",
-      "ms": 984
+      "ms": 1278
     },
     {
       "id": "M1",
@@ -1087,7 +1089,7 @@
       "status": "PASS",
       "actual": "секции: contacts=2, consents=6, memberships=1, introductions=3, notes=1",
       "evidence": "{\"keys\":[\"exported_at\",\"policy_version\",\"profile\",\"contacts\",\"consents\",\"memberships\",\"introductions\",\"notes\",\"blocks\",\"reports\",\"disclosure\"],\"contacts\":2,\"notes\":1}",
-      "ms": 97
+      "ms": 70
     },
     {
       "id": "M2",
@@ -1097,7 +1099,7 @@
       "status": "PASS",
       "actual": "400 confirm_mismatch → 200 deleted:true; 401 на /api/me/profile, 404 на карточке, status='deleting'",
       "evidence": "HTTP 400 {\"code\":\"confirm_mismatch\",\"message\":\"The typed name does not match\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 200 {\"ok\":true,\"deleted\":true} | HTTP 404 {\"code\":\"not_found\",\"message\":\"Profile not found\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 846
+      "ms": 610
     },
     {
       "id": "M3",
@@ -1107,7 +1109,7 @@
       "status": "PASS",
       "actual": "block 200 (false) → повтор (true) → невидим в directory → unblock 200 (true); self_block 400",
       "evidence": "HTTP 200 {\"ok\":true,\"already_blocked\":false} | HTTP 200 {\"ok\":true,\"already_blocked\":true} | HTTP 200 {\"ok\":true,\"was_blocked\":true}",
-      "ms": 669
+      "ms": 386
     },
     {
       "id": "M4",
@@ -1117,7 +1119,7 @@
       "status": "PASS",
       "actual": "201 open → 400 invalid_reason → 400 self_report",
       "evidence": "HTTP 201 {\"ok\":true,\"report\":{\"id\":\"«token»\",\"status\":\"open\"}} | HTTP 400 {\"code\":\"invalid_reason\",\"message\":\"reason must be one of: spam, harassment, inappropriate, other\",\"correlation_id\":\"«token»\",\"retryable\":false} | HTTP 400 {\"code\":\"self_report\",\"message\":\"You cannot report yourself\",\"correlation_id\":\"«token»\",\"retryable\":false}",
-      "ms": 218
+      "ms": 245
     }
   ]
 }

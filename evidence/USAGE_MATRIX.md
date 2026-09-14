@@ -1,9 +1,8 @@
 # USAGE MATRIX — живой прогон всех режимов
 
-- **BASE:** http://localhost:3300 (`--live`=true)
-- **Цель прогона:** локальный production-билд текущего дерева (`next start`) с теми же прод-секретами, что у деплоя (Neon, Vertex, Telegram, worker-tick). Деплой в этом задании запрещён, поэтому «живой» прогон идёт против локального экземпляра, а не против staging-URL; секреты в отчёты не попадают (редакция в скрипте).
-- **Прогон:** 2026-09-14T13:23:57.621Z → 2026-09-14T13:27:12.071Z
-- **Итог:** 98 PASS / 0 FAIL / 1 SKIP / 0 BLOCKED (всего 99)
+- **BASE:** https://welcome-p0-nikiti4.vercel.app (`--live`=true)
+- **Прогон:** 2026-09-14T13:29:52.027Z → 2026-09-14T13:33:23.591Z
+- **Итог:** 96 PASS / 2 FAIL / 1 SKIP / 0 BLOCKED (всего 99)
 - **Машинный отчёт:** [usage-matrix.json](usage-matrix.json)
 
 ## Часть 1 — автоматические гейты (локально)
@@ -82,15 +81,15 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| A1 | демо-вход через OTP + devCode (demo1) | 200 + сессия, GET /api/me 200 | OTP verify 200, cookie set, /api/me 200 | **PASS** | HTTP 200 {"ok":true,"profile":{"public_slug":"dFh7Eze5Dlr5SgXKDqH7ZQ","display_name":"Анна Смирнова","headline":"Product Designer","company":"Freelance","short_bio":"Дизайн интерфейсов и исследования … |
-| A1b | вторая демо-личность (marta.demo) входит тем же путём | 200 + сессия | OTP+devCode → 200, приватная ручка 200 | **PASS** | HTTP 200 {"ok":true} |
+| A1 | демо-вход через OTP + devCode (demo1) | 200 + сессия, GET /api/me 200 | otp/request → HTTP 429 {"code":"rate_limited","message":"Too many codes requested. Try again later.","correlation_id":"«token»","retryable":tru… (номера OTP исчерпаны; окно 15 мин, бюджет ожидания 240s) | **FAIL** |  |
+| A1b | вторая демо-личность (marta.demo) входит тем же путём | 200 + сессия | otp/request → HTTP 429 {"code":"rate_limited","message":"Too many codes requested. Try again later.","correlation_id":"«token»","retryable":tru… (номера OTP исчерпаны; окно 15 мин, бюджет ожидания 240s) | **FAIL** |  |
 | A2 | вход владельца через allowlist devCode | 200 + сессия | owner session ok ({"ok":true}) | **PASS** | HTTP 200 {"ok":true,"profile":{"public_slug":"1v-klDrM0Uw_fyvu7akQgg","display_name":"Nikita Berezniker","headline":"AI Transformation & Automation Lead · Barcelona","company":"2AI","short_bio":"Turns… |
 | A3 | неверный код → 401 invalid_code (1 промах не блокирует) | 401 invalid_code, затем верный код 200 | 401 invalid_code → 200 ok | **PASS** | HTTP 401 {"code":"invalid_code","message":"Invalid or expired code","correlation_id":"«token»","retryable":false} \| HTTP 200 {"ok":true} |
 | A4 | повторный запрос OTP в окне → 429 rate limit | 3 запроса ок, 4-й → 429 + Retry-After | 200,200,200 → 429 (Retry-After 900s) | **PASS** | HTTP 429 {"code":"rate_limited","message":"Too many codes requested. Try again later.","correlation_id":"«token»","retryable":true} retry-after=900 |
 | A5 | сессия без cookie → 401 на приватных ручках | 401 unauthorized на 4 приватных GET | /api/me/profile:401 /api/me/contacts:401 /api/me/notes:401 /api/events/welcome-demo-meetup/directory:401 | **PASS** | /api/me/profile:401 /api/me/contacts:401 /api/me/notes:401 /api/events/welcome-demo-meetup/directory:401 |
 | A6 | logout инвалидирует сессию | logout 200, затем GET приватной ручки 401 | 200 → logout 200 → GET /api/me/profile 401 | **PASS** | HTTP 200 {"ok":true} \| HTTP 401 {"code":"unauthorized","message":"Sign in required","correlation_id":"«token»","retryable":false} |
 | A7 | CSRF: мутация с Origin: https://evil.example → 403 | 403 csrf_origin | 403 csrf_origin (same-origin 200) | **PASS** | HTTP 403 {"code":"csrf_origin","message":"Cross-origin request rejected","correlation_id":"«token»","retryable":false} \| control HTTP 200 {"ok":true,"action":"grant"} |
-| A8 | enumeration: неизвестный email неотличим от известного | одинаковые ответы, без devCode | оба ответа идентичны: HTTP 503 {"code":"email_channel_disabled","message":"Email delivery is not conf… | **PASS** | unknown: HTTP 503 {"code":"email_channel_disabled","message":"Email delivery is not configured. Please try again later.","correlation_id":"«token»","retryable":false}<br>known(matrix-plain@welcome.test):… |
+| A8 | enumeration: неизвестный email неотличим от известного | одинаковые ответы, без devCode | оба ответа идентичны: HTTP 503 {"code":"email_send_failed","message":"Email delivery is temporarily u… | **PASS** | unknown: HTTP 503 {"code":"email_send_failed","message":"Email delivery is temporarily unavailable. Please try again.","correlation_id":"«token»","retryable":true}<br>known(matrix-plain@welcome.test): HT… |
 
 ## Режим B
 
@@ -121,7 +120,7 @@
 | D1 | мини-лендинг GET /p/<slug>: 200 + имя/оси, без приватного телефона | 200, имя + метки интересов/интентов, не содержит телефон | 200; секции: interests«data-testid="pubcard-interests"> Interes…», needs«data-testid="pubcard-needs"> Looking for…», offers«data-testid="pubcard-offers"> …»; телефон отсутствует | **PASS** | {"interests":"data-testid=\"pubcard-interests\"> Interests AI / ML Dev tools <section class=\"mt-6 border-t border-line pt-5\"","needs":"data-testid=\"pubcard-needs\"> Looking for a co-founder <sectio… |
 | D2 | публичная проекция /api/public/profiles/<slug>: только public-контакты | 200, contacts без phone | contacts=[website] | **PASS** | HTTP 200 {"slug":"«token»","display_name":"MATRIX-Alpha","contacts":[{"kind":"website","value":"https://matrix.example/alpha"}]} |
 | D3 | vCard: 200, public-поля, без телефона, экранирование | text/vcard + escaped FN, без phone | text/vcard, FN экранирован (\, \;), phone отсутствует | **PASS** | FN:MATRIX-Alpha\, Inc.\; "Ltd" \| URL:https://matrix.example/alpha |
-| D4 | QR SVG: 200 image/svg+xml | 200 + <svg | 200 image/svg+xml | **PASS** | HTTP 200 image/svg+xml; charset=utf-8 bytes=2008 |
+| D4 | QR SVG: 200 image/svg+xml | 200 + <svg | 200 image/svg+xml | **PASS** | HTTP 200 image/svg+xml; charset=utf-8 bytes=2410 |
 | D5 | несуществующий slug → 404 (JSON и HTML) | 404 not_found | 404 JSON + 404 HTML + 404 vCard | **PASS** | HTTP 404 {"code":"not_found","message":"Profile not found","correlation_id":"«token»","retryable":false} \| HTML 404 |
 
 ## Режим E
@@ -135,7 +134,7 @@
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| F1 | enrichment: живой Vertex draft (профиль без своих ссылок) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"Professional","short_bio":"Connecting with professionals i… |
+| F1 | enrichment: живой Vertex draft (профиль без своих ссылок) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"Professional Profile for MATRIX-Bravo","short_bio":"MATRIX… |
 | F1b | enrichment: живой Vertex draft при наличии ссылки (контроль) | 200 + draft/sources | 200 draft + 0 source(s), provider=vertex_gemini — черновик провайдера | **PASS** | #1: HTTP 200 {"ok":true,"draft":{"headline":"Founder & CEO in AI SaaS","short_bio":"MATRIX-Charlie is a… |
 | F2 | enrichment: лимит 5/час → 429 | 6-й запрос → 429 (X-RateLimit-Limit: 5) | 400,400,400,400,400 → 429 (limit 5) | **PASS** | HTTP 429 {"code":"rate_limited","message":"Too many enrichment requests. Try again later.","correlation_id":"«token»","retryable":true} x-ratelimit-limit=5 |
 | F3 | enrichment без сессии → 401 | 401 unauthorized | 401 unauthorized | **PASS** | HTTP 401 {"code":"unauthorized","message":"Sign in required","correlation_id":"«token»","retryable":false} |
@@ -146,9 +145,9 @@
 |---|---|---|---|---|---|
 | G1 | публичное событие видно без сессии | GET /api/events/<slug> без cookie → 200 | 200 «WELCOME Demo Meetup — Product & Growth» (access_mode=public), viewer.is_member=false | **PASS** | HTTP 200 {"ok":true,"event":{"id":"«token»","slug":"welcome-demo-meetup","name":"WELCOME Demo Meetup — Product & Growth","mode":"offline","access_mode":"public","status":"active","starts_at":"2026-09-… |
 | G2 | закрытое событие: join с кодом | без кода 403, неверный 403, верный 200, повтор идемпотентен | 403 join_forbidden (без кода) → 403 (неверный) → 200 (верный, state=active) → 200 already_member:true | **PASS** | HTTP 403 {"code":"join_forbidden","message":"This event requires a valid join code or registration claim","correlation_id":"«token»","retryable":false} \| HTTP 403 {"code":"join_forbidden","message":"T… |
-| G3 | закрытое событие: 20 неверных попыток → lockout | после 20 фейлов верный код тоже 429 join_code_locked | 20× 403 join_forbidden (2× придержал per-IP bucket) → верный код 429 join_code_locked | **PASS** | HTTP 429 {"code":"join_code_locked","message":"Too many failed attempts. Try again later.","correlation_id":"«token»","retryable":true} retry-after=900 |
+| G3 | закрытое событие: 20 неверных попыток → lockout | после 20 фейлов верный код тоже 429 join_code_locked | 20× 403 join_forbidden (3× придержал per-IP bucket) → верный код 429 join_code_locked | **PASS** | HTTP 429 {"code":"join_code_locked","message":"Too many failed attempts. Try again later.","correlation_id":"«token»","retryable":true} retry-after=900 |
 | G4 | directory: режимы intent/interest/all + фильтры + поиск q | 200 на все валидные, 400 на невалидные | all/intent/interest/function/industry/q → 200 (q=Bravo нашёл 1); невалидные → 400 invalid_mode / invalid_job_function | **PASS** | HTTP 200 {"ok":true,"mode":"all"} members=3 \| HTTP 400 {"code":"invalid_mode","message":"mode must be one of: all, intent, interest","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"i… |
-| G5 | recommendations: топ-3 + причины (коды и параметры) | 200, ≤3, reasons с code+params, без себя | 3/3: MATRIX-Charlie(88), MATRIX-Bravo(80), MATRIX-Delta(80); первый reason=intent_need_covered {"need":"seeking-cofounder","offer":"open-to-cofound"} | **PASS** | {"profile_id":"«token»","display_name":"MATRIX-Charlie","headline":null,"company":null,"score":88,"reasons_for_me":[{"code":"intent_need_covered","params":{"need":"seeking-cofounder","offer":"open-to-… |
+| G5 | recommendations: топ-3 + причины (коды и параметры) | 200, ≤3, reasons с code+params, без себя | 3/3: MATRIX-Charlie(88), MATRIX-Delta(80), MATRIX-Bravo(80); первый reason=intent_need_covered {"need":"seeking-cofounder","offer":"open-to-cofound"} | **PASS** | {"profile_id":"«token»","display_name":"MATRIX-Charlie","headline":null,"company":null,"score":88,"reasons_for_me":[{"code":"intent_need_covered","params":{"need":"seeking-cofounder","offer":"open-to-… |
 | G6 | attendance self-report | 200 attendance_source=self; чужая membership 403; мусор 400 | 200 attendance_source=self \| 403 forbidden (чужая) \| 400 invalid_present | **PASS** | HTTP 200 {"ok":true,"attendance_source":"self"} \| HTTP 403 {"code":"forbidden","message":"This membership does not belong to you","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"inva… |
 | G7 | non-member → 403 на directory/recommendations | 403 forbidden | 403 forbidden ×2 | **PASS** | HTTP 403 {"code":"forbidden","message":"Only active members can see the event directory","correlation_id":"«token»","retryable":false} \| HTTP 403 {"code":"forbidden","message":"Only active members can… |
 | G8 | directory: смотрящий не показывается сам себе (все режимы) | alpha.profileId отсутствует в members для all/intent/interest | self отсутствует во всех трёх режимах (all=3, intent=0, interest=3); рекомендации тоже без себя (3) | **PASS** | alpha.profileId отсутствует в members: all=3, intent=0, interest=3; recommendations=3 |
@@ -161,14 +160,14 @@
 | H2 | import commit | 200 counts{created,updated,skipped,quarantined} | created=3 updated=0 skipped=0 quarantined=1 | **PASS** | {"created":3,"updated":0,"skipped":0,"quarantined":1} |
 | H3 | повторный commit идемпотентен (0 дублей) | created:0, число регистраций не растёт | created=0 updated=3; регистраций 3 → 3 | **PASS** | {"created":0,"updated":3,"skipped":0,"quarantined":1} |
 | H4 | формула в данных безопасна (нейтрализация в экспорте) | экспорт CSV нейтрализует = в начале ячейки | ячейка экспортирована с защитным апострофом: «'=cmd\|' /C calc'!A0,unclaimed,approved» | **PASS** | '=cmd\|' /C calc'!A0,unclaimed,approved |
-| H5 | лимиты импорта: >5000 строк и >5МБ отклоняются | 413 (приложение для строк; платформа для байт) | 5001 строка → 413 payload_too_large; >5МиБ → 413 (уровень приложения) | **PASS** | HTTP 413 {"code":"payload_too_large","message":"CSV exceeds the 5000-row limit","correlation_id":"«token»","retryable":false} \| HTTP 413 {"code":"payload_too_large","message":"CSV exceeds the 5 MB lim… |
+| H5 | лимиты импорта: >5000 строк и >5МБ отклоняются | 413 (приложение для строк; платформа для байт) | 5001 строка → 413 payload_too_large; >5МиБ → 413 (уровень платформы: Request Entity Too Large<br><br>«token»<br><br>cdg1::«token»<br>) | **PASS** | HTTP 413 {"code":"payload_too_large","message":"CSV exceeds the 5000-row limit","correlation_id":"«token»","retryable":false} \| HTTP 413 {"_nonJson":"Request Entity Too Large\n\«token»\n\ncdg1::«token… |
 | H6 | неизвестный approval_status → quarantine (+ приглашение запрещено) | quarantined в БД; invite → 403 claim_not_allowed | approval_status='quarantined' в БД; invite → 403 claim_not_allowed | **PASS** | HTTP 403 {"code":"claim_not_allowed","message":"Quarantined registrations cannot be invited","correlation_id":"«token»","retryable":false} (status=quarantined) |
 
 ## Режим I
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| I1 | invite → claim-URL для approved-регистрации | 200 + claim_url/expires_at | 200 + claim_url=/claim/«token» (7 дней) | **PASS** | HTTP 200 {"ok":true,"claim_url":"/claim/«token»","expires_at":"2026-09-21T13:26:34.631Z"} |
+| I1 | invite → claim-URL для approved-регистрации | 200 + claim_url/expires_at | 200 + claim_url=/claim/«token» (7 дней) | **PASS** | HTTP 200 {"ok":true,"claim_url":"/claim/«token»","expires_at":"2026-09-21T13:32:57.438Z"} |
 | I2 | GET /claim/<token> НЕ консюмит (повторный GET работает) | два GET → 200, challenge не consumed | GET ×2 → 200; consumed_at остался NULL | **PASS** | HTTP 200/200, link_challenges.consumed_at = null |
 | I3 | claim с чужого email → 403 | 403 email_mismatch | 403 email_mismatch | **PASS** | HTTP 403 {"code":"email_mismatch","message":"This claim link belongs to a different email address","correlation_id":"«token»","retryable":false} |
 | I4 | claim с правильным email → 200 (+membership) | 200 + membership state active | 200: membership active, profile_created=false | **PASS** | HTTP 200 {"ok":true,"event_id":"«token»","membership":{"id":"«token»","state":"active","directory_visible":false},"profile_created":false,"notice":"Данные из регистрации — проверьте, что всё верно. Им… |
@@ -184,16 +183,16 @@
 | J4 | mutual после ОДНОГО accept контрагента | charlie accept → mutual; reveal = пересечение полей | pending → mutual после ОДНОГО accept контрагента; revealed=[phone: +34600999888] при public_enabled=false | **PASS** | HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"pending","my_decision":"accept","other_accepted":false},"revealed":[]} \| HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"mutual"… |
 | J5 | отзыв полей → reveal скрывается | после re-accept с reveal_fields=[] → revealed=[] | revealed=[] после сужения пересечения полей | **PASS** | HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"mutual","my_decision":"accept","other_accepted":true},"revealed":[]} |
 | J6 | блокировка: reveal подавлен и интро невозможно | GET reveal=[] при mutual; create → 403 blocked | revealed=[] (state mutual) + create → 403 blocked | **PASS** | HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"mutual","my_decision":"accept","other_accepted":true},"revealed":[]} \| HTTP 403 {"code":"blocked","message":"Introduction is not available",… |
-| J7 | cooldown: пара с интро не в рекомендациях | Bravo исчез из рекомендаций после decline | до интро Bravo был в рекомендациях (3 шт.), после decline отсутствует; сейчас 1 шт. | **PASS** | before=[MATRIX-Charlie, MATRIX-Bravo, MATRIX-Delta], after=[1] |
+| J7 | cooldown: пара с интро не в рекомендациях | Bravo исчез из рекомендаций после decline | до интро Bravo был в рекомендациях (3 шт.), после decline отсутствует; сейчас 1 шт. | **PASS** | before=[MATRIX-Charlie, MATRIX-Delta, MATRIX-Bravo], after=[1] |
 | J8 | блокировка: нет в directory и рекомендациях | Charlie отсутствует в обоих списках | Charlie отсутствует в directory (2 записей) и рекомендациях (1) | **PASS** | members=2, recommendations=1, blocked=Charlie |
 | J9 | respond withdraw (отзыв до mutual) + нейтральное уведомление контрагенту | 200 state revoked; джоба intro_withdrawn без причины, ровно одна | withdraw → 200 revoked (повтор → 409); джоба intro_withdrawn_notice для delta, текст нейтральный, ровно одна | **PASS** | HTTP 200 {"ok":true,"introduction":{"id":"«token»","state":"revoked","my_decision":"withdraw"}} \| HTTP 409 {"code":"invalid_state","message":"This introduction is revoked; only pending introductions c… |
-| J10 | уведомления о решении подавляются по правилам (no_channel / consent_revoked) | decline → suppressed:no_channel; withdraw при активном binding без service_channel-согласия → suppressed:consent_revoked | decline=suppressed:no_channel (нет канала), withdraw=suppressed:consent_revoked (binding активен, согласие отозвано) | **PASS** | delivery_attempts: intro_declined:a116eba8-b3de-4bd2-9a68-7a8ff9bd8c10:25f25a69-2649-4fa8-a58f-4005a2a0429b → suppressed/no_channel; intro_withdrawn:66a8d4b1-7082-4e71-bf32-07ca112922e0:2fedc4d2-0a37-… |
+| J10 | уведомления о решении подавляются по правилам (no_channel / consent_revoked) | decline → suppressed:no_channel; withdraw при активном binding без service_channel-согласия → suppressed:consent_revoked | decline=suppressed:no_channel (нет канала), withdraw=suppressed:consent_revoked (binding активен, согласие отозвано) | **PASS** | delivery_attempts: intro_declined:f60096ae-453b-429c-a7d7-4d660a7d123f:bf2a9bab-a89e-4815-a250-3f9d9afdc718 → suppressed/no_channel; intro_withdrawn:72d38b21-5b01-4c8f-8baa-1e9b7a34c61f:03b52f35-0184-… |
 
 ## Режим K
 
 | ID | Проверка | Ожидание | Факт | Статус | Доказательство |
 |---|---|---|---|---|---|
-| K1 | заметка владельцем: upsert + список | 200; заметка видна в своём списке | 200 + заметка в /api/me/notes | **PASS** | HTTP 200 {"ok":true,"note":{"other_profile_id":"«token»","note_text":"MATRIX- note about Delta","next_step":"ping","next_step_status":"proposed","updated_at":"2026-09-14T13:26:45.168Z"}} |
+| K1 | заметка владельцем: upsert + список | 200; заметка видна в своём списке | 200 + заметка в /api/me/notes | **PASS** | HTTP 200 {"ok":true,"note":{"other_profile_id":"«token»","note_text":"MATRIX- note about Delta","next_step":"ping","next_step_status":"proposed","updated_at":"2026-09-14T13:33:01.769Z"}} |
 | K2 | чужая заметка не видна другому аккаунту | список Bravo не содержит заметку Alpha | список Bravo: 0 заметок, чужих нет | **PASS** | HTTP 200 {"ok":true} notes=0 |
 | K3 | организатор без связи → 403 | 403 not_connected | organizer → 403 not_connected; self → 400 self_note | **PASS** | HTTP 403 {"code":"not_connected","message":"Notes can only be kept about people you actually met","correlation_id":"«token»","retryable":false} \| HTTP 400 {"code":"self_note","message":"Notes are abou… |
 
@@ -204,7 +203,7 @@
 | L1 | grant по purpose (event scope) | 200 action=grant | 200 grant organizer_marketing@event | **PASS** | HTTP 200 {"ok":true,"action":"grant","purpose":"organizer_marketing","scope_type":"event"} |
 | L2 | withdraw по purpose (revoke-ручка) | 200 action=withdraw | 200 withdraw; неизвестный purpose → 400 invalid_purpose | **PASS** | HTTP 200 {"ok":true,"action":"withdraw"} \| HTTP 400 {"code":"invalid_purpose","message":"purpose must be one of: public_card, event_directory, introduction_fields, service_channel, organizer_marketing… |
 | L3 | withdraw подавляет уже поставленные в очередь джобы (интро) | pending-джоба становится suppressed | джоба intro_requested…: suppressed → suppressed | **PASS** | outbox_jobs.status suppressed → suppressed (purpose=service_channel, account=Bravo) |
-| L4 | export содержит историю согласий | консенты grant+withdraw присутствуют в export | export.consents: 5 записей (grant+withdraw organizer_marketing) | **PASS** | [{"purpose":"organizer_marketing","scope_type":"event","scope_id":"f81bb1c2-958f-4615-9324-a5a6c45f7fff","field_set":[],"policy_version":"matrix-2026-09-14","action":"grant","created_at":"2026-09-14T1… |
+| L4 | export содержит историю согласий | консенты grant+withdraw присутствуют в export | export.consents: 5 записей (grant+withdraw organizer_marketing) | **PASS** | [{"purpose":"organizer_marketing","scope_type":"event","scope_id":"f1d7b835-dfbf-4814-b0d9-4b4215f130a1","field_set":[],"policy_version":"matrix-2026-09-14","action":"grant","created_at":"2026-09-14T1… |
 
 ## Режим M
 
@@ -237,7 +236,7 @@
 | O2 | дубликат update_id → 200 accepted:false | первый accepted:true, дубль accepted:false | accepted:true → accepted:false (идемпотентность по update_id) | **PASS** | HTTP 200 {"ok":true,"accepted":true} \| HTTP 200 {"ok":true,"accepted":false} |
 | O3 | устаревший update (date > 24ч) → 400 stale_update | 400 stale_update | 400 stale_update (окно 24ч) | **PASS** | HTTP 400 {"code":"stale_update","message":"Update is older than the accepted window","correlation_id":"«token»","retryable":false} |
 | O4 | известная привязка (владелец) + /help → ответ доставлен | 200 accepted:true; telegram_reply переходит в sent | 200 accepted:true; telegram_reply → sent (attempt 1) | **PASS** | outbox_jobs(kind=telegram_reply, owner) status=sent; tick processed the update and the reply |
-| O5 | MATRIX-привязка + /stop → binding revoked и последующие автосообщения suppressed | binding state=revoked; новое автосообщение suppressed | /stop → 200; binding state=revoked; сообщение после отзыва → suppressed | **PASS** | channel_bindings.state=revoked; pre-stop job=failed (мог быть подхвачен cron до отзыва), post-stop job=suppressed (подавлено воркером) |
+| O5 | MATRIX-привязка + /stop → binding revoked и последующие автосообщения suppressed | binding state=revoked; новое автосообщение suppressed | /stop → 200; binding state=revoked; сообщение после отзыва → suppressed | **PASS** | channel_bindings.state=revoked; pre-stop job=suppressed (мог быть подхвачен cron до отзыва), post-stop job=suppressed (подавлено воркером) |
 | O6 | /start с валидным токеном без web-confirm → привязка НЕ создаётся | нет binding; после confirm → binding создаётся | /start без confirm → 0 привязок; после confirm + /start → active (тот же аккаунт) | **PASS** | HTTP 201 {"ok":true,"deep_link":"https://t.me/«secret»?start=«token»","next":"Confirm the link in this web session, then send /start with the link in Telegram."} \| HTTP 200 {"ok":true} |
 | O7 | worker-tick только с секретом | без секрета 401; с секретом 200 processed | 401 без секрета → 200 processed=0 | **PASS** | HTTP 401 {"code":"«token»","message":"Invalid worker tick secret","correlation_id":"«token»","retryable":false} \| HTTP 200 {"ok":true,"processed":0,"requeued_leases":0} |
 
@@ -248,7 +247,7 @@
 | P1 | health публичный: без migration_version | 200 status/db/worker и БЕЗ migration_version | 200 {"status":"ok","db":"up","worker":"up"} (без migration_version) | **PASS** | HTTP 200 {"status":"ok","db":"up","worker":"up"} |
 | P2 | health с x-health-details: отдаёт версию миграций | 200 + migration_version | 200 migrations=applied, migration_version=009 | **PASS** | HTTP 200 {"status":"ok","db":"up","migrations":"applied","migration_version":"009","worker":"up"} |
 | P3 | security-заголовки на / и /login (4 заголовка) | CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy | 4/4 на / и /login (content-security-policy, x-frame-options, referrer-policy, permissions-policy) | **PASS** | /: 4/4 \| /login: 4/4 |
-| P4 | rate limit на OTP: per-IP bucket (10/мин) | 11-й запрос с одного IP → 429 + X-RateLimit-Limit | статусы 503,503,503,503,503,503,503,503,503,503,429 → 429 (X-RateLimit-Limit=10) | **PASS** | HTTP 429 {"code":"rate_limited","message":"Too many requests. Slow down and try again later.","correlation_id":"«token»","retryable":true} x-ratelimit-limit=10 |
+| P4 | rate limit на OTP: per-IP bucket (10/мин) | 11-й запрос с одного IP → 429 + X-RateLimit-Limit | статусы 503,503,503,503,503,503,503,503,503,429 → 429 (X-RateLimit-Limit=10) | **PASS** | HTTP 429 {"code":"rate_limited","message":"Too many requests. Slow down and try again later.","correlation_id":"«token»","retryable":true} x-ratelimit-limit=10 |
 | P5 | приватные GET → cache-control: no-store | no-store на /api/me/profile и /api/me/notes | /api/me/profile: no-store, private \| /api/me/notes: no-store, private | **PASS** | /api/me/profile: no-store, private \| /api/me/notes: no-store, private |
 | P6 | worker-tick: оба носителя секрета (header и Bearer) | 200 на x-worker-tick-secret и Authorization: Bearer | header 200, Bearer 200, ?secret= 401 (носитель удалён) | **PASS** | HTTP 200 {"ok":true,"processed":0} \| HTTP 200 {"ok":true,"processed":0} \| HTTP 401 {"code":"«token»","message":"Invalid worker tick secret","correlation_id":"«token»","retryable":false} |
 
@@ -269,11 +268,12 @@
 
 ## Отклонения от ожиданий задания
 
-- A8: ожидалось {ok:true}; фактически HTTP 503 email_channel_disabled — у экземпляра под тестом нет почтового транспорта для не-демо адреса (на staging-деплое это owner-test режим Resend, на локальном прогоне — отсутствие RESEND_API_KEY), поэтому код не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.
+- A8: ожидалось {ok:true}; фактически HTTP 503 email_send_failed — у экземпляра под тестом нет почтового транспорта для не-демо адреса (на staging-деплое это owner-test режим Resend, на локальном прогоне — отсутствие RESEND_API_KEY), поэтому код не уходит. Свойство анти-энумерации (байт-в-байт одинаковые тела, без devCode) выполняется.
 - F2: квота тратилась аккаунтом без профиля (400 profile_required), чтобы не жечь живые Vertex-вызовы; порядок проверок (квота раньше профиля) подтверждён.
 - G2: ожидание задания «403/429 после 20 попыток lockout» проверено отдельной строкой G3 на выделенном событии (lockout блокирует и верный код — совместно на одном событии не сходится).
 - G5: позитивный контроль: Bravo/Charlie/Delta видны до интро; отсутствие пары с активным интро проверяется в J7
 - H1: в ответе preview нет ключей `mapping` и `would_update` из задания — фактический контракт: totalRows/validEmails/invalidEmails/quarantined/duplicatesInFile/sample. Mapping — входной параметр, не часть отчёта.
+- H5: тело >~4.5МБ отклоняет сама платформа Vercel до входа в функцию, поэтому прикладной лимит 5МиБ на этом деплое недостижим: отказ есть (413), но на платформенном слое, с другим телом ответа.
 - L4: ключ называется `consents`, а не `consent_events` как в задании; содержимое — append-only история согласий.
 - O5: /stop выполнен на синтетической MATRIX-привязке, а не на реальной привязке владельца: отзыв реальной привязки — деструктивная операция с существующими данными (запрещена заданием вне режима «проверить отказ»). /help на реальной привязке владельца проверен в O4.
 
@@ -283,7 +283,7 @@
 
 Cleanup:
 - outbox_jobs removed: 13; audit_events unlinked (actor → NULL, как в собственном cleanup приложения)
-- accounts hard-deleted: 25/25 (каскадом — profiles, contacts, memberships, consents, sessions, challenges, mfa, blocks, reports)
+- accounts hard-deleted: 24/24 (каскадом — profiles, contacts, memberships, consents, sessions, challenges, mfa, blocks, reports)
 - link_challenges (registration_claim) removed before their registrations: 1
 - organizers hard-deleted: 2 (каскадом — events, campaigns, registrations, memberships, introductions)
 

@@ -188,3 +188,13 @@ Verified live (real API calls against prod, sessions via demo accounts):
 - **Introductions**: fresh propose (Anna→Marta) → `pending`; counterpart accept (Marta) → still `pending` — **mutual requires BOTH sides to accept explicitly, including the initiator** (verified in `introduction_consents`: initiator row stays `pending` until they respond).
 - **Proactive notifications**: `intro_requested_notice` jobs for the fresh intros were **suppressed** — `suppressed:consent_revoked` (recipient has no `service_channel` consent) and `suppressed:no_channel` (no Telegram binding). This is the purpose-scoped consent engine working as designed: the bot does not send proactive messages without explicit consent.
 - Note: repeated OTP logins for the same demo account hit the OTP rate limit (expected; the run resumed after the window).
+
+## Increment: intro consent semantics + directory self-exclusion + decision notices — 2026-09-14
+
+- Migration 009: `introduction_consents.source` (`explicit` | `implicit_by_initiation`); applied to prod.
+- Initiator consent is recorded on create (`implicit_by_initiation`) with `audit_events.intro.consent_implicit`; mutual now requires only the counterpart's accept (ADR 0010). Initiator may still withdraw/decline explicitly.
+- Directory excludes the viewer in all modes (verified live: viewer absent, 3 other members listed).
+- Decline/withdraw send one neutral notice to the counterpart (`intro_declined_notice` / `intro_withdrawn_notice`), reason never disclosed; suppressed by the consent engine (`no_channel` / `consent_revoked`).
+- Intro card no longer masks `declined`/`revoked`; new neutral labels in EN/RU/ES.
+- Verification: gates all green (unit 323, integration 250, e2e 7, build, secrets, drill); usage matrix 98 PASS / 0 FAIL / 1 SKIP against a local production build, and 96 PASS / 2 FAIL / 1 SKIP against the live deployment — both failures are OTP per-account quota exhaustion caused by the session's own repeated manual logins (not product defects), observed rows: A1/A1b.
+- Prod DB left clean (0 MATRIX fixtures).
