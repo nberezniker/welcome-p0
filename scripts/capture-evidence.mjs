@@ -92,25 +92,10 @@ const pageB = await ctxB.newPage();
 
 await resetDb();
 
-// ── Landing screenshots (360 + 1440, en/ru) ────────────────────────────────
-const landing = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-await landing.goto(`${baseURL}/`);
-await waitHydrated(landing);
-await landing.screenshot({ path: `${OUT}/landing-1440-en.png`, fullPage: true });
-await landing.getByTestId('locale-switcher').getByRole('button', { name: /RU/i }).click();
-await landing.waitForSelector('html[lang="ru"]');
-await landing.screenshot({ path: `${OUT}/landing-1440-ru.png`, fullPage: true });
-await landing.setViewportSize({ width: 360, height: 780 });
-await landing.waitForTimeout(400);
-await landing.screenshot({ path: `${OUT}/landing-360-ru.png`, fullPage: true });
-const overflow = await landing.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
-console.log('overflow at 360px:', overflow, 'px');
-await landing.getByTestId('locale-switcher').getByRole('button', { name: /: EN/i }).click();
-await landing.waitForSelector('html[lang="en"]');
-await landing.setViewportSize({ width: 360, height: 780 });
-await landing.waitForTimeout(400);
-await landing.screenshot({ path: `${OUT}/landing-360-en.png`, fullPage: true });
-await landing.close();
+// ── Landing screenshots live in tests/e2e/landing.spec.ts ──────────────────
+// The marketing page is static, so its shots (1280/360, en/ru) are written by
+// the e2e gate on every run instead of being duplicated here. `overflow` at
+// 360px is asserted in that spec as well.
 
 // ── Account A ───────────────────────────────────────────────────────────────
 await loginViaOtp(pageA, A.email);
