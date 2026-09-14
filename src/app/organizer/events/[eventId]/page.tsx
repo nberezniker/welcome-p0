@@ -5,41 +5,15 @@ import { getSql } from '../../../../lib/db';
 import { requireAccountId } from '../../../../lib/session-page';
 import { getT } from '../../../../i18n';
 import { requireEventRole } from '../../../../domain/organizer';
+import { loadEventAnalytics } from '../../../../domain/event-analytics';
 import { ForbiddenPage } from '../../../../components/forbidden';
 import { InviteButton } from './invite-button';
 import { ImportPanel } from './import-panel';
 import { SettingsPanel } from './settings-panel';
+import { FunnelPanel } from './funnel-panel';
 
 export const metadata: Metadata = { title: 'Обзор события', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
-
-interface Funnel {
-  registrations: number;
-  activated: number;
-  directoryOptIn: number;
-  requested: number;
-  mutual: number;
-  selfReports: number;
-}
-
-async function loadFunnel(sql: ReturnType<typeof getSql>, eventId: string): Promise<Funnel> {
-  const [regRows, memberRows, dirRows, introRows, mutualRows, presentRows] = await Promise.all([
-    sql<{ count: number }[]>`SELECT count(*)::int AS count FROM registrations WHERE event_id = ${eventId}`,
-    sql<{ count: number }[]>`SELECT count(*)::int AS count FROM event_memberships WHERE event_id = ${eventId} AND state = 'active'`,
-    sql<{ count: number }[]>`SELECT count(*)::int AS count FROM event_memberships WHERE event_id = ${eventId} AND state = 'active' AND directory_visible = true`,
-    sql<{ count: number }[]>`SELECT count(*)::int AS count FROM introductions WHERE event_id = ${eventId}`,
-    sql<{ count: number }[]>`SELECT count(*)::int AS count FROM introductions WHERE event_id = ${eventId} AND state = 'mutual'`,
-    sql<{ count: number }[]>`SELECT count(*)::int AS count FROM event_memberships WHERE event_id = ${eventId} AND attendance_source = 'self'`,
-  ]);
-  return {
-    registrations: regRows[0]?.count ?? 0,
-    activated: memberRows[0]?.count ?? 0,
-    directoryOptIn: dirRows[0]?.count ?? 0,
-    requested: introRows[0]?.count ?? 0,
-    mutual: mutualRows[0]?.count ?? 0,
-    selfReports: presentRows[0]?.count ?? 0,
-  };
-}
 
 export default async function OrganizerEventPage({ params }: { params: Promise<{ eventId: string }> }) {
   const { eventId } = await params;
@@ -50,11 +24,11 @@ export default async function OrganizerEventPage({ params }: { params: Promise<{
   const role = await requireEventRole(sql, accountId, eventId, ['owner', 'admin', 'staff']);
   if (!role) return <ForbiddenPage locale={locale} />;
 
-  const [eventRows, funnel, regRows] = await Promise.all([
+  const [eventRows, analytics, regRows] = await Promise.all([
     sql<{ id: string; slug: string; name: string; access_mode: string; join_code: string | null; timezone: string; directory_close_at: Date | null }[]>`
       SELECT id, slug, name, access_mode, join_code, timezone, directory_close_at
       FROM events WHERE id = ${role.eventId} LIMIT 1`,
-    loadFunnel(sql, role.eventId),
+    loadEventAnalytics(sql, role.eventId),
     sql<{ id: string; imported_name: string | null; approval_status: string; claim_state: string }[]>`
       SELECT id, imported_name, approval_status, claim_state
       FROM registrations WHERE event_id = ${role.eventId}
@@ -64,14 +38,6 @@ export default async function OrganizerEventPage({ params }: { params: Promise<{
   if (!event) notFound();
 
   const canManage = role.role === 'owner' || role.role === 'admin';
-  const funnelItems = [
-    { label: t('org.stats.registrations'), value: funnel.registrations },
-    { label: t('org.stats.activated'), value: funnel.activated },
-    { label: t('org.stats.directory'), value: funnel.directoryOptIn },
-    { label: t('org.stats.requested'), value: funnel.requested },
-    { label: t('org.stats.mutual'), value: funnel.mutual },
-    { label: t('org.stats.useful'), value: null as number | null },
-  ];
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -97,21 +63,34 @@ export default async function OrganizerEventPage({ params }: { params: Promise<{
         {t('org.organizerHeading', { name: role.role })} · {event.timezone}
       </p>
 
-      {/* Funnel aggregates */}
-      <section className="card mt-6" aria-labelledby="funnel-heading">
-        <h2 id="funnel-heading" className="eyebrow">
-          {t('org.statsTitle')}
-        </h2>
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6" data-testid="funnel">
-          {funnelItems.map((item) => (
-            <div key={item.label} className="rounded-xl border border-line bg-paper px-3 py-2.5">
-              <b className="block text-2xl leading-tight tabular-nums">{item.value ?? '—'}</b>
-              <span className="text-[11px] text-muted">{item.label}</span>
-            </div>
-          ))}
-        </div>
-        <p className="mt-2 text-xs text-muted">{t('org.statsHint')}</p>
-      </section>
+      {/* Funnel aggregates (shared with GET /api/organizer/events/[eventId]/analytics) */}
+      <FunnelPanel
+        analytics={analytics}
+        strings={{
+          title: t('org.statsTitle'),
+          steps: {
+            registrations: t('org.stats.registrations'),
+            activated: t('org.stats.activated'),
+            directory: t('org.stats.directory'),
+            intros: t('org.stats.requested'),
+            mutual: t('org.stats.mutual'),
+          },
+          conversion: t('org.funnel.conversion'),
+          claimed: t('org.funnel.claimed'),
+          declined: t('org.funnel.declined'),
+          reveals: t('org.funnel.reveals'),
+          notes: t('org.funnel.notes'),
+          attendance: t('org.funnel.attendance'),
+          outcomesTitle: t('org.funnel.outcomesTitle'),
+          byDayTitle: t('org.funnel.byDayTitle'),
+          legendRegistrations: t('org.funnel.legendRegistrations'),
+          legendIntros: t('org.funnel.legendIntros'),
+          legendMutual: t('org.funnel.legendMutual'),
+          chartAlt: t('org.funnel.chartAlt'),
+          noData: t('org.funnel.noData'),
+          hint: t('org.statsHint'),
+        }}
+      />
 
       {/* Registrations + claim links */}
       <section className="card mt-6" aria-labelledby="regs-heading">

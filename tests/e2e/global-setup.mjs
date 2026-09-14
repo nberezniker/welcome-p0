@@ -24,6 +24,7 @@ const WARMUP_PATHS = [
   '/api/events/00000000-0000-0000-0000-000000000000/join',
   '/api/introductions', '/api/blocks', '/api/reports', '/api/consents',
   '/api/organizer/events', '/api/organizer/campaigns',
+  '/api/organizer/events/00000000-0000-0000-0000-000000000000/analytics',
   '/api/channels/telegram', '/api/registration-claims',
 ];
 
