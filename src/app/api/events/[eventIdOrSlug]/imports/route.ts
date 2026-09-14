@@ -4,7 +4,15 @@ import { requireAccount } from '../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../../lib/http';
 import { requireEventRole, isUuid } from '../../../../../domain/organizer';
 import { parseCsv } from '../../../../../domain/csv';
-import { mapCsvRows, IMPORT_MAX_BYTES, IMPORT_MAX_ROWS } from '../../../../../domain/import';
+import {
+  mapCsvRows,
+  validateMapping,
+  IMPORT_MAX_BYTES,
+  IMPORT_MAX_ROWS,
+  IMPORT_PREVIEW_SAMPLE,
+  type ImportMappingOverride,
+  type ImportRecord,
+} from '../../../../../domain/import';
 import { emailLookupHash, encryptValue } from '../../../../../lib/crypto';
 import { requireHashPepper, requireEncryptionKey } from '../../../../../lib/env';
 import { recordAudit } from '../../../../../lib/audit';
@@ -12,6 +20,8 @@ import { recordAudit } from '../../../../../lib/audit';
 /** POST /api/events/[eventIdOrSlug]/imports — organizer CSV import.
  * Body: JSON { csv_text | csv_base64, mode: 'preview'|'commit', mapping? }
  * OR multipart/form-data { file: csv, mode, mapping? }.
+ * `mapping` is `{csvColumn: field}` (fields: name, email, company, role/headline,
+ * external_id, approval_status) and overrides auto-mapping for those columns.
  * Preview never writes; commit upserts registrations ONLY (no accounts/profiles). */
 
 async function resolveEventId(idOrSlug: string): Promise<string | null> {
@@ -22,6 +32,13 @@ async function resolveEventId(idOrSlug: string): Promise<string | null> {
   }
   const rows = await sql<{ id: string }[]>`SELECT id FROM events WHERE slug = ${idOrSlug}`;
   return rows[0]?.id ?? null;
+}
+
+/** The upsert key the commit path uses: an explicit external id, else the email
+ * lookup hash. Shared so preview counts the SAME rows commit would touch. */
+function rowKey(rec: ImportRecord, pepper: string): string | null {
+  const emailHash = rec.emailValid && rec.email ? emailLookupHash(rec.email, pepper) : null;
+  return rec.externalId ?? (emailHash ? `email:${emailHash}` : null);
 }
 
 async function postRoute(
@@ -79,13 +96,12 @@ async function postRoute(
     }
     if (csvText === null) return jsonError(400, 'csv_required', 'csv_text/csv_base64 or a file upload is required');
 
-    const overrides =
+    const mappingInput: Record<string, unknown> =
       typeof mappingRaw === 'object' && mappingRaw !== null && !Array.isArray(mappingRaw)
         ? (mappingRaw as Record<string, unknown>)
         : {};
-    const mapping: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(overrides)) {
-      if (typeof v === 'string') mapping[k] = v;
+    if (mappingRaw !== undefined && mappingInput !== mappingRaw) {
+      return jsonError(400, 'invalid_mapping', 'mapping must be an object of {csvColumn: field}');
     }
 
     // --- limits -----------------------------------------------------------------
@@ -100,16 +116,50 @@ async function postRoute(
       return jsonError(413, 'payload_too_large', `CSV exceeds the ${IMPORT_MAX_ROWS}-row limit`);
     }
 
-    const mapped = mapCsvRows(parsed.rows, mapping);
+    // The organizer's explicit mapping is validated against the real header and
+    // REPLACES auto-mapping for the columns it names — a typo is a 400, never a
+    // silent fallback to guessing.
+    const validated = validateMapping(mappingInput, parsed.rows[0] ?? []);
+    if (!validated.ok) return jsonError(400, validated.code, validated.message);
+    const overrides: ImportMappingOverride = validated.mapping;
+
+    const mapped = mapCsvRows(parsed.rows, overrides);
+    const pepper = requireHashPepper();
+
     if (mode === 'preview') {
-      return jsonOk({ ok: true, preview: mapped.preview, errors: mapped.errors.slice(0, 20) });
+      // Would-be counts: same upsert key the commit path uses, one read-only
+      // probe against the rows that already exist. Preview never writes.
+      const keys = mapped.records.map((rec) => rowKey(rec, pepper));
+      const candidates = [...new Set(keys.filter((k): k is string => k !== null))];
+      let existingKeys = new Set<string>();
+      if (candidates.length > 0) {
+        const rows = await sql<{ external_guest_id: string }[]>`
+          SELECT external_guest_id FROM registrations
+          WHERE event_id = ${eventId} AND provider = 'csv'
+            AND external_guest_id = ANY(${candidates}::text[])
+        `;
+        existingKeys = new Set(rows.map((r) => r.external_guest_id));
+      }
+      return jsonOk({
+        ok: true,
+        mapping: mapped.mapping,
+        columns: mapped.columns,
+        would_insert: candidates.filter((k) => !existingKeys.has(k)).length,
+        would_update: candidates.filter((k) => existingKeys.has(k)).length,
+        // Rows with neither an external id nor a valid email have no upsert key.
+        would_skip: keys.filter((k) => k === null).length,
+        quarantined_count: mapped.preview.quarantined,
+        errors: mapped.errors.slice(0, 20),
+        sample: mapped.preview.sample.slice(0, IMPORT_PREVIEW_SAMPLE),
+        // Legacy shape kept verbatim for existing clients/tests.
+        preview: mapped.preview,
+      });
     }
 
     if (mapped.records.length === 0) {
       return jsonError(400, 'no_valid_rows', 'No importable rows found in the CSV');
     }
 
-    const pepper = requireHashPepper();
     const encKey = requireEncryptionKey();
     let created = 0;
     let updated = 0;
@@ -118,7 +168,7 @@ async function postRoute(
     await sql.begin(async (tx) => {
       for (const rec of mapped.records) {
         const emailHash = rec.emailValid && rec.email ? emailLookupHash(rec.email, pepper) : null;
-        const externalId = rec.externalId ?? (emailHash ? `email:${emailHash}` : null);
+        const externalId = rowKey(rec, pepper);
         if (!externalId) {
           skipped++;
           continue;
@@ -164,6 +214,7 @@ async function postRoute(
 
     return jsonOk({
       ok: true,
+      mapping: mapped.mapping,
       counts: { created, updated, skipped, quarantined: mapped.preview.quarantined },
       errors: mapped.errors.slice(0, 20),
     });

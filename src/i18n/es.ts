@@ -602,6 +602,27 @@ export const es: Partial<Dictionary> = {
   'org.forbidden': 'No gestionas este evento.',
   'org.organizerHeading': 'Organizador: {name}',
 
+  // Column mapping for CSV import — the organizer binds each column to a field.
+  'org.importMapTitle': 'Asignación de columnas',
+  'org.importMapHint': 'Elige qué campo rellena cada columna del CSV. Deja una columna sin asignar para importarla solo como dato extra.',
+  'org.importMapColumn': 'Columna del CSV',
+  'org.importMapField': 'Se importa como',
+  'org.importMapIgnore': '— no importar —',
+  'org.importMapRecalc': 'Recalcular',
+  'org.importWouldInsert': 'Añadiremos: {n}',
+  'org.importWouldUpdate': 'Actualizaremos: {n}',
+  'org.importWouldQuarantine': 'En cuarentena: {n}',
+  'org.importField.name': 'Nombre',
+  'org.importField.email': 'Email',
+  'org.importField.company': 'Empresa',
+  'org.importField.role': 'Rol / cargo',
+  'org.importField.external_id': 'ID externo',
+  'org.importField.approval_status': 'Estado de aprobación',
+  'org.importMapErrorUnknownField': 'Ese campo no se puede importar. Elige uno de la lista.',
+  'org.importMapErrorUnknownColumn': 'El CSV no tiene esa columna. Revisa la asignación y recalcula.',
+  'org.importMapErrorDuplicate': 'Cada campo admite una sola columna. Quita la asignación duplicada.',
+  'org.importMapErrorInvalid': 'La asignación de columnas no es válida.',
+
   // ── Campaigns ─────────────────────────────────────────────────────────────
   'camp.title': 'Campañas',
   'camp.subtitle': 'Anuncios con consentimiento a los miembros del evento por canales conectados.',

@@ -168,6 +168,27 @@ export default async function OrganizerEventPage({ params }: { params: Promise<{
               importErrors: t('org.importErrors'),
               errorGeneric: t('common.errorGeneric'),
               errorNetwork: t('common.errorNetwork'),
+              importMapTitle: t('org.importMapTitle'),
+              importMapHint: t('org.importMapHint'),
+              importMapColumn: t('org.importMapColumn'),
+              importMapField: t('org.importMapField'),
+              importMapIgnore: t('org.importMapIgnore'),
+              importMapRecalc: t('org.importMapRecalc'),
+              importWouldInsertTemplate: t('org.importWouldInsert'),
+              importWouldUpdateTemplate: t('org.importWouldUpdate'),
+              importWouldQuarantineTemplate: t('org.importWouldQuarantine'),
+              importFieldLabels: {
+                name: t('org.importField.name'),
+                email: t('org.importField.email'),
+                company: t('org.importField.company'),
+                role: t('org.importField.role'),
+                external_id: t('org.importField.external_id'),
+                approval_status: t('org.importField.approval_status'),
+              },
+              importMapErrorUnknownField: t('org.importMapErrorUnknownField'),
+              importMapErrorUnknownColumn: t('org.importMapErrorUnknownColumn'),
+              importMapErrorDuplicate: t('org.importMapErrorDuplicate'),
+              importMapErrorInvalid: t('org.importMapErrorInvalid'),
             }}
           />
           <SettingsPanel

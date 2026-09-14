@@ -600,6 +600,27 @@ export const ru: Partial<Dictionary> = {
   'org.forbidden': 'Вы не управляете этим событием.',
   'org.organizerHeading': 'Организатор: {name}',
 
+  // Column mapping for CSV import — the organizer binds each column to a field.
+  'org.importMapTitle': 'Сопоставление колонок',
+  'org.importMapHint': 'Укажите, в какое поле идёт каждая колонка CSV. Колонку без поля импортируем только как доп. данные.',
+  'org.importMapColumn': 'Колонка CSV',
+  'org.importMapField': 'Импортировать как',
+  'org.importMapIgnore': '— не импортировать —',
+  'org.importMapRecalc': 'Пересчитать',
+  'org.importWouldInsert': 'Добавим: {n}',
+  'org.importWouldUpdate': 'Обновим: {n}',
+  'org.importWouldQuarantine': 'В карантин: {n}',
+  'org.importField.name': 'Имя',
+  'org.importField.email': 'Email',
+  'org.importField.company': 'Компания',
+  'org.importField.role': 'Роль / должность',
+  'org.importField.external_id': 'Внешний ID',
+  'org.importField.approval_status': 'Статус подтверждения',
+  'org.importMapErrorUnknownField': 'Такого поля нет. Выберите поле из списка.',
+  'org.importMapErrorUnknownColumn': 'В CSV нет такой колонки. Проверьте сопоставление и пересчитайте.',
+  'org.importMapErrorDuplicate': 'Поле может брать только одну колонку. Уберите дублирующее сопоставление.',
+  'org.importMapErrorInvalid': 'Сопоставление колонок некорректно.',
+
   // ── Campaigns ─────────────────────────────────────────────────────────────
   'camp.title': 'Рассылки',
   'camp.subtitle': 'Анонсы с согласия участникам события через подключённые каналы.',

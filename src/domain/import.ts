@@ -16,6 +16,93 @@ export interface ImportMappingOverride {
   approval_status?: string;
 }
 
+/** Fields the organizer may bind a CSV column to. */
+export const IMPORT_FIELDS = ['name', 'email', 'company', 'role', 'external_id', 'approval_status'] as const;
+export type ImportField = (typeof IMPORT_FIELDS)[number];
+
+/** Accepted spellings of a field name from the client. The brief names the
+ * person's title as "role/headline", so both canonical spellings resolve to
+ * `role` — and resolving them to ONE field is what makes the duplicate check
+ * below catch "two columns, one field" no matter which spelling was typed. */
+const IMPORT_FIELD_ALIASES: Record<string, ImportField> = {
+  headline: 'role',
+  title: 'role',
+};
+
+export type MappingErrorCode =
+  | 'invalid_mapping'
+  | 'unknown_mapping_field'
+  | 'unknown_csv_column'
+  | 'duplicate_mapping_field';
+
+export type MappingValidation =
+  | { ok: true; mapping: ImportMappingOverride }
+  | { ok: false; code: MappingErrorCode; message: string };
+
+function canonicalField(value: string): ImportField | null {
+  const v = value.trim().toLowerCase();
+  if ((IMPORT_FIELDS as readonly string[]).includes(v)) return v as ImportField;
+  return IMPORT_FIELD_ALIASES[v] ?? null;
+}
+
+/**
+ * Validates the organizer-supplied `{csvColumn: field}` mapping against the CSV
+ * header. Returns the canonical `{field: csvColumn}` form ready for
+ * `mapCsvRows`, using the header spelling exactly as it appears in the file.
+ *
+ * Rejection is explicit rather than silent: a typo in a column name must not
+ * quietly fall back to auto-mapping, because the organizer would then believe a
+ * column was imported when it was not.
+ */
+export function validateMapping(
+  raw: Record<string, unknown>,
+  columns: readonly string[],
+): MappingValidation {
+  const byColumn = new Map<string, string>();
+  for (const column of columns) byColumn.set(column.trim().toLowerCase(), column);
+
+  const mapping: ImportMappingOverride = {};
+  const used = new Map<ImportField, string>();
+
+  for (const [column, rawField] of Object.entries(raw)) {
+    if (typeof rawField !== 'string' || rawField.trim().length === 0) {
+      return {
+        ok: false,
+        code: 'invalid_mapping',
+        message: `mapping["${column}"] must name an import field`,
+      };
+    }
+    const field = canonicalField(rawField);
+    if (!field) {
+      return {
+        ok: false,
+        code: 'unknown_mapping_field',
+        message: `mapping["${column}"]: unknown field "${rawField}" (expected one of ${IMPORT_FIELDS.join(', ')})`,
+      };
+    }
+    const header = byColumn.get(column.trim().toLowerCase());
+    if (!header) {
+      return {
+        ok: false,
+        code: 'unknown_csv_column',
+        message: `mapping["${column}"]: no such column in the CSV header`,
+      };
+    }
+    const already = used.get(field);
+    if (already) {
+      return {
+        ok: false,
+        code: 'duplicate_mapping_field',
+        message: `field "${field}" is mapped to both "${already}" and "${header}"`,
+      };
+    }
+    used.set(field, header);
+    mapping[field] = header;
+  }
+
+  return { ok: true, mapping };
+}
+
 export interface ImportRecord {
   name: string | null;
   email: string | null;
@@ -41,6 +128,10 @@ export interface MapResult {
   records: ImportRecord[];
   preview: ImportPreview;
   errors: string[];
+  /** CSV header columns, in file order — the organizer picks from these. */
+  columns: string[];
+  /** Final field → column resolution (organizer override first, then auto). */
+  mapping: Record<ImportField, string | null>;
 }
 
 const DEFAULT_HEADERS: Record<string, string[]> = {
@@ -74,12 +165,22 @@ function resolveHeaderIndex(header: (string | undefined)[], field: string, overr
 export function mapCsvRows(rows: string[][], overrides: ImportMappingOverride = {}): MapResult {
   const errors: string[] = [];
   const records: ImportRecord[] = [];
+  const emptyMapping = (): Record<ImportField, string | null> => ({
+    name: null,
+    email: null,
+    company: null,
+    role: null,
+    external_id: null,
+    approval_status: null,
+  });
   if (rows.length === 0 || rows[0]!.length === 0) {
     errors.push('csv file has no header row');
     return {
       records,
       preview: { totalRows: 0, validEmails: 0, invalidEmails: 0, quarantined: 0, duplicatesInFile: 0, sample: [] },
       errors,
+      columns: [],
+      mapping: emptyMapping(),
     };
   }
 
@@ -91,6 +192,17 @@ export function mapCsvRows(rows: string[][], overrides: ImportMappingOverride = 
     role: resolveHeaderIndex(header, 'role', overrides.role),
     externalId: resolveHeaderIndex(header, 'external_id', overrides.external_id),
     approvalStatus: resolveHeaderIndex(header, 'approval_status', overrides.approval_status),
+  };
+
+  // Echo the resolution so the UI can render "column → field" for review.
+  const at = (i: number): string | null => (i >= 0 && i < header.length ? header[i]! : null);
+  const mapping: Record<ImportField, string | null> = {
+    name: at(idx.name),
+    email: at(idx.email),
+    company: at(idx.company),
+    role: at(idx.role),
+    external_id: at(idx.externalId),
+    approval_status: at(idx.approvalStatus),
   };
 
   const preview: ImportPreview = {
@@ -164,5 +276,5 @@ export function mapCsvRows(rows: string[][], overrides: ImportMappingOverride = 
     }
   }
 
-  return { records, preview, errors };
+  return { records, preview, errors, columns: [...header], mapping };
 }

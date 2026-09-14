@@ -615,6 +615,27 @@ export const en = {
   'org.forbidden': 'You do not manage this event.',
   'org.organizerHeading': 'Organizer: {name}',
 
+  // Column mapping for CSV import — the organizer binds each column to a field.
+  'org.importMapTitle': 'Column mapping',
+  'org.importMapHint': 'Pick which field each CSV column fills. Leave a column unmapped to import it as extra data only.',
+  'org.importMapColumn': 'CSV column',
+  'org.importMapField': 'Imported as',
+  'org.importMapIgnore': '— do not import —',
+  'org.importMapRecalc': 'Recalculate',
+  'org.importWouldInsert': 'Will add: {n}',
+  'org.importWouldUpdate': 'Will update: {n}',
+  'org.importWouldQuarantine': 'Quarantined: {n}',
+  'org.importField.name': 'Name',
+  'org.importField.email': 'Email',
+  'org.importField.company': 'Company',
+  'org.importField.role': 'Role / headline',
+  'org.importField.external_id': 'External ID',
+  'org.importField.approval_status': 'Approval status',
+  'org.importMapErrorUnknownField': 'That is not an importable field. Pick one from the list.',
+  'org.importMapErrorUnknownColumn': 'The CSV has no such column. Check the mapping and recalculate.',
+  'org.importMapErrorDuplicate': 'Each field can take only one column. Remove the duplicate mapping.',
+  'org.importMapErrorInvalid': 'The column mapping is not valid.',
+
   // ── Campaigns ─────────────────────────────────────────────────────────────
   'camp.title': 'Campaigns',
   'camp.subtitle': 'Consent-based announcements to event members via connected channels.',
