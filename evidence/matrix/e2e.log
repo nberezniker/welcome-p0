@@ -1,0 +1,65 @@
+
+> welcome-p0@0.1.0 test:e2e /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
+> playwright test
+
+{
+  severity_local: 'NOTICE',
+  severity: 'NOTICE',
+  code: '00000',
+  message: 'drop cascades to 33 other objects',
+  detail: 'drop cascades to table schema_migrations\n' +
+    'drop cascades to extension pgcrypto\n' +
+    'drop cascades to table accounts\n' +
+    'drop cascades to table profiles\n' +
+    'drop cascades to table contact_fields\n' +
+    'drop cascades to table organizers\n' +
+    'drop cascades to table organizer_members\n' +
+    'drop cascades to table events\n' +
+    'drop cascades to table registrations\n' +
+    'drop cascades to table event_memberships\n' +
+    'drop cascades to table channel_bindings\n' +
+    'drop cascades to table link_challenges\n' +
+    'drop cascades to table consent_events\n' +
+    'drop cascades to table introductions\n' +
+    'drop cascades to table introduction_consents\n' +
+    'drop cascades to table connection_notes\n' +
+    'drop cascades to table campaigns\n' +
+    'drop cascades to table inbox_events\n' +
+    'drop cascades to table outbox_jobs\n' +
+    'drop cascades to table delivery_attempts\n' +
+    'drop cascades to table audit_events\n' +
+    'drop cascades to table sessions\n' +
+    'drop cascades to table auth_otp_codes\n' +
+    'drop cascades to table worker_heartbeat\n' +
+    'drop cascades to table blocks\n' +
+    'drop cascades to table reports\n' +
+    'drop cascades to table campaign_audience\n' +
+    'drop cascades to table join_attempts\n' +
+    'drop cascades to table otp_verify_failures\n' +
+    'drop cascades to table mfa_credentials\n' +
+    'drop cascades to table mfa_recovery_codes\n' +
+    'drop cascades to table mfa_verify_failures\n' +
+    'drop cascades to table enrichment_requests',
+  file: 'dependency.c',
+  line: '1227',
+  routine: 'reportDependentObjects'
+}
+applied 001 001_init.sql
+applied 002 002_phase2_events_matching.sql
+applied 003 003_link_challenges_claim.sql
+applied 004 004_outbox_campaigns.sql
+applied 005 005_security_hardening.sql
+applied 006 006_mfa_step_up.sql
+applied 007 007_taxonomy_v3.sql
+applied 008 008_profile_card_fields.sql
+
+Running 6 tests using 1 worker
+
+  ✓  1 tests/e2e/demo-login.spec.ts:23:5 › demo login enabled: the link appears and prefills the seeded demo account (746ms)
+  ✓  2 tests/e2e/demo-login.spec.ts:48:5 › demo login disabled: no demo affordance is rendered (300ms)
+  ✓  3 tests/e2e/onboarding-landing.spec.ts:41:5 › onboarding (3 questions) → mini-landing is public, localized and free of private data (3.7s)
+  ✓  4 tests/e2e/onboarding-landing.spec.ts:159:5 › the onboarding draft survives a reload and /me/profile edits the axes (2.2s)
+  ✓  5 tests/e2e/smoke.spec.ts:68:7 › WELCOME P0 smoke › landing, OTP login, profile, public card, event directory, mutual intro reveal (14.7s)
+  ✓  6 tests/e2e/smoke.spec.ts:196:7 › WELCOME P0 smoke › security headers on /, /login and legal pages (F-04, F-15) (644ms)
+
+  6 passed (28.9s)

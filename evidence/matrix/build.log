@@ -1,0 +1,100 @@
+
+> welcome-p0@0.1.0 build /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
+> next build
+
+▲ Next.js 16.3.4 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 31ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 938ms
+  Running TypeScript ...
+  Finished TypeScript in 1459ms ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/33) ...
+  Generating static pages using 9 workers (8/33) 
+  Generating static pages using 9 workers (16/33) 
+  Generating static pages using 9 workers (24/33) 
+✓ Generating static pages using 9 workers (33/33) in 153ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /api/auth/demo-login-info
+├ ƒ /api/auth/logout
+├ ƒ /api/auth/mfa/verify
+├ ƒ /api/auth/otp/request
+├ ƒ /api/auth/otp/verify
+├ ƒ /api/blocks
+├ ƒ /api/blocks/[targetAccountId]
+├ ƒ /api/channels/telegram
+├ ƒ /api/channels/telegram/challenge
+├ ƒ /api/channels/telegram/confirm
+├ ƒ /api/consents
+├ ƒ /api/consents/revoke
+├ ƒ /api/events/[eventIdOrSlug]
+├ ƒ /api/events/[eventIdOrSlug]/directory
+├ ƒ /api/events/[eventIdOrSlug]/imports
+├ ƒ /api/events/[eventIdOrSlug]/join
+├ ƒ /api/events/[eventIdOrSlug]/recommendations
+├ ƒ /api/health
+├ ƒ /api/internal/worker-tick
+├ ƒ /api/introductions
+├ ƒ /api/introductions/[id]
+├ ƒ /api/introductions/[id]/respond
+├ ƒ /api/locale
+├ ƒ /api/me
+├ ƒ /api/me/contacts
+├ ƒ /api/me/enrich
+├ ƒ /api/me/export
+├ ƒ /api/me/memberships/[membershipId]
+├ ƒ /api/me/memberships/[membershipId]/attendance
+├ ƒ /api/me/mfa
+├ ƒ /api/me/mfa/totp
+├ ƒ /api/me/mfa/totp/confirm
+├ ƒ /api/me/notes
+├ ƒ /api/me/notes/[otherProfileId]
+├ ƒ /api/me/profile
+├ ƒ /api/organizer/campaigns
+├ ƒ /api/organizer/campaigns/[id]
+├ ƒ /api/organizer/campaigns/[id]/approve
+├ ƒ /api/organizer/campaigns/[id]/audience
+├ ƒ /api/organizer/campaigns/[id]/send
+├ ƒ /api/organizer/campaigns/[id]/stats
+├ ƒ /api/organizer/events
+├ ƒ /api/organizer/events/[eventId]/export
+├ ƒ /api/organizer/events/[eventId]/registrations/[registrationId]/invite
+├ ƒ /api/organizer/events/[eventId]/settings
+├ ƒ /api/public/profiles/[slug]
+├ ƒ /api/public/profiles/[slug]/qr.svg
+├ ƒ /api/public/profiles/[slug]/vcard
+├ ƒ /api/registration-claims
+├ ƒ /api/reports
+├ ○ /api/taxonomy
+├ ƒ /api/webhooks/telegram
+├ ƒ /claim/[token]
+├ ƒ /e/[slug]
+├ ƒ /legal/privacy
+├ ƒ /legal/terms
+├ ƒ /login
+├ ƒ /me
+├ ƒ /me/contacts
+├ ƒ /me/events
+├ ƒ /me/events/[eventId]/directory
+├ ƒ /me/introductions
+├ ƒ /me/notes
+├ ƒ /me/privacy
+├ ƒ /me/profile
+├ ƒ /me/security
+├ ƒ /me/telegram
+├ ƒ /onboarding
+├ ƒ /organizer
+├ ƒ /organizer/events/[eventId]
+├ ƒ /organizer/events/[eventId]/campaigns
+└ ƒ /p/[slug]
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
