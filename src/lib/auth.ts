@@ -8,6 +8,9 @@ export const SESSION_COOKIE = 'welcome_session';
 export const SESSION_TTL_DAYS = 30;
 /** Refresh when less than this many days remain (sliding expiry, ~1 write/day max). */
 const REFRESH_THRESHOLD_DAYS = 29;
+/** last_seen_at is a "still in use" signal, not a request log: at most one
+ * write per session per this window, so a busy client costs ~1 row write/hour. */
+const LAST_SEEN_THROTTLE_MINUTES = 5;
 
 export interface AuthContext {
   accountId: string;
@@ -77,17 +80,29 @@ export async function requireAccount(req: NextRequest): Promise<AuthContext | nu
     `;
   }
 
+  // Throttled last-seen bump (feeds the device list on /me/security). Guarded in
+  // SQL so concurrent requests cannot stampede the same row.
+  await sql`
+    UPDATE sessions
+    SET last_seen_at = now()
+    WHERE id = ${row.session_id}
+      AND last_seen_at < now() - (${LAST_SEEN_THROTTLE_MINUTES} * interval '1 minute')
+  `;
+
   return { accountId: row.account_id, accountStatus: row.account_status, sessionId: row.session_id, mfaVerifiedAt: row.mfa_verified_at ? new Date(row.mfa_verified_at) : null };
 }
 
-/** Resolves an active account id from a raw session token (server components —
- * page context has no Request object for requireAccount). */
-export async function getAccountIdByToken(token: string | null | undefined): Promise<string | null> {
+/** Resolves the ACTIVE session (account id + session row id) from a raw token.
+ * Server components have no Request object for requireAccount, so they resolve
+ * the cookie here; route handlers get the same data from requireAccount. */
+export async function getSessionByToken(
+  token: string | null | undefined,
+): Promise<{ accountId: string; sessionId: string } | null> {
   if (!token) return null;
   const tokenHash = hashSessionToken(token);
   const sql = getSql();
-  const rows = await sql<{ account_id: string; account_status: string }[]>`
-    SELECT s.account_id, a.status AS account_status
+  const rows = await sql<{ session_id: string; account_id: string; account_status: string }[]>`
+    SELECT s.id AS session_id, s.account_id, a.status AS account_status
     FROM sessions s
     JOIN accounts a ON a.id = s.account_id
     WHERE s.token_hash = ${tokenHash} AND s.expires_at > now()
@@ -95,7 +110,13 @@ export async function getAccountIdByToken(token: string | null | undefined): Pro
   `;
   const row = rows[0];
   if (!row || row.account_status !== 'active') return null;
-  return row.account_id;
+  return { accountId: row.account_id, sessionId: row.session_id };
+}
+
+/** Resolves an active account id from a raw session token (server components —
+ * page context has no Request object for requireAccount). */
+export async function getAccountIdByToken(token: string | null | undefined): Promise<string | null> {
+  return (await getSessionByToken(token))?.accountId ?? null;
 }
 
 /**

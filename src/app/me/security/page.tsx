@@ -1,9 +1,13 @@
 import type { Metadata } from 'next';
+import { cookies } from 'next/headers';
 import { getSql } from '../../../lib/db';
 import { requireAccountId } from '../../../lib/session-page';
+import { SESSION_COOKIE, getSessionByToken } from '../../../lib/auth';
+import { loadActiveSessions } from '../../../lib/sessions';
 import { getT } from '../../../i18n';
 import { getMfaCredential, unusedRecoveryCodeCount } from '../../../lib/mfa';
 import { SecurityPanel, type SecurityStrings } from './security-panel';
+import { SessionsPanel, type SessionsStrings } from './sessions-panel';
 
 export const metadata: Metadata = { title: 'Безопасность', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -13,15 +17,22 @@ export const dynamic = 'force-dynamic';
  * enable/confirm/disable flow. Secrets and recovery codes only ever appear
  * once, in the client panel, right after they are issued — the server page
  * itself never receives them.
+ *
+ * It also lists the account's ACTIVE DEVICES (sessions): an opaque id, two
+ * timestamps and which one is this browser. No token, no user-agent, no IP —
+ * the server never has those to hand out.
  */
 export default async function SecurityPage() {
   const accountId = await requireAccountId('/me/security');
-  const { t } = await getT();
+  const { locale, t } = await getT();
   const sql = getSql();
+  const token = (await cookies()).get(SESSION_COOKIE)?.value;
+  const session = token ? await getSessionByToken(token) : null;
 
-  const [credential, unusedCodes] = await Promise.all([
+  const [credential, unusedCodes, sessions] = await Promise.all([
     getMfaCredential(sql, accountId),
     unusedRecoveryCodeCount(sql, accountId),
+    loadActiveSessions(sql, accountId, session?.sessionId ?? null),
   ]);
 
   const strings: SecurityStrings = {
@@ -51,6 +62,27 @@ export default async function SecurityPage() {
     errorGeneric: t('sec.errorGeneric'),
   };
 
+  const sessionsStrings: SessionsStrings = {
+    title: t('sec.sessionsTitle'),
+    subtitle: t('sec.sessionsSubtitle'),
+    currentBadge: t('sec.sessionsCurrent'),
+    createdLabel: t('sec.sessionsCreated'),
+    lastSeenLabel: t('sec.sessionsLastSeen'),
+    revoke: t('sec.sessionsRevoke'),
+    revoking: t('sec.sessionsRevoking'),
+    revokeAll: t('sec.sessionsRevokeAll'),
+    revokeAllConfirmTitle: t('sec.sessionsRevokeAllConfirmTitle'),
+    revokeAllConfirmBody: t('sec.sessionsRevokeAllConfirmBody'),
+    revokeConfirmTitle: t('sec.sessionsRevokeConfirmTitle'),
+    revokeConfirmBody: t('sec.sessionsRevokeConfirmBody'),
+    confirm: t('common.confirm'),
+    cancel: t('common.cancel'),
+    empty: t('sec.sessionsEmpty'),
+    revokedToast: t('sec.sessionsRevokedToast'),
+    errorGeneric: t('common.errorGeneric'),
+    errorNetwork: t('common.errorNetwork'),
+  };
+
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-extrabold tracking-tight">{strings.title}</h1>
@@ -62,6 +94,9 @@ export default async function SecurityPage() {
           unusedCodes={unusedCodes}
           strings={strings}
         />
+      </div>
+      <div className="mt-6">
+        <SessionsPanel sessions={sessions} locale={locale} strings={sessionsStrings} />
       </div>
     </div>
   );
