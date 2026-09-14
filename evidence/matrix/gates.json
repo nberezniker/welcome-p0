@@ -1,8 +1,8 @@
 {
-  "run_at": "2026-09-14T13:06:43.000Z",
-  "commit": "e7789016863e49ff863801d8ba941c7ecb1ce41f",
-  "command": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:integration && pnpm test:e2e && pnpm build && pnpm scan:secrets && pnpm drill:defect",
-  "note": "Гейты 1–7 прогнаны последовательно на чистом дереве коммита e778901; логи — evidence/matrix/*.log. drill:defect требует чистого дерева, поэтому запускается отдельно и последним (сам переписывает свои evidence-выходы) — он выполнен на bfc79c0, который отличается от e778901 только evidence-логами. Прирост против прошлого прогона: +1 unit-тест (паритет CONSENT_SOURCES ↔ CHECK миграции 009), +4 integration-теста (согласие инициатора, уведомления decline/withdraw, миграция 009).",
+  "run_at": "2026-09-14T22:26:08.163Z",
+  "commit": "339c75f6b0edc3cd1df46318944853708ba8e3f1",
+  "command": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:integration && pnpm test:e2e && pnpm build && pnpm scan:secrets",
+  "note": "Гейты 1–7 прогнаны последовательно на чистом дереве коммита 339c75f; логи — evidence/matrix/*.log. Прирост против прошлого прогона (323 unit / 250 integration / 7 e2e на e778901 и 11 e2e на 017cb89): +30 unit-тестов (email-канал 7, выбор канала 8, воронка 5, сегменты 10), +12 integration-тестов (email-канал 7, воронка 2, сегменты 3), +2 e2e-спеки (воронка организатора, сегмент кампании).",
   "all_green": true,
   "gates": [
     {
@@ -21,37 +21,31 @@
       "id": "test:unit",
       "command": "pnpm test:unit",
       "exit": 0,
-      "summary": "323 pass / 0 fail (node --test + tsx, 323 tests)"
+      "summary": "355 pass / 0 fail (node --test + tsx, 355 tests)"
     },
     {
       "id": "test:integration",
       "command": "pnpm test:integration",
       "exit": 0,
-      "summary": "250 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–009)"
+      "summary": "261 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–009)"
     },
     {
       "id": "test:e2e",
       "command": "pnpm test:e2e",
       "exit": 0,
-      "summary": "7 passed (25.8s) (Playwright chromium, next dev :3111, welcome_e2e)"
+      "summary": "13 passed (41.3s) (Playwright chromium, next dev :3111, welcome_e2e)"
     },
     {
       "id": "build",
       "command": "pnpm build",
       "exit": 0,
-      "summary": "Compiled successfully, 74 routes (73 dynamic, 1 static) + Proxy (Middleware)"
+      "summary": "Compiled successfully (Turbopack), 33 предрендеренных страниц + Proxy (Middleware)"
     },
     {
       "id": "scan:secrets",
       "command": "pnpm scan:secrets",
       "exit": 0,
-      "summary": "no secrets found in tracked files"
-    },
-    {
-      "id": "drill:defect",
-      "command": "pnpm drill:defect",
-      "exit": 0,
-      "summary": "DRILL-OK: инъекция → гейт FAIL (exit 1) → revert → PASS (exit 0), без остатка в src/"
+      "summary": "scan:secrets ok — no secrets found in tracked files"
     }
   ]
 }

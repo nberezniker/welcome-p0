@@ -54,18 +54,24 @@ applied 007 007_taxonomy_v3.sql
 applied 008 008_profile_card_fields.sql
 applied 009 009_introduction_consent_source.sql
 
-Running 7 tests using 1 worker
+Running 13 tests using 1 worker
 
-  ✓  1 tests/e2e/demo-login.spec.ts:23:5 › demo login enabled: the link appears and prefills the seeded demo account (633ms)
-  ✓  2 tests/e2e/demo-login.spec.ts:48:5 › demo login disabled: no demo affordance is rendered (310ms)
-  ✓  3 tests/e2e/onboarding-landing.spec.ts:41:5 › onboarding (3 questions) → mini-landing is public, localized and free of private data (3.2s)
-  ✓  4 tests/e2e/onboarding-landing.spec.ts:159:5 › the onboarding draft survives a reload and /me/profile edits the axes (1.7s)
+  ✓   1 tests/e2e/demo-login.spec.ts:23:5 › demo login enabled: the link appears and prefills the seeded demo account (712ms)
+  ✓   2 tests/e2e/demo-login.spec.ts:48:5 › demo login disabled: no demo affordance is rendered (334ms)
+  ✓   3 tests/e2e/landing.spec.ts:46:5 › landing (EN): all sections, heading order, honest CTAs and status (773ms)
+  ✓   4 tests/e2e/landing.spec.ts:104:5 › landing (RU): translated sections, same anchors and no English fallback (654ms)
+  ✓   5 tests/e2e/landing.spec.ts:133:5 › landing: no horizontal overflow at 360px in EN and RU (1.1s)
+  ✓   6 tests/e2e/landing.spec.ts:148:5 › landing: evidence screenshots (desktop 1280 + mobile 360, EN and RU) (2.3s)
+  ✓   7 tests/e2e/onboarding-landing.spec.ts:41:5 › onboarding (3 questions) → mini-landing is public, localized and free of private data (3.7s)
+  ✓   8 tests/e2e/onboarding-landing.spec.ts:159:5 › the onboarding draft survives a reload and /me/profile edits the axes (1.9s)
 [WebServer] ⨯ Error: The destination stream closed early.
 [WebServer]     at ignore-listed frames {
 [WebServer]   digest: '2891471267'
 [WebServer] }
-  ✓  5 tests/e2e/smoke.spec.ts:68:7 › WELCOME P0 smoke › landing, OTP login, profile, public card, event directory, mutual intro reveal (12.7s)
-  ✓  6 tests/e2e/smoke.spec.ts:198:7 › WELCOME P0 smoke › ?lang= switches the landing language and is remembered (R1) (1.1s)
-  ✓  7 tests/e2e/smoke.spec.ts:224:7 › WELCOME P0 smoke › security headers on /, /login and legal pages (F-04, F-15) (579ms)
+  ✓   9 tests/e2e/organizer-campaign-segment.spec.ts:34:5 › campaign segment: picker renders, selection is saved and the preview sizes it (4.3s)
+  ✓  10 tests/e2e/organizer-funnel.spec.ts:35:5 › organizer funnel: shows counted steps, conversion shares and the daily chart (3.2s)
+  ✓  11 tests/e2e/smoke.spec.ts:68:7 › WELCOME P0 smoke › landing, OTP login, profile, public card, event directory, mutual intro reveal (13.1s)
+  ✓  12 tests/e2e/smoke.spec.ts:198:7 › WELCOME P0 smoke › ?lang= switches the landing language and is remembered (R1) (1.5s)
+  ✓  13 tests/e2e/smoke.spec.ts:224:7 › WELCOME P0 smoke › security headers on /, /login and legal pages (F-04, F-15) (701ms)
 
-  7 passed (25.8s)
+  13 passed (41.3s)

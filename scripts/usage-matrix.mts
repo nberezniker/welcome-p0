@@ -2744,6 +2744,39 @@ interface Bug {
 }
 
 /** Fixes landed since the previous matrix run; rendered as its own section. */
+/**
+ * What THIS run's tree adds on top of the previous evidence run (017cb89 →
+ * the three commits below). Rendered near the top of USAGE_MATRIX.md so the
+ * report states its own increment instead of inheriting the previous one's.
+ */
+const INCREMENT: { id: string; title: string; commit: string; changed: string; tests: string }[] = [
+  {
+    id: 'WP1',
+    title: 'Email как второй канал доставки (выбор канала на момент отправки, ADR 0011)',
+    commit: '4e66f47',
+    changed:
+      'src/infra/recipient-channel.ts (чистое правило выбора + резолвер адреса из claimed-регистрации), src/domain/service-notices.ts (тексты писем из KIND, без имён/контактов), src/infra/worker.ts (выбор канала + email-диспатч), event_id в payload уведомлений, ADR 0011.',
+    tests:
+      'unit: service-notices (7), recipient-channel (8); integration: email-channel (7 — email/telegram-приоритет/consent_revoked/channel_disabled/без утечки адреса в логи и payload); живой чек J11.',
+  },
+  {
+    id: 'WP2',
+    title: 'Воронка организатора: эндпоинт аналитики + блок с процентами и SVG-графиком',
+    commit: '6936787',
+    changed:
+      'src/domain/event-analytics.ts (10 агрегатов + by_day 30 дней), GET /api/organizer/events/[eventId]/analytics (owner/admin, no-store), FunnelPanel (шаги с процентом от предыдущего, 30-дневный SVG без внешних либ), i18n EN/RU/ES.',
+    tests: 'unit: event-analytics (5); integration: event-analytics (2 — агрегаты и 403/401); e2e: organizer-funnel; живые чеки N13/N14.',
+  },
+  {
+    id: 'WP3',
+    title: 'Сегменты аудитории кампаний по осям таксономии v3',
+    commit: '8feebe8',
+    changed:
+      'audience_filter в src/domain/campaigns.ts (валидация по каталогу, пусто = без ограничения), фильтр в currentEligibleAudience/approve/send, аудитория-эндпоинт с эхо фильтра и query-override, SegmentPicker в форме кампании, i18n EN/RU/ES.',
+    tests: 'unit: campaign-segments (10); integration: campaign-segments (3 — отбор, preview==send, снятие согласия); e2e: organizer-campaign-segment; живые чеки N10–N12.',
+  },
+];
+
 const FIXES: { id: string; fix: string; tests: string }[] = [
   {
     id: 'BUG-2',
@@ -2979,6 +3012,14 @@ function writeReports(cleanupNotes: string[], startedAt: string, finishedAt: str
   lines.push(`- **Итог:** ${summary.pass} PASS / ${summary.fail} FAIL / ${summary.skip} SKIP / ${summary.blocked} BLOCKED (всего ${summary.total})`);
   lines.push('- **Машинный отчёт:** [usage-matrix.json](usage-matrix.json)');
   lines.push('');
+  lines.push('## Инкремент этого прогона');
+  lines.push('');
+  lines.push('| ID | Что | Коммит | Изменения | Тесты |');
+  lines.push('|---|---|---|---|---|');
+  for (const inc of INCREMENT) {
+    lines.push(`| ${inc.id} | ${cell(inc.title)} | \`${inc.commit}\` | ${cell(inc.changed)} | ${cell(inc.tests)} |`);
+  }
+  lines.push('');
   lines.push('## Часть 1 — автоматические гейты (локально)');
   lines.push('');
   if (gates.length === 0) {
@@ -2991,7 +3032,7 @@ function writeReports(cleanupNotes: string[], startedAt: string, finishedAt: str
     lines.push('Сырые логи гейтов: `evidence/matrix/*.log`.');
   }
   lines.push('');
-  lines.push('## Исправления в этом прогоне');
+  lines.push('## Исправления в ПРЕДЫДУЩИХ прогонах (историческая справка, не часть этого инкремента)');
   lines.push('');
   for (const f of FIXES) {
     lines.push(`### ${f.id}`);
@@ -3000,7 +3041,7 @@ function writeReports(cleanupNotes: string[], startedAt: string, finishedAt: str
     lines.push(`- **Тесты:** ${cell(f.tests)}`);
     lines.push('');
   }
-  lines.push('## Найденные баги');
+  lines.push('## Найденные баги в ПРЕДЫДУЩИХ прогонах (все исправлены, историческая справка)');
   lines.push('');
   for (const b of BUGS) {
     lines.push(`### ${b.id} — ${b.title}`);

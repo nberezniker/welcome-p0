@@ -6,1947 +6,2139 @@ TAP version 13
 # Subtest: campaign edit: draft stays draft, revision increments, approval cleared
 ok 1 - campaign edit: draft stays draft, revision increments, approval cleared
   ---
-  duration_ms: 0.51925
+  duration_ms: 0.575833
   type: 'test'
   ...
 # Subtest: campaign edit: approved drops to draft with approval reset (AC-40)
 ok 2 - campaign edit: approved drops to draft with approval reset (AC-40)
   ---
-  duration_ms: 0.12775
+  duration_ms: 0.203208
   type: 'test'
   ...
 # Subtest: campaign edit: running/completed/cancelled are immutable
 ok 3 - campaign edit: running/completed/cancelled are immutable
   ---
-  duration_ms: 0.068333
+  duration_ms: 0.085083
   type: 'test'
   ...
 # Subtest: canSend: requires approved with matching current revision
 ok 4 - canSend: requires approved with matching current revision
   ---
-  duration_ms: 0.072584
+  duration_ms: 0.071541
   type: 'test'
   ...
 # Subtest: validateCampaignCreate: purpose registry is closed to the two spec values
 ok 5 - validateCampaignCreate: purpose registry is closed to the two spec values
   ---
-  duration_ms: 0.126084
+  duration_ms: 0.138416
   type: 'test'
   ...
 # Subtest: validateCampaignCreate: valid input
 ok 6 - validateCampaignCreate: valid input
   ---
-  duration_ms: 0.135167
+  duration_ms: 0.167
   type: 'test'
   ...
 # Subtest: validateCampaignCreate: rejects junk
 ok 7 - validateCampaignCreate: rejects junk
   ---
-  duration_ms: 0.177042
+  duration_ms: 0.183209
   type: 'test'
   ...
 # Subtest: validateCampaignEdit: partial edits allowed, empty edit rejected
 ok 8 - validateCampaignEdit: partial edits allowed, empty edit rejected
   ---
-  duration_ms: 0.113208
+  duration_ms: 0.263666
   type: 'test'
   ...
 # Subtest: /start: link_ token extracted with full deep-link
 ok 9 - /start: link_ token extracted with full deep-link
   ---
-  duration_ms: 0.33975
+  duration_ms: 0.344917
   type: 'test'
   ...
 # Subtest: /start: without token or with junk payload → null
 ok 10 - /start: without token or with junk payload → null
   ---
-  duration_ms: 0.3145
+  duration_ms: 0.324708
   type: 'test'
   ...
 # Subtest: startsWithCommand: case-insensitive prefix match
 ok 11 - startsWithCommand: case-insensitive prefix match
   ---
-  duration_ms: 0.1215
+  duration_ms: 0.118458
+  type: 'test'
+  ...
+# Subtest: audience filter: an empty object constrains nothing
+ok 12 - audience filter: an empty object constrains nothing
+  ---
+  duration_ms: 2.715167
+  type: 'test'
+  ...
+# Subtest: audience filter: absent axes default to "no constraint"
+ok 13 - audience filter: absent axes default to "no constraint"
+  ---
+  duration_ms: 0.136958
+  type: 'test'
+  ...
+# Subtest: audience filter: catalogue ids only, deduped
+ok 14 - audience filter: catalogue ids only, deduped
+  ---
+  duration_ms: 0.319709
+  type: 'test'
+  ...
+# Subtest: audience filter: unknown ids are rejected, never silently ignored
+ok 15 - audience filter: unknown ids are rejected, never silently ignored
+  ---
+  duration_ms: 0.222041
+  type: 'test'
+  ...
+# Subtest: audience filter: wrong shapes are rejected
+ok 16 - audience filter: wrong shapes are rejected
+  ---
+  duration_ms: 0.730416
+  type: 'test'
+  ...
+# Subtest: audience filter: prefer-not-to-say and blank facets mean "no constraint"
+ok 17 - audience filter: prefer-not-to-say and blank facets mean "no constraint"
+  ---
+  duration_ms: 0.121084
+  type: 'test'
+  ...
+# Subtest: audience filter: unknown keys are preserved (additive registry)
+ok 18 - audience filter: unknown keys are preserved (additive registry)
+  ---
+  duration_ms: 0.139375
+  type: 'test'
+  ...
+# Subtest: audience filter: normalizeAudienceFilter degrades a broken stored row to "everyone"
+ok 19 - audience filter: normalizeAudienceFilter degrades a broken stored row to "everyone"
+  ---
+  duration_ms: 0.192042
+  type: 'test'
+  ...
+# Subtest: campaign create: accepts an optional segment and defaults to none
+ok 20 - campaign create: accepts an optional segment and defaults to none
+  ---
+  duration_ms: 0.504291
+  type: 'test'
+  ...
+# Subtest: campaign edit: the segment is validated, existing permissive shapes still pass
+ok 21 - campaign edit: the segment is validated, existing permissive shapes still pass
+  ---
+  duration_ms: 0.458417
   type: 'test'
   ...
 # Subtest: consent purposes: exactly the six spec purposes
-ok 12 - consent purposes: exactly the six spec purposes
+ok 22 - consent purposes: exactly the six spec purposes
   ---
-  duration_ms: 0.796333
+  duration_ms: 0.813791
   type: 'test'
   ...
 # Subtest: consent purposes: membership helpers reject unknown values
-ok 13 - consent purposes: membership helpers reject unknown values
+ok 23 - consent purposes: membership helpers reject unknown values
   ---
-  duration_ms: 0.106917
+  duration_ms: 0.114709
   type: 'test'
   ...
 # Subtest: validateConsentInput: valid global grant (default scope)
-ok 14 - validateConsentInput: valid global grant (default scope)
+ok 24 - validateConsentInput: valid global grant (default scope)
   ---
-  duration_ms: 0.143791
+  duration_ms: 0.266375
   type: 'test'
   ...
 # Subtest: validateConsentInput: valid event-scoped grant with field set
-ok 15 - validateConsentInput: valid event-scoped grant with field set
+ok 25 - validateConsentInput: valid event-scoped grant with field set
   ---
-  duration_ms: 0.2005
+  duration_ms: 0.365333
   type: 'test'
   ...
 # Subtest: validateConsentInput: withdraw is a valid action
-ok 16 - validateConsentInput: withdraw is a valid action
+ok 26 - validateConsentInput: withdraw is a valid action
   ---
-  duration_ms: 0.068583
+  duration_ms: 0.080541
   type: 'test'
   ...
 # Subtest: validateConsentInput: invalid bodies fail closed with specific codes
-ok 17 - validateConsentInput: invalid bodies fail closed with specific codes
+ok 27 - validateConsentInput: invalid bodies fail closed with specific codes
   ---
-  duration_ms: 0.191833
+  duration_ms: 0.212
   type: 'test'
   ...
 # Subtest: validateConsentInput: non-object bodies rejected
-ok 18 - validateConsentInput: non-object bodies rejected
+ok 28 - validateConsentInput: non-object bodies rejected
   ---
-  duration_ms: 0.050042
+  duration_ms: 0.05425
   type: 'test'
   ...
 # Subtest: aes-256-gcm: round-trips unicode, punctuation, and long values
-ok 19 - aes-256-gcm: round-trips unicode, punctuation, and long values
+ok 29 - aes-256-gcm: round-trips unicode, punctuation, and long values
   ---
-  duration_ms: 1.378833
+  duration_ms: 1.439416
   type: 'test'
   ...
 # Subtest: aes-256-gcm: random IV — two encryptions of the same value differ
-ok 20 - aes-256-gcm: random IV — two encryptions of the same value differ
+ok 30 - aes-256-gcm: random IV — two encryptions of the same value differ
   ---
-  duration_ms: 0.36075
+  duration_ms: 0.198417
   type: 'test'
   ...
 # Subtest: aes-256-gcm: ciphertext does not contain the plaintext
-ok 21 - aes-256-gcm: ciphertext does not contain the plaintext
+ok 31 - aes-256-gcm: ciphertext does not contain the plaintext
   ---
-  duration_ms: 0.212583
+  duration_ms: 0.168833
   type: 'test'
   ...
 # Subtest: aes-256-gcm: tampered ciphertext fails authentication
-ok 22 - aes-256-gcm: tampered ciphertext fails authentication
+ok 32 - aes-256-gcm: tampered ciphertext fails authentication
   ---
-  duration_ms: 0.273166
+  duration_ms: 0.233667
   type: 'test'
   ...
 # Subtest: aes-256-gcm: tampered auth tag fails authentication
-ok 23 - aes-256-gcm: tampered auth tag fails authentication
+ok 33 - aes-256-gcm: tampered auth tag fails authentication
   ---
-  duration_ms: 0.120708
+  duration_ms: 0.114625
   type: 'test'
   ...
 # Subtest: aes-256-gcm: wrong key fails authentication
-ok 24 - aes-256-gcm: wrong key fails authentication
+ok 34 - aes-256-gcm: wrong key fails authentication
   ---
-  duration_ms: 0.092833
+  duration_ms: 0.08475
   type: 'test'
   ...
 # Subtest: aes-256-gcm: malformed payloads are rejected
-ok 25 - aes-256-gcm: malformed payloads are rejected
+ok 35 - aes-256-gcm: malformed payloads are rejected
   ---
-  duration_ms: 0.142583
+  duration_ms: 0.073833
   type: 'test'
   ...
 # Subtest: aes-256-gcm: key must decode to exactly 32 bytes
-ok 26 - aes-256-gcm: key must decode to exactly 32 bytes
+ok 36 - aes-256-gcm: key must decode to exactly 32 bytes
   ---
-  duration_ms: 0.073458
+  duration_ms: 0.070083
   type: 'test'
   ...
 # Subtest: aes-256-gcm: format is v1.<iv>.<ct>.<tag>
-ok 27 - aes-256-gcm: format is v1.<iv>.<ct>.<tag>
+ok 37 - aes-256-gcm: format is v1.<iv>.<ct>.<tag>
   ---
-  duration_ms: 0.298708
+  duration_ms: 0.302625
   type: 'test'
   ...
 # Subtest: neutralizeCsvCell: formula prefixes get a leading apostrophe
-ok 28 - neutralizeCsvCell: formula prefixes get a leading apostrophe
+ok 38 - neutralizeCsvCell: formula prefixes get a leading apostrophe
   ---
-  duration_ms: 0.641458
+  duration_ms: 0.607458
   type: 'test'
   ...
 # Subtest: neutralizeCsvCell: plain values are unchanged
-ok 29 - neutralizeCsvCell: plain values are unchanged
+ok 39 - neutralizeCsvCell: plain values are unchanged
   ---
-  duration_ms: 0.121375
+  duration_ms: 0.14725
   type: 'test'
   ...
 # Subtest: neutralizeCsvCell: only the FIRST character counts (spec security test 13)
-ok 30 - neutralizeCsvCell: only the FIRST character counts (spec security test 13)
+ok 40 - neutralizeCsvCell: only the FIRST character counts (spec security test 13)
   ---
-  duration_ms: 0.053792
+  duration_ms: 0.055083
   type: 'test'
   ...
 # Subtest: normalizeApprovalStatus: approved/confirmed (case-insensitive, trimmed) → approved
-ok 31 - normalizeApprovalStatus: approved/confirmed (case-insensitive, trimmed) → approved
+ok 41 - normalizeApprovalStatus: approved/confirmed (case-insensitive, trimmed) → approved
   ---
-  duration_ms: 0.075708
+  duration_ms: 0.072875
   type: 'test'
   ...
 # Subtest: normalizeApprovalStatus: unknown/empty/missing → unknown
-ok 32 - normalizeApprovalStatus: unknown/empty/missing → unknown
+ok 42 - normalizeApprovalStatus: unknown/empty/missing → unknown
   ---
-  duration_ms: 0.123834
+  duration_ms: 0.128458
   type: 'test'
   ...
 # Subtest: normalizeApprovalStatus: any other value → quarantined (fail closed)
-ok 33 - normalizeApprovalStatus: any other value → quarantined (fail closed)
+ok 43 - normalizeApprovalStatus: any other value → quarantined (fail closed)
   ---
-  duration_ms: 0.050833
+  duration_ms: 0.053875
   type: 'test'
   ...
 # Subtest: parseCsv: simple header + rows, LF endings
-ok 34 - parseCsv: simple header + rows, LF endings
+ok 44 - parseCsv: simple header + rows, LF endings
   ---
-  duration_ms: 0.54425
+  duration_ms: 1.843875
   type: 'test'
   ...
 # Subtest: parseCsv: CRLF endings, trailing newline produces no empty row
-ok 35 - parseCsv: CRLF endings, trailing newline produces no empty row
+ok 45 - parseCsv: CRLF endings, trailing newline produces no empty row
   ---
-  duration_ms: 0.134709
+  duration_ms: 0.240833
   type: 'test'
   ...
 # Subtest: parseCsv: quoted fields keep commas/newlines as data
-ok 36 - parseCsv: quoted fields keep commas/newlines as data
+ok 46 - parseCsv: quoted fields keep commas/newlines as data
   ---
-  duration_ms: 0.320208
+  duration_ms: 0.348083
   type: 'test'
   ...
 # Subtest: parseCsv: doubled quotes inside quoted fields
-ok 37 - parseCsv: doubled quotes inside quoted fields
+ok 47 - parseCsv: doubled quotes inside quoted fields
   ---
-  duration_ms: 0.320041
+  duration_ms: 0.350667
   type: 'test'
   ...
 # Subtest: parseCsv: UTF-8 BOM is stripped
-ok 38 - parseCsv: UTF-8 BOM is stripped
+ok 48 - parseCsv: UTF-8 BOM is stripped
   ---
-  duration_ms: 0.124167
+  duration_ms: 0.126291
   type: 'test'
   ...
 # Subtest: parseCsv: empty middle lines are skipped
-ok 39 - parseCsv: empty middle lines are skipped
+ok 49 - parseCsv: empty middle lines are skipped
   ---
-  duration_ms: 0.052792
+  duration_ms: 0.056084
   type: 'test'
   ...
 # Subtest: parseCsv: unquoted fields are trimmed, quoted fields keep spaces
-ok 40 - parseCsv: unquoted fields are trimmed, quoted fields keep spaces
+ok 50 - parseCsv: unquoted fields are trimmed, quoted fields keep spaces
   ---
-  duration_ms: 0.042834
+  duration_ms: 0.044792
   type: 'test'
   ...
 # Subtest: parseCsv: empty input → no rows, no errors
-ok 41 - parseCsv: empty input → no rows, no errors
+ok 51 - parseCsv: empty input → no rows, no errors
   ---
-  duration_ms: 0.041541
+  duration_ms: 0.046042
   type: 'test'
   ...
 # Subtest: parseCsv: maxRows exceeded → truncated flag (rows still parsed, import rejects)
-ok 42 - parseCsv: maxRows exceeded → truncated flag (rows still parsed, import rejects)
-  ---
-  duration_ms: 0.053083
-  type: 'test'
-  ...
-# Subtest: parseCsv: maxRows not exceeded → not truncated
-ok 43 - parseCsv: maxRows not exceeded → not truncated
-  ---
-  duration_ms: 0.037333
-  type: 'test'
-  ...
-# Subtest: parseCsv: row wider than maxColumns → structural error
-ok 44 - parseCsv: row wider than maxColumns → structural error
-  ---
-  duration_ms: 0.067292
-  type: 'test'
-  ...
-# Subtest: parseCsv: unterminated quote → structural error
-ok 45 - parseCsv: unterminated quote → structural error
-  ---
-  duration_ms: 0.048833
-  type: 'test'
-  ...
-# Subtest: parseCsv: quote in the middle of an unquoted field is data (lenient)
-ok 46 - parseCsv: quote in the middle of an unquoted field is data (lenient)
-  ---
-  duration_ms: 0.038041
-  type: 'test'
-  ...
-# Subtest: demo-login-info: route is force-dynamic (the flag is never baked into the build)
-ok 47 - demo-login-info: route is force-dynamic (the flag is never baked into the build)
-  ---
-  duration_ms: 0.890083
-  type: 'test'
-  ...
-# Subtest: demo-login-info: flag unset → disabled, no email disclosed
-ok 48 - demo-login-info: flag unset → disabled, no email disclosed
-  ---
-  duration_ms: 4.427209
-  type: 'test'
-  ...
-# Subtest: demo-login-info: flag="true" → enabled with the seeded demo address
-ok 49 - demo-login-info: flag="true" → enabled with the seeded demo address
-  ---
-  duration_ms: 2.872084
-  type: 'test'
-  ...
-# Subtest: demo-login-info: any value other than exactly "true" → disabled
-ok 50 - demo-login-info: any value other than exactly "true" → disabled
-  ---
-  duration_ms: 0.685833
-  type: 'test'
-  ...
-# Subtest: demo-login-info: response is explicitly uncacheable
-ok 51 - demo-login-info: response is explicitly uncacheable
-  ---
-  duration_ms: 0.522
-  type: 'test'
-  ...
-# Subtest: enrichment provider: unset / unknown / vertex-without-credentials are disabled
-ok 52 - enrichment provider: unset / unknown / vertex-without-credentials are disabled
-  ---
-  duration_ms: 0.717167
-  type: 'test'
-  ...
-# Subtest: enrichment provider: mock only outside production (CI tripwire)
-ok 53 - enrichment provider: mock only outside production (CI tripwire)
-  ---
-  duration_ms: 5.590375
-  type: 'test'
-  ...
-# Subtest: disabled provider: honest 503 semantics, never a silent success
-ok 54 - disabled provider: honest 503 semantics, never a silent success
-  ---
-  duration_ms: 0.114083
-  type: 'test'
-  ...
-# Subtest: credentials: GCP_ACCESS_TOKEN wins; SA JSON accepted raw and base64
-ok 55 - credentials: GCP_ACCESS_TOKEN wins; SA JSON accepted raw and base64
-  ---
-  duration_ms: 0.665583
-  type: 'test'
-  ...
-# Subtest: credentials: self-signed JWT is RS256, well-claims-shaped and verifiable
-ok 56 - credentials: self-signed JWT is RS256, well-claims-shaped and verifiable
-  ---
-  duration_ms: 6.416208
-  type: 'test'
-  ...
-# Subtest: vertex transport: thinking-model output budget, grounding tool, empty answer → no_draft
-ok 57 - vertex transport: thinking-model output budget, grounding tool, empty answer → no_draft
-  ---
-  duration_ms: 12.963792
-  type: 'test'
-  ...
-# Subtest: prompt: own-profile-only rules, no third-party enrichment, JSON schema demanded
-ok 58 - prompt: own-profile-only rules, no third-party enrichment, JSON schema demanded
-  ---
-  duration_ms: 0.277
-  type: 'test'
-  ...
-# Subtest: answer parsing: tolerates fences/prose, sanitizes catalogue ids and links
-ok 59 - answer parsing: tolerates fences/prose, sanitizes catalogue ids and links
-  ---
-  duration_ms: 0.336916
-  type: 'test'
-  ...
-# Subtest: answer parsing: suggestion caps and grounding sources
-ok 60 - answer parsing: suggestion caps and grounding sources
-  ---
-  duration_ms: 0.593666
-  type: 'test'
-  ...
-# Subtest: transport: an empty answer is retried exactly once, then reported as no_draft
-ok 61 - transport: an empty answer is retried exactly once, then reported as no_draft
-  ---
-  duration_ms: 17.882792
-  type: 'test'
-  ...
-# Subtest: transport: the retry recovers a draft when the second answer parses
-ok 62 - transport: the retry recovers a draft when the second answer parses
-  ---
-  duration_ms: 1.019166
-  type: 'test'
-  ...
-# Subtest: transport: a real failure is not retried internally (only the client may re-ask)
-ok 63 - transport: a real failure is not retried internally (only the client may re-ask)
-  ---
-  duration_ms: 0.445417
-  type: 'test'
-  ...
-# Subtest: transport: an unparsable HTTP-200 body is treated as an empty answer and retried once
-ok 64 - transport: an unparsable HTTP-200 body is treated as an empty answer and retried once
-  ---
-  duration_ms: 0.943542
-  type: 'test'
-  ...
-# Subtest: prompt: demands a best-effort draft always and JSON only
-ok 65 - prompt: demands a best-effort draft always and JSON only
-  ---
-  duration_ms: 0.150667
-  type: 'test'
-  ...
-# Subtest: degraded draft: purely own data, deterministic, and it invented nothing
-ok 66 - degraded draft: purely own data, deterministic, and it invented nothing
-  ---
-  duration_ms: 0.233375
-  type: 'test'
-  ...
-# Subtest: isValidTimezone: real IANA zones pass, junk fails
-ok 67 - isValidTimezone: real IANA zones pass, junk fails
-  ---
-  duration_ms: 38.646208
-  type: 'test'
-  ...
-# Subtest: evaluateJoinPolicy: public active event joins without code
-ok 68 - evaluateJoinPolicy: public active event joins without code
-  ---
-  duration_ms: 0.527334
-  type: 'test'
-  ...
-# Subtest: evaluateJoinPolicy: non-active event → event_not_active
-ok 69 - evaluateJoinPolicy: non-active event → event_not_active
-  ---
-  duration_ms: 0.07925
-  type: 'test'
-  ...
-# Subtest: evaluateJoinPolicy: registration mode without/with wrong code → join_forbidden (no code leak)
-ok 70 - evaluateJoinPolicy: registration mode without/with wrong code → join_forbidden (no code leak)
-  ---
-  duration_ms: 0.265833
-  type: 'test'
-  ...
-# Subtest: evaluateJoinPolicy: closed event joins with the exact code
-ok 71 - evaluateJoinPolicy: closed event joins with the exact code
-  ---
-  duration_ms: 0.250833
-  type: 'test'
-  ...
-# Subtest: evaluateJoinPolicy: join code is ignored for public events
-ok 72 - evaluateJoinPolicy: join code is ignored for public events
-  ---
-  duration_ms: 0.061584
-  type: 'test'
-  ...
-# Subtest: evaluateJoinPolicy: capacity reached → event_full
-ok 73 - evaluateJoinPolicy: capacity reached → event_full
-  ---
-  duration_ms: 0.0535
-  type: 'test'
-  ...
-# Subtest: join code bounds: min is 8, max 64 (F-02)
-ok 74 - join code bounds: min is 8, max 64 (F-02)
-  ---
-  duration_ms: 0.088541
-  type: 'test'
-  ...
-# Subtest: evaluateJoinPolicy: constant-time compare keeps the same accept/reject outcomes
-ok 75 - evaluateJoinPolicy: constant-time compare keeps the same accept/reject outcomes
-  ---
-  duration_ms: 0.370959
-  type: 'test'
-  ...
-# Subtest: validateEventInput: valid minimal body
-ok 76 - validateEventInput: valid minimal body
-  ---
-  duration_ms: 0.617458
-  type: 'test'
-  ...
-# Subtest: validateEventInput: dates parsed, end before start rejected
-ok 77 - validateEventInput: dates parsed, end before start rejected
-  ---
-  duration_ms: 0.462041
-  type: 'test'
-  ...
-# Subtest: validateEventInput: invalid bodies fail closed with specific codes
-ok 78 - validateEventInput: invalid bodies fail closed with specific codes
-  ---
-  duration_ms: 0.414041
-  type: 'test'
-  ...
-# Subtest: validateEventInput: non-object bodies rejected
-ok 79 - validateEventInput: non-object bodies rejected
-  ---
-  duration_ms: 0.060042
-  type: 'test'
-  ...
-# Subtest: isValidEventSlug: lowercase alnum + dashes, 3..64 chars
-ok 80 - isValidEventSlug: lowercase alnum + dashes, 3..64 chars
-  ---
-  duration_ms: 0.15325
-  type: 'test'
-  ...
-# Subtest: dictionaries: ru and es cover every en key (or documented fallback)
-ok 81 - dictionaries: ru and es cover every en key (or documented fallback)
-  ---
-  duration_ms: 3.574667
-  type: 'test'
-  ...
-# Subtest: dictionaries: ru and es have no unknown keys
-ok 82 - dictionaries: ru and es have no unknown keys
-  ---
-  duration_ms: 0.216125
-  type: 'test'
-  ...
-# Subtest: dictionaries: all values are non-empty strings
-ok 83 - dictionaries: all values are non-empty strings
-  ---
-  duration_ms: 0.889375
-  type: 'test'
-  ...
-# Subtest: dictionaries: placeholder variables match across locales
-ok 84 - dictionaries: placeholder variables match across locales
-  ---
-  duration_ms: 5.494625
-  type: 'test'
-  ...
-# Subtest: locale resolution: valid values pass, everything else falls back to en
-ok 85 - locale resolution: valid values pass, everything else falls back to en
-  ---
-  duration_ms: 0.222166
-  type: 'test'
-  ...
-# Subtest: t(): localized lookup, English fallback and interpolation
-ok 86 - t(): localized lookup, English fallback and interpolation
-  ---
-  duration_ms: 0.199625
-  type: 'test'
-  ...
-# Subtest: import constants match the brief (5MB / 5000 rows / preview sample 50)
-ok 87 - import constants match the brief (5MB / 5000 rows / preview sample 50)
-  ---
-  duration_ms: 0.527042
-  type: 'test'
-  ...
-# Subtest: import: auto-map finds canonical columns
-ok 88 - import: auto-map finds canonical columns
-  ---
-  duration_ms: 0.356959
-  type: 'test'
-  ...
-# Subtest: import: mapping override uses organizer-provided headers
-ok 89 - import: mapping override uses organizer-provided headers
-  ---
-  duration_ms: 0.143084
-  type: 'test'
-  ...
-# Subtest: import: headline column is accepted as role fallback
-ok 90 - import: headline column is accepted as role fallback
-  ---
-  duration_ms: 0.142958
-  type: 'test'
-  ...
-# Subtest: import: emails are normalized; invalid emails flagged, not fatal
-ok 91 - import: emails are normalized; invalid emails flagged, not fatal
-  ---
-  duration_ms: 0.18825
-  type: 'test'
-  ...
-# Subtest: import: approval_status normalization (interpretation ③)
-ok 92 - import: approval_status normalization (interpretation ③)
-  ---
-  duration_ms: 0.103542
-  type: 'test'
-  ...
-# Subtest: import: rows without name AND without valid email are errors and skipped
-ok 93 - import: rows without name AND without valid email are errors and skipped
-  ---
-  duration_ms: 0.165667
-  type: 'test'
-  ...
-# Subtest: import: duplicates within a file collapse to the first record
-ok 94 - import: duplicates within a file collapse to the first record
-  ---
-  duration_ms: 0.063708
-  type: 'test'
-  ...
-# Subtest: import: preview sample capped at 50, counts correct
-ok 95 - import: preview sample capped at 50, counts correct
-  ---
-  duration_ms: 0.52225
-  type: 'test'
-  ...
-# Subtest: import: mapped extra columns land in imported_data (formula cells stay data)
-ok 96 - import: mapped extra columns land in imported_data (formula cells stay data)
-  ---
-  duration_ms: 0.368792
-  type: 'test'
-  ...
-# Subtest: import: empty header row → error, no records
-ok 97 - import: empty header row → error, no records
-  ---
-  duration_ms: 0.125875
-  type: 'test'
-  ...
-# Subtest: canonical pair: lexicographic min/max, stable in both directions
-ok 98 - canonical pair: lexicographic min/max, stable in both directions
-  ---
-  duration_ms: 0.789709
-  type: 'test'
-  ...
-# Subtest: context keys: event:<uuid> | personal:<min uuid> (interpretation ②)
-ok 99 - context keys: event:<uuid> | personal:<min uuid> (interpretation ②)
-  ---
-  duration_ms: 0.098958
-  type: 'test'
-  ...
-# Subtest: reveal fields allowlist: contact kinds only, no email (login email is never stored)
-ok 100 - reveal fields allowlist: contact kinds only, no email (login email is never stored)
-  ---
-  duration_ms: 0.059334
-  type: 'test'
-  ...
-# Subtest: consent sources: the domain list matches the migration 009 CHECK (ADR 0010)
-ok 101 - consent sources: the domain list matches the migration 009 CHECK (ADR 0010)
-  ---
-  duration_ms: 0.469042
-  type: 'test'
-  ...
-# Subtest: validateCreateIntroInput: valid with event and reveal fields
-ok 102 - validateCreateIntroInput: valid with event and reveal fields
-  ---
-  duration_ms: 0.302458
-  type: 'test'
-  ...
-# Subtest: validateCreateIntroInput: valid personal (no event), empty reveal fields default
-ok 103 - validateCreateIntroInput: valid personal (no event), empty reveal fields default
-  ---
-  duration_ms: 0.0785
-  type: 'test'
-  ...
-# Subtest: validateCreateIntroInput: invalid bodies fail closed
-ok 104 - validateCreateIntroInput: invalid bodies fail closed
-  ---
-  duration_ms: 0.738375
-  type: 'test'
-  ...
-# Subtest: validateRespondInput: accept/decline/withdraw with optional reveal fields
-ok 105 - validateRespondInput: accept/decline/withdraw with optional reveal fields
-  ---
-  duration_ms: 0.174125
-  type: 'test'
-  ...
-# Subtest: links: the five card fields are LinkedIn, site, GitHub, Telegram, WhatsApp
-ok 106 - links: the five card fields are LinkedIn, site, GitHub, Telegram, WhatsApp
-  ---
-  duration_ms: 0.830083
-  type: 'test'
-  ...
-# Subtest: links: the kind is detected from the domain
-ok 107 - links: the kind is detected from the domain
-  ---
-  duration_ms: 0.326125
-  type: 'test'
-  ...
-# Subtest: links: unsafe schemes are rejected for every kind
-ok 108 - links: unsafe schemes are rejected for every kind
-  ---
-  duration_ms: 0.184167
-  type: 'test'
-  ...
-# Subtest: links: linkedin_url requires a linkedin profile-ish path
-ok 109 - links: linkedin_url requires a linkedin profile-ish path
-  ---
-  duration_ms: 0.189625
-  type: 'test'
-  ...
-# Subtest: links: github_url requires a single profile segment
-ok 110 - links: github_url requires a single profile segment
-  ---
-  duration_ms: 0.181292
-  type: 'test'
-  ...
-# Subtest: links: telegram handles normalize to @handle and reject junk
-ok 111 - links: telegram handles normalize to @handle and reject junk
-  ---
-  duration_ms: 0.252417
-  type: 'test'
-  ...
-# Subtest: links: whatsapp normalizes to +digits and rejects foreign hosts
-ok 112 - links: whatsapp normalizes to +digits and rejects foreign hosts
-  ---
-  duration_ms: 0.11725
-  type: 'test'
-  ...
-# Subtest: links: website accepts a bare host and strips credentials
-ok 113 - links: website accepts a bare host and strips credentials
-  ---
-  duration_ms: 0.075416
-  type: 'test'
-  ...
-# Subtest: links: linkHref is the only href builder and refuses unsafe values
-ok 114 - links: linkHref is the only href builder and refuses unsafe values
-  ---
-  duration_ms: 0.34375
-  type: 'test'
-  ...
-# Subtest: links: only URL kinds are rendered as URL links
-ok 115 - links: only URL kinds are rendered as URL links
-  ---
-  duration_ms: 0.32125
-  type: 'test'
-  ...
-# Subtest: resolveRequestLocale: a valid ?lang= wins and is reported as query-derived
-ok 116 - resolveRequestLocale: a valid ?lang= wins and is reported as query-derived
-  ---
-  duration_ms: 0.747041
-  type: 'test'
-  ...
-# Subtest: resolveRequestLocale: an invalid ?lang= is ignored and never overrides the cookie
-ok 117 - resolveRequestLocale: an invalid ?lang= is ignored and never overrides the cookie
-  ---
-  duration_ms: 0.215042
-  type: 'test'
-  ...
-# Subtest: proxy: ?lang=ru renders this request in ru and persists the choice in the cookie
-ok 118 - proxy: ?lang=ru renders this request in ru and persists the choice in the cookie
-  ---
-  duration_ms: 4.86825
-  type: 'test'
-  ...
-# Subtest: proxy: an invalid ?lang= is a no-op (no cookie written, nothing forwarded)
-ok 119 - proxy: an invalid ?lang= is a no-op (no cookie written, nothing forwarded)
-  ---
-  duration_ms: 1.1985
-  type: 'test'
-  ...
-# Subtest: proxy: the query parameter overrides an existing cookie for the current render
-ok 120 - proxy: the query parameter overrides an existing cookie for the current render
-  ---
-  duration_ms: 0.496792
-  type: 'test'
-  ...
-# Subtest: proxy: the override is wired to the query parameter name the links and docs use
-ok 121 - proxy: the override is wired to the query parameter name the links and docs use
-  ---
-  duration_ms: 0.063
-  type: 'test'
-  ...
-# Subtest: AC-27 core: complementary needs/offers produce a mutual score
-ok 122 - AC-27 core: complementary needs/offers produce a mutual score
-  ---
-  duration_ms: 0.917583
-  type: 'test'
-  ...
-# Subtest: AC-27 core: both seeking the same thing → null (no mutual fit)
-ok 123 - AC-27 core: both seeking the same thing → null (no mutual fit)
-  ---
-  duration_ms: 0.129125
-  type: 'test'
-  ...
-# Subtest: AC-27 core: one-sided fit → null (nothing to offer the other side)
-ok 124 - AC-27 core: one-sided fit → null (nothing to offer the other side)
-  ---
-  duration_ms: 0.074792
-  type: 'test'
-  ...
-# Subtest: AC-29 core: scorePair is symmetric (same score, swapped reasons)
-ok 125 - AC-29 core: scorePair is symmetric (same score, swapped reasons)
-  ---
-  duration_ms: 0.071416
-  type: 'test'
-  ...
-# Subtest: core: partial overlap computes the frozen formula exactly
-ok 126 - core: partial overlap computes the frozen formula exactly
-  ---
-  duration_ms: 0.149792
-  type: 'test'
-  ...
-# Subtest: core: asymmetric coverage (0.5/1.0) computes the frozen formula exactly
-ok 127 - core: asymmetric coverage (0.5/1.0) computes the frozen formula exactly
-  ---
-  duration_ms: 0.134834
-  type: 'test'
-  ...
-# Subtest: core: self, ineligible and blocked pairs are rejected
-ok 128 - core: self, ineligible and blocked pairs are rejected
-  ---
-  duration_ms: 0.105667
-  type: 'test'
-  ...
-# Subtest: core: missing/invalid inputs throw TypeError like the original
-ok 129 - core: missing/invalid inputs throw TypeError like the original
-  ---
-  duration_ms: 0.230209
-  type: 'test'
-  ...
-# Subtest: recommend: filters non-matches, sorts by score/pending/id, caps at limit
-ok 130 - recommend: filters non-matches, sorts by score/pending/id, caps at limit
-  ---
-  duration_ms: 0.503792
-  type: 'test'
-  ...
-# Subtest: recommend: limit must be integer 0..3
-ok 131 - recommend: limit must be integer 0..3
-  ---
-  duration_ms: 0.43675
-  type: 'test'
-  ...
-# Subtest: recommend: deterministic tie-break by profile id
-ok 132 - recommend: deterministic tie-break by profile id
-  ---
-  duration_ms: 0.151
-  type: 'test'
-  ...
-# Subtest: canRevealPrivate: contract shape (mutually_accepted + policy version match)
-ok 133 - canRevealPrivate: contract shape (mutually_accepted + policy version match)
-  ---
-  duration_ms: 0.088708
-  type: 'test'
-  ...
-# Subtest: parity: scorePair matches the original .mjs on shared cases
-ok 134 - parity: scorePair matches the original .mjs on shared cases
-  ---
-  duration_ms: 1.779625
-  type: 'test'
-  ...
-# Subtest: parity: recommend matches the original on shared candidate lists
-ok 135 - parity: recommend matches the original on shared candidate lists
-  ---
-  duration_ms: 0.455292
-  type: 'test'
-  ...
-# Subtest: parity: canRevealPrivate matches the original
-ok 136 - parity: canRevealPrivate matches the original
-  ---
-  duration_ms: 0.209667
-  type: 'test'
-  ...
-# Subtest: normalTags parity: outputs match original on all cases
-ok 137 - normalTags parity: outputs match original on all cases
-  ---
-  duration_ms: 1.13125
-  type: 'test'
-  ...
-# Subtest: normalTags parity: throws match original on all cases
-ok 138 - normalTags parity: throws match original on all cases
-  ---
-  duration_ms: 0.416375
-  type: 'test'
-  ...
-# Subtest: normalTags parity: non-array inputs throw identically
-ok 139 - normalTags parity: non-array inputs throw identically
-  ---
-  duration_ms: 0.109541
-  type: 'test'
-  ...
-# Subtest: normalTags: spec archive case — normalize duplicates case whitespace
-ok 140 - normalTags: spec archive case — normalize duplicates case whitespace
-  ---
-  duration_ms: 0.059792
-  type: 'test'
-  ...
-# Subtest: normalTags: 80-char tag accepted, 81 rejected
-ok 141 - normalTags: 80-char tag accepted, 81 rejected
-  ---
-  duration_ms: 0.083375
-  type: 'test'
-  ...
-# Subtest: escapeVCard parity: outputs match original on all cases
-ok 142 - escapeVCard parity: outputs match original on all cases
-  ---
-  duration_ms: 0.223209
-  type: 'test'
-  ...
-# Subtest: escapeVCard: CRLF escaped (spec archive case)
-ok 143 - escapeVCard: CRLF escaped (spec archive case)
-  ---
-  duration_ms: 0.109917
-  type: 'test'
-  ...
-# Subtest: escapeVCard: delimiters escaped (spec archive case)
-ok 144 - escapeVCard: delimiters escaped (spec archive case)
-  ---
-  duration_ms: 0.047417
-  type: 'test'
-  ...
-# Subtest: escapeVCard: escaping order — backslash never double-escapes produced sequences
-ok 145 - escapeVCard: escaping order — backslash never double-escapes produced sequences
-  ---
-  duration_ms: 0.823042
-  type: 'test'
-  ...
-# Subtest: score: intent complement is the gate — 45 points on its own
-ok 146 - score: intent complement is the gate — 45 points on its own
-  ---
-  duration_ms: 0.894208
-  type: 'test'
-  ...
-# Subtest: score: complement works in either direction
-ok 147 - score: complement works in either direction
-  ---
-  duration_ms: 0.175834
-  type: 'test'
-  ...
-# Subtest: score: interest-only match passes the gate at >= 0.34
-ok 148 - score: interest-only match passes the gate at >= 0.34
-  ---
-  duration_ms: 0.138125
-  type: 'test'
-  ...
-# Subtest: score: a single shared interest out of three (0.333) does NOT pass the gate
-ok 149 - score: a single shared interest out of three (0.333) does NOT pass the gate
-  ---
-  duration_ms: 0.150875
-  type: 'test'
-  ...
-# Subtest: score: interestOverlap uses max(1, min(|a|,|b|)) so a 1-interest profile can fully match
-ok 150 - score: interestOverlap uses max(1, min(|a|,|b|)) so a 1-interest profile can fully match
-  ---
-  duration_ms: 0.081583
-  type: 'test'
-  ...
-# Subtest: score: function+industry passes the gate without intents or interests
-ok 151 - score: function+industry passes the gate without intents or interests
-  ---
-  duration_ms: 0.084542
-  type: 'test'
-  ...
-# Subtest: score: complementary functions count (founder↔investor, sales↔marketing), same industry needed for the gate
-ok 152 - score: complementary functions count (founder↔investor, sales↔marketing), same industry needed for the gate
-  ---
-  duration_ms: 0.233208
-  type: 'test'
-  ...
-# Subtest: score: a full match across all four components is exactly 100
-ok 153 - score: a full match across all four components is exactly 100
-  ---
-  duration_ms: 0.092417
-  type: 'test'
-  ...
-# Subtest: score: profiles without v3 data are NOT scored by this layer (eligible:false)
-ok 154 - score: profiles without v3 data are NOT scored by this layer (eligible:false)
-  ---
-  duration_ms: 0.56675
-  type: 'test'
-  ...
-# Subtest: score: hard ineligibility returns null (same id, blocked, not eligible)
-ok 155 - score: hard ineligibility returns null (same id, blocked, not eligible)
-  ---
-  duration_ms: 0.487542
-  type: 'test'
-  ...
-# Subtest: score: unknown / stale values are ignored, not crashed on
-ok 156 - score: unknown / stale values are ignored, not crashed on
-  ---
-  duration_ms: 0.140208
-  type: 'test'
-  ...
-# Subtest: score: same industry requires both sides to be set
-ok 157 - score: same industry requires both sides to be set
-  ---
-  duration_ms: 0.066833
-  type: 'test'
-  ...
-# Subtest: reasonsFor: an intent the viewer offers becomes intent_offer_match with catalogue ids
-ok 158 - reasonsFor: an intent the viewer offers becomes intent_offer_match with catalogue ids
-  ---
-  duration_ms: 0.121
-  type: 'test'
-  ...
-# Subtest: reasonsFor: the reverse direction is a different code for the same pair
-ok 159 - reasonsFor: the reverse direction is a different code for the same pair
-  ---
-  duration_ms: 0.107208
-  type: 'test'
-  ...
-# Subtest: reasonsFor: interest + context reasons, catalogue-ordered
-ok 160 - reasonsFor: interest + context reasons, catalogue-ordered
-  ---
-  duration_ms: 0.080417
-  type: 'test'
-  ...
-# Subtest: reasonsFor: deterministic and independent of input order
-ok 161 - reasonsFor: deterministic and independent of input order
-  ---
-  duration_ms: 0.086875
-  type: 'test'
-  ...
-# Subtest: reasonsFor: empty for self, unknown ids, and no visible overlap
-ok 162 - reasonsFor: empty for self, unknown ids, and no visible overlap
-  ---
-  duration_ms: 0.181375
-  type: 'test'
-  ...
-# Subtest: reasonsFor: at most 3 intent-level reasons, context reasons never counted in
-ok 163 - reasonsFor: at most 3 intent-level reasons, context reasons never counted in
-  ---
-  duration_ms: 0.060125
-  type: 'test'
-  ...
-# Subtest: score result reasons mirror reasonsFor for the same pair
-ok 164 - score result reasons mirror reasonsFor for the same pair
-  ---
-  duration_ms: 0.053542
-  type: 'test'
-  ...
-# Subtest: draft: an empty draft is versioned, starts at step 1 and hides nothing
-ok 165 - draft: an empty draft is versioned, starts at step 1 and hides nothing
-  ---
-  duration_ms: 2.530458
-  type: 'test'
-  ...
-# Subtest: draft: serialize → parse is lossless for every wizard field
-ok 166 - draft: serialize → parse is lossless for every wizard field
-  ---
-  duration_ms: 0.643625
-  type: 'test'
-  ...
-# Subtest: draft: parseDraft accepts an object too and never throws on junk
-ok 167 - draft: parseDraft accepts an object too and never throws on junk
-  ---
-  duration_ms: 0.165125
-  type: 'test'
-  ...
-# Subtest: draft: a draft from another version is discarded, never half-read
-ok 168 - draft: a draft from another version is discarded, never half-read
-  ---
-  duration_ms: 0.079834
-  type: 'test'
-  ...
-# Subtest: draft: the step is clamped into range and unknown links/kinds are dropped
-ok 169 - draft: the step is clamped into range and unknown links/kinds are dropped
-  ---
-  duration_ms: 0.184417
-  type: 'test'
-  ...
-# Subtest: draft: over-long lists are truncated to the catalogue limits
-ok 170 - draft: over-long lists are truncated to the catalogue limits
-  ---
-  duration_ms: 0.103333
-  type: 'test'
-  ...
-# Subtest: draft: publish checkboxes invert into the hidden_fields deny list
-ok 171 - draft: publish checkboxes invert into the hidden_fields deny list
-  ---
-  duration_ms: 0.178917
-  type: 'test'
-  ...
-# Subtest: directory filters: the default is intent mode with nothing narrowed
-ok 172 - directory filters: the default is intent mode with nothing narrowed
-  ---
-  duration_ms: 0.123333
-  type: 'test'
-  ...
-# Subtest: directory filters: query round-trips through the URL contract
-ok 173 - directory filters: query round-trips through the URL contract
-  ---
-  duration_ms: 0.424625
-  type: 'test'
-  ...
-# Subtest: directory filters: the API query uses the canonical job_function param
-ok 174 - directory filters: the API query uses the canonical job_function param
-  ---
-  duration_ms: 0.348583
-  type: 'test'
-  ...
-# Subtest: directory filters: invalid modes fall back and blank values are omitted
-ok 175 - directory filters: invalid modes fall back and blank values are omitted
-  ---
-  duration_ms: 0.138667
-  type: 'test'
-  ...
-# Subtest: directory filters: all three modes serialize and survive the round trip
-ok 176 - directory filters: all three modes serialize and survive the round trip
-  ---
-  duration_ms: 0.074917
-  type: 'test'
-  ...
-# Subtest: plan: production + RESEND_API_KEY → real delivery
-ok 177 - plan: production + RESEND_API_KEY → real delivery
-  ---
-  duration_ms: 2.173333
-  type: 'test'
-  ...
-# Subtest: plan: production without key → EXPLICIT reject 503 email_channel_disabled (F-01 CI gate)
-ok 178 - plan: production without key → EXPLICIT reject 503 email_channel_disabled (F-01 CI gate)
-  ---
-  duration_ms: 0.220625
-  type: 'test'
-  ...
-# Subtest: plan: development without key → deliver (dev log transport)
-ok 179 - plan: development without key → deliver (dev log transport)
-  ---
-  duration_ms: 0.071792
-  type: 'test'
-  ...
-# Subtest: plan: test env without key → deliver (dev log transport)
-ok 180 - plan: test env without key → deliver (dev log transport)
-  ---
-  duration_ms: 0.057167
-  type: 'test'
-  ...
-# Subtest: plan: AUTH_EXPOSE_DEMO_OTP on a NON-demo account does NOT expose the code
-ok 181 - plan: AUTH_EXPOSE_DEMO_OTP on a NON-demo account does NOT expose the code
-  ---
-  duration_ms: 0.06675
-  type: 'test'
-  ...
-# Subtest: plan: demo fallback (AUTH_EXPOSE_DEMO_OTP + is_demo) exposes the code even in production without a provider
-ok 182 - plan: demo fallback (AUTH_EXPOSE_DEMO_OTP + is_demo) exposes the code even in production without a provider
-  ---
-  duration_ms: 0.108333
-  type: 'test'
-  ...
-# Subtest: plan: demo fallback is OFF by default
-ok 183 - plan: demo fallback is OFF by default
-  ---
-  duration_ms: 0.061667
-  type: 'test'
-  ...
-# Subtest: plan: AUTH_DEV_EXPOSE_OTP is dev-only — ignored in production
-ok 184 - plan: AUTH_DEV_EXPOSE_OTP is dev-only — ignored in production
-  ---
-  duration_ms: 0.0545
-  type: 'test'
-  ...
-# Subtest: plan: AUTH_DEV_EXPOSE_OTP in development → expose (pre-existing test mechanism)
-ok 185 - plan: AUTH_DEV_EXPOSE_OTP in development → expose (pre-existing test mechanism)
-  ---
-  duration_ms: 1.753792
-  type: 'test'
-  ...
-# Subtest: plan(ADR 0009): production + switch on + email allowlisted → expose (no provider needed)
-ok 186 - plan(ADR 0009): production + switch on + email allowlisted → expose (no provider needed)
-  ---
-  duration_ms: 0.325292
-  type: 'test'
-  ...
-# Subtest: plan(ADR 0009): switch on but email NOT on the list → reject (no blanket exposure)
-ok 187 - plan(ADR 0009): switch on but email NOT on the list → reject (no blanket exposure)
-  ---
-  duration_ms: 0.123292
-  type: 'test'
-  ...
-# Subtest: plan(ADR 0009): email on the list but switch OFF → reject
-ok 188 - plan(ADR 0009): email on the list but switch OFF → reject
-  ---
-  duration_ms: 0.049208
-  type: 'test'
-  ...
-# Subtest: plan(ADR 0009): allowlist is OFF by default
-ok 189 - plan(ADR 0009): allowlist is OFF by default
-  ---
-  duration_ms: 0.037542
-  type: 'test'
-  ...
-# Subtest: plan(ADR 0009): a configured provider still wins over an unrelated allowlist miss
-ok 190 - plan(ADR 0009): a configured provider still wins over an unrelated allowlist miss
-  ---
-  duration_ms: 0.083209
-  type: 'test'
-  ...
-# Subtest: plan(ADR 0009): demo branch is untouched by the new fields
-ok 191 - plan(ADR 0009): demo branch is untouched by the new fields
-  ---
-  duration_ms: 0.036917
-  type: 'test'
-  ...
-# Subtest: plan(ADR 0009): dev-expose branch takes precedence over the allowlist branch
-ok 192 - plan(ADR 0009): dev-expose branch takes precedence over the allowlist branch
-  ---
-  duration_ms: 0.075166
-  type: 'test'
-  ...
-# Subtest: selectEmailTransport: production + key → real Resend transport
-ok 193 - selectEmailTransport: production + key → real Resend transport
-  ---
-  duration_ms: 0.18425
-  type: 'test'
-  ...
-# Subtest: selectEmailTransport: development without key → dev otp.log transport
-ok 194 - selectEmailTransport: development without key → dev otp.log transport
-  ---
-  duration_ms: 0.063959
-  type: 'test'
-  ...
-# Subtest: selectEmailTransport: production without key → disabled (never dev log)
-ok 195 - selectEmailTransport: production without key → disabled (never dev log)
-  ---
-  duration_ms: 0.057
-  type: 'test'
-  ...
-# Subtest: selectEmailTransport: development with key → real transport (key wins)
-ok 196 - selectEmailTransport: development with key → real transport (key wins)
-  ---
-  duration_ms: 0.0355
-  type: 'test'
-  ...
-# Subtest: disabled transport fails honestly with channel_disabled
-ok 197 - disabled transport fails honestly with channel_disabled
-  ---
-  duration_ms: 0.0685
-  type: 'test'
-  ...
-# Subtest: parseEmailAllowlist: trims, lowercases, drops empties and de-duplicates
-ok 198 - parseEmailAllowlist: trims, lowercases, drops empties and de-duplicates
-  ---
-  duration_ms: 1.340833
-  type: 'test'
-  ...
-# Subtest: parseEmailAllowlist: empty / whitespace-only / comma-only input → []
-ok 199 - parseEmailAllowlist: empty / whitespace-only / comma-only input → []
-  ---
-  duration_ms: 0.335708
-  type: 'test'
-  ...
-# Subtest: parseEmailAllowlist: preserves order of first appearance
-ok 200 - parseEmailAllowlist: preserves order of first appearance
-  ---
-  duration_ms: 0.35225
-  type: 'test'
-  ...
-# Subtest: isEmailAllowlisted: exact membership match
-ok 201 - isEmailAllowlisted: exact membership match
-  ---
-  duration_ms: 0.705208
-  type: 'test'
-  ...
-# Subtest: isEmailAllowlisted: operator formatting (case, spaces) still matches
-ok 202 - isEmailAllowlisted: operator formatting (case, spaces) still matches
-  ---
-  duration_ms: 3.217417
-  type: 'test'
-  ...
-# Subtest: isEmailAllowlisted: a different address does NOT match
-ok 203 - isEmailAllowlisted: a different address does NOT match
-  ---
-  duration_ms: 0.246833
-  type: 'test'
-  ...
-# Subtest: isEmailAllowlisted: empty list never matches (switch alone exposes nothing)
-ok 204 - isEmailAllowlisted: empty list never matches (switch alone exposes nothing)
-  ---
-  duration_ms: 0.128834
-  type: 'test'
-  ...
-# Subtest: isEmailAllowlisted: a different pepper never matches the same address
-ok 205 - isEmailAllowlisted: a different pepper never matches the same address
-  ---
-  duration_ms: 0.078542
-  type: 'test'
-  ...
-# Subtest: isEmailAllowlisted: a match later in the list is still found (full scan, no early exit)
-ok 206 - isEmailAllowlisted: a match later in the list is still found (full scan, no early exit)
-  ---
-  duration_ms: 2.458042
-  type: 'test'
-  ...
-# Subtest: warning: silent in development
-ok 207 - warning: silent in development
-  ---
-  duration_ms: 0.542542
-  type: 'test'
-  ...
-# Subtest: warning: silent in test
-ok 208 - warning: silent in test
-  ---
-  duration_ms: 0.183083
-  type: 'test'
-  ...
-# Subtest: warning: silent in production when the switch is off
-ok 209 - warning: silent in production when the switch is off
-  ---
-  duration_ms: 0.059042
-  type: 'test'
-  ...
-# Subtest: warning: fires in production with the switch on, exact text + count
-ok 210 - warning: fires in production with the switch on, exact text + count
-  ---
-  duration_ms: 0.098417
-  type: 'test'
-  ...
-# Subtest: warning: singular/plural is grammatical
-ok 211 - warning: singular/plural is grammatical
-  ---
-  duration_ms: 0.068333
-  type: 'test'
-  ...
-# Subtest: warning: text matches the runbook string verbatim
-ok 212 - warning: text matches the runbook string verbatim
-  ---
-  duration_ms: 0.049875
-  type: 'test'
-  ...
-# Subtest: createOtpExposureWarner: logs at most once per instance
-ok 213 - createOtpExposureWarner: logs at most once per instance
-  ---
-  duration_ms: 0.1525
-  type: 'test'
-  ...
-# Subtest: createOtpExposureWarner: a non-firing call does not consume the once-guard
-ok 214 - createOtpExposureWarner: a non-firing call does not consume the once-guard
-  ---
-  duration_ms: 0.107625
-  type: 'test'
-  ...
-# Subtest: createOtpExposureWarner: fresh instances are independent
-ok 215 - createOtpExposureWarner: fresh instances are independent
-  ---
-  duration_ms: 0.284833
-  type: 'test'
-  ...
-# Subtest: warnIfOtpExposureOnProduction: warns once per process and never prints addresses
-ok 216 - warnIfOtpExposureOnProduction: warns once per process and never prints addresses
-  ---
-  duration_ms: 0.376833
-  type: 'test'
-  ...
-# Subtest: otp hash: deterministic for the same code and pepper
-ok 217 - otp hash: deterministic for the same code and pepper
-  ---
-  duration_ms: 0.635292
-  type: 'test'
-  ...
-# Subtest: otp hash: different codes produce different hashes
-ok 218 - otp hash: different codes produce different hashes
-  ---
-  duration_ms: 0.102958
-  type: 'test'
-  ...
-# Subtest: otp hash: different peppers produce different hashes
-ok 219 - otp hash: different peppers produce different hashes
-  ---
-  duration_ms: 0.113833
-  type: 'test'
-  ...
-# Subtest: otp hash: output is a 64-char hex digest (HMAC-SHA256), never the plaintext code
-ok 220 - otp hash: output is a 64-char hex digest (HMAC-SHA256), never the plaintext code
-  ---
-  duration_ms: 0.155833
-  type: 'test'
-  ...
-# Subtest: otp hash: leading zeros are significant
-ok 221 - otp hash: leading zeros are significant
-  ---
-  duration_ms: 0.189125
-  type: 'test'
-  ...
-# Subtest: otp code generation: always 6 digits, zero-padded
-ok 222 - otp code generation: always 6 digits, zero-padded
-  ---
-  duration_ms: 1.128375
-  type: 'test'
-  ...
-# Subtest: otp code generation: covers the full range over many samples
-ok 223 - otp code generation: covers the full range over many samples
-  ---
-  duration_ms: 1.683042
-  type: 'test'
-  ...
-# Subtest: timing safe compare: equal and unequal hex strings
-ok 224 - timing safe compare: equal and unequal hex strings
-  ---
-  duration_ms: 0.269
-  type: 'test'
-  ...
-# Subtest: backoff: attempt 1 with zero jitter is exactly 5s
-ok 225 - backoff: attempt 1 with zero jitter is exactly 5s
-  ---
-  duration_ms: 0.50825
-  type: 'test'
-  ...
-# Subtest: backoff: attempt 3 with zero jitter is 45s
-ok 226 - backoff: attempt 3 with zero jitter is 45s
-  ---
-  duration_ms: 0.07325
-  type: 'test'
-  ...
-# Subtest: backoff: jitter stays within 0..2.5s
-ok 227 - backoff: jitter stays within 0..2.5s
-  ---
-  duration_ms: 0.0675
-  type: 'test'
-  ...
-# Subtest: backoff: non-positive attempt clamps to 1
-ok 228 - backoff: non-positive attempt clamps to 1
-  ---
-  duration_ms: 0.058125
-  type: 'test'
-  ...
-# Subtest: backoff: grows monotonically with attempt number
-ok 229 - backoff: grows monotonically with attempt number
-  ---
-  duration_ms: 0.167708
-  type: 'test'
-  ...
-# Subtest: unknown cap: exactly 3 tries before terminal unknown (AC-42 contract)
-ok 230 - unknown cap: exactly 3 tries before terminal unknown (AC-42 contract)
-  ---
-  duration_ms: 0.858666
-  type: 'test'
-  ...
-# Subtest: takeFromBucket: a fresh bucket starts full and drains one token per take
-ok 231 - takeFromBucket: a fresh bucket starts full and drains one token per take
-  ---
-  duration_ms: 1.817083
-  type: 'test'
-  ...
-# Subtest: takeFromBucket: tokens refill linearly with the injected clock
-ok 232 - takeFromBucket: tokens refill linearly with the injected clock
-  ---
-  duration_ms: 0.31575
-  type: 'test'
-  ...
-# Subtest: takeFromBucket: refill never exceeds capacity
-ok 233 - takeFromBucket: refill never exceeds capacity
-  ---
-  duration_ms: 1.743666
-  type: 'test'
-  ...
-# Subtest: consumeIpToken: same ip+route drains, other routes and ips are isolated
-ok 234 - consumeIpToken: same ip+route drains, other routes and ips are isolated
-  ---
-  duration_ms: 0.295125
-  type: 'test'
-  ...
-# Subtest: reason codes: the vocabulary is exactly the six documented facts
-ok 235 - reason codes: the vocabulary is exactly the six documented facts
-  ---
-  duration_ms: 0.874625
-  type: 'test'
-  ...
-# Subtest: formatReason: intent codes interpolate the resolved need goal
-ok 236 - formatReason: intent codes interpolate the resolved need goal
-  ---
-  duration_ms: 0.319333
-  type: 'test'
-  ...
-# Subtest: formatReason: interests join in catalogue order, tags stay raw user text
-ok 237 - formatReason: interests join in catalogue order, tags stay raw user text
-  ---
-  duration_ms: 0.174125
-  type: 'test'
-  ...
-# Subtest: formatReason: function and industry resolve through the catalogue
-ok 238 - formatReason: function and industry resolve through the catalogue
-  ---
-  duration_ms: 0.094917
-  type: 'test'
-  ...
-# Subtest: formatReason: a missing param or unknown code degrades instead of throwing
-ok 239 - formatReason: a missing param or unknown code degrades instead of throwing
-  ---
-  duration_ms: 0.274
-  type: 'test'
-  ...
-# Subtest: formatReasons: drops empty renderings, keeps order
-ok 240 - formatReasons: drops empty renderings, keeps order
-  ---
-  duration_ms: 0.214
-  type: 'test'
-  ...
-# Subtest: reason templates: every code has a template in every locale, per audience
-ok 241 - reason templates: every code has a template in every locale, per audience
-  ---
-  duration_ms: 0.319458
-  type: 'test'
-  ...
-# Subtest: reason templates: the two audiences cannot render the same sentence by accident
-ok 242 - reason templates: the two audiences cannot render the same sentence by accident
-  ---
-  duration_ms: 0.215625
-  type: 'test'
-  ...
-# Subtest: reason templates: localized, not English copies
-ok 243 - reason templates: localized, not English copies
-  ---
-  duration_ms: 1.653458
-  type: 'test'
-  ...
-# Subtest: formatReason: rendering reuses the same templates for all three locales
-ok 244 - formatReason: rendering reuses the same templates for all three locales
-  ---
-  duration_ms: 0.471708
-  type: 'test'
-  ...
-# Subtest: safeNextPath: plain in-app paths pass
-ok 245 - safeNextPath: plain in-app paths pass
-  ---
-  duration_ms: 0.50475
-  type: 'test'
-  ...
-# Subtest: safeNextPath: off-site and protocol-relative targets rejected
-ok 246 - safeNextPath: off-site and protocol-relative targets rejected
-  ---
-  duration_ms: 0.081
-  type: 'test'
-  ...
-# Subtest: safeNextPath: backslash bypasses are rejected (F-10)
-ok 247 - safeNextPath: backslash bypasses are rejected (F-10)
-  ---
-  duration_ms: 0.059583
-  type: 'test'
-  ...
-# Subtest: safeNextPath: non-strings rejected
-ok 248 - safeNextPath: non-strings rejected
-  ---
-  duration_ms: 0.119875
-  type: 'test'
-  ...
-# Subtest: revision: matching revision is accepted and bumped
-ok 249 - revision: matching revision is accepted and bumped
-  ---
-  duration_ms: 0.775542
-  type: 'test'
-  ...
-# Subtest: revision: stale revision is a conflict carrying the current revision
-ok 250 - revision: stale revision is a conflict carrying the current revision
-  ---
-  duration_ms: 0.149541
-  type: 'test'
-  ...
-# Subtest: revision: missing or malformed revision is a conflict (route turns missing into 400)
-ok 251 - revision: missing or malformed revision is a conflict (route turns missing into 400)
-  ---
-  duration_ms: 0.209459
-  type: 'test'
-  ...
-# Subtest: profile validation: minimal valid body with tag normalization
-ok 252 - profile validation: minimal valid body with tag normalization
-  ---
-  duration_ms: 4.700708
-  type: 'test'
-  ...
-# Subtest: profile validation: rejects bad bodies
-ok 253 - profile validation: rejects bad bodies
-  ---
-  duration_ms: 0.248
-  type: 'test'
-  ...
-# Subtest: contact validation: whitelisted kinds, boolean public_enabled
-ok 254 - contact validation: whitelisted kinds, boolean public_enabled
-  ---
-  duration_ms: 3.248875
-  type: 'test'
-  ...
-# Subtest: vcard: header/footer, CRLF endings, public contacts only
-ok 255 - vcard: header/footer, CRLF endings, public contacts only
-  ---
-  duration_ms: 0.565208
-  type: 'test'
-  ...
-# Subtest: vcard: multi-line display name cannot inject properties
-ok 256 - vcard: multi-line display name cannot inject properties
-  ---
-  duration_ms: 0.096875
-  type: 'test'
-  ...
-# Subtest: public slug: base64url alphabet, exactly 22 chars (>= 128-bit entropy)
-ok 257 - public slug: base64url alphabet, exactly 22 chars (>= 128-bit entropy)
-  ---
-  duration_ms: 1.273584
-  type: 'test'
-  ...
-# Subtest: public slug: 2000 generations are unique (collision-free sample)
-ok 258 - public slug: 2000 generations are unique (collision-free sample)
-  ---
-  duration_ms: 10.21025
-  type: 'test'
-  ...
-# Subtest: public slug: decodes to 16 bytes (128 bits)
-ok 259 - public slug: decodes to 16 bytes (128 bits)
-  ---
-  duration_ms: 0.131041
-  type: 'test'
-  ...
-# Subtest: public slug: satisfies the profiles CHECK (char_length >= 22)
-ok 260 - public slug: satisfies the profiles CHECK (char_length >= 22)
-  ---
-  duration_ms: 0.101709
-  type: 'test'
-  ...
-# Subtest: public slug: contains no URL-unsafe characters
-ok 261 - public slug: contains no URL-unsafe characters
-  ---
-  duration_ms: 0.371792
-  type: 'test'
-  ...
-# Subtest: static safety: no dangerouslySetInnerHTML anywhere in src/
-ok 262 - static safety: no dangerouslySetInnerHTML anywhere in src/
-  ---
-  duration_ms: 37.775083
-  type: 'test'
-  ...
-# Subtest: static safety: no eval( or new Function( anywhere in src/
-ok 263 - static safety: no eval( or new Function( anywhere in src/
-  ---
-  duration_ms: 24.556834
-  type: 'test'
-  ...
-# Subtest: static safety: fetch( targets stay within the outbound allowlist
-ok 264 - static safety: fetch( targets stay within the outbound allowlist
-  ---
-  duration_ms: 26.353208
-  type: 'test'
-  ...
-# Subtest: picker: the shipped catalogue parses and carries the enforced limits
-ok 265 - picker: the shipped catalogue parses and carries the enforced limits
-  ---
-  duration_ms: 0.562208
-  type: 'test'
-  ...
-# Subtest: picker: parseCatalog rejects unusable payloads instead of half-rendering
-ok 266 - picker: parseCatalog rejects unusable payloads instead of half-rendering
-  ---
-  duration_ms: 0.204417
-  type: 'test'
-  ...
-# Subtest: picker: intent sides expose both the chip label and the reason goal
-ok 267 - picker: intent sides expose both the chip label and the reason goal
-  ---
-  duration_ms: 0.249291
-  type: 'test'
-  ...
-# Subtest: picker: limits are per axis and never silently exceeded
-ok 268 - picker: limits are per axis and never silently exceeded
-  ---
-  duration_ms: 0.445458
-  type: 'test'
-  ...
-# Subtest: picker: toggle is idempotent per id and preserves order
-ok 269 - picker: toggle is idempotent per id and preserves order
-  ---
-  duration_ms: 0.195417
-  type: 'test'
-  ...
-# Subtest: picker: keywords normalize like the API and enforce both limits
-ok 270 - picker: keywords normalize like the API and enforce both limits
-  ---
-  duration_ms: 0.150459
-  type: 'test'
-  ...
-# Subtest: picker: chip search matches labels and ids, case-insensitively
-ok 271 - picker: chip search matches labels and ids, case-insensitively
-  ---
-  duration_ms: 0.407375
-  type: 'test'
-  ...
-# Subtest: picker: interests are grouped, and an empty group disappears while searching
-ok 272 - picker: interests are grouped, and an empty group disappears while searching
-  ---
-  duration_ms: 1.446208
-  type: 'test'
-  ...
-# Subtest: picker: labels fall back to EN for a locale the catalogue does not carry
-ok 273 - picker: labels fall back to EN for a locale the catalogue does not carry
-  ---
-  duration_ms: 0.364917
-  type: 'test'
-  ...
-# Subtest: picker: stored ids resolve to labels, unknown ids degrade to the raw id
-ok 274 - picker: stored ids resolve to labels, unknown ids degrade to the raw id
-  ---
-  duration_ms: 0.459917
-  type: 'test'
-  ...
-# Subtest: picker: reason labels resolve need goals, interests, functions and industries
-ok 275 - picker: reason labels resolve need goals, interests, functions and industries
-  ---
-  duration_ms: 0.217667
-  type: 'test'
-  ...
-# Subtest: picker: itemsFor returns every catalogue entry in catalogue order
-ok 276 - picker: itemsFor returns every catalogue entry in catalogue order
-  ---
-  duration_ms: 0.131333
-  type: 'test'
-  ...
-# Subtest: picker: an empty catalogue degrades gracefully (no throw, empty lists)
-ok 277 - picker: an empty catalogue degrades gracefully (no throw, empty lists)
+ok 52 - parseCsv: maxRows exceeded → truncated flag (rows still parsed, import rejects)
   ---
   duration_ms: 0.055167
   type: 'test'
   ...
-# Subtest: taxonomy: 16 intent pairs, 32 unique side ids, valid kinds
-ok 278 - taxonomy: 16 intent pairs, 32 unique side ids, valid kinds
+# Subtest: parseCsv: maxRows not exceeded → not truncated
+ok 53 - parseCsv: maxRows not exceeded → not truncated
   ---
-  duration_ms: 0.682959
+  duration_ms: 0.038834
+  type: 'test'
+  ...
+# Subtest: parseCsv: row wider than maxColumns → structural error
+ok 54 - parseCsv: row wider than maxColumns → structural error
+  ---
+  duration_ms: 0.074792
+  type: 'test'
+  ...
+# Subtest: parseCsv: unterminated quote → structural error
+ok 55 - parseCsv: unterminated quote → structural error
+  ---
+  duration_ms: 0.047917
+  type: 'test'
+  ...
+# Subtest: parseCsv: quote in the middle of an unquoted field is data (lenient)
+ok 56 - parseCsv: quote in the middle of an unquoted field is data (lenient)
+  ---
+  duration_ms: 0.039375
+  type: 'test'
+  ...
+# Subtest: demo-login-info: route is force-dynamic (the flag is never baked into the build)
+ok 57 - demo-login-info: route is force-dynamic (the flag is never baked into the build)
+  ---
+  duration_ms: 0.495334
+  type: 'test'
+  ...
+# Subtest: demo-login-info: flag unset → disabled, no email disclosed
+ok 58 - demo-login-info: flag unset → disabled, no email disclosed
+  ---
+  duration_ms: 2.530083
+  type: 'test'
+  ...
+# Subtest: demo-login-info: flag="true" → enabled with the seeded demo address
+ok 59 - demo-login-info: flag="true" → enabled with the seeded demo address
+  ---
+  duration_ms: 0.36925
+  type: 'test'
+  ...
+# Subtest: demo-login-info: any value other than exactly "true" → disabled
+ok 60 - demo-login-info: any value other than exactly "true" → disabled
+  ---
+  duration_ms: 0.613917
+  type: 'test'
+  ...
+# Subtest: demo-login-info: response is explicitly uncacheable
+ok 61 - demo-login-info: response is explicitly uncacheable
+  ---
+  duration_ms: 1.122458
+  type: 'test'
+  ...
+# Subtest: enrichment provider: unset / unknown / vertex-without-credentials are disabled
+ok 62 - enrichment provider: unset / unknown / vertex-without-credentials are disabled
+  ---
+  duration_ms: 2.593416
+  type: 'test'
+  ...
+# Subtest: enrichment provider: mock only outside production (CI tripwire)
+ok 63 - enrichment provider: mock only outside production (CI tripwire)
+  ---
+  duration_ms: 11.025291
+  type: 'test'
+  ...
+# Subtest: disabled provider: honest 503 semantics, never a silent success
+ok 64 - disabled provider: honest 503 semantics, never a silent success
+  ---
+  duration_ms: 0.152958
+  type: 'test'
+  ...
+# Subtest: credentials: GCP_ACCESS_TOKEN wins; SA JSON accepted raw and base64
+ok 65 - credentials: GCP_ACCESS_TOKEN wins; SA JSON accepted raw and base64
+  ---
+  duration_ms: 0.262875
+  type: 'test'
+  ...
+# Subtest: credentials: self-signed JWT is RS256, well-claims-shaped and verifiable
+ok 66 - credentials: self-signed JWT is RS256, well-claims-shaped and verifiable
+  ---
+  duration_ms: 6.746333
+  type: 'test'
+  ...
+# Subtest: vertex transport: thinking-model output budget, grounding tool, empty answer → no_draft
+ok 67 - vertex transport: thinking-model output budget, grounding tool, empty answer → no_draft
+  ---
+  duration_ms: 16.264375
+  type: 'test'
+  ...
+# Subtest: prompt: own-profile-only rules, no third-party enrichment, JSON schema demanded
+ok 68 - prompt: own-profile-only rules, no third-party enrichment, JSON schema demanded
+  ---
+  duration_ms: 0.318917
+  type: 'test'
+  ...
+# Subtest: answer parsing: tolerates fences/prose, sanitizes catalogue ids and links
+ok 69 - answer parsing: tolerates fences/prose, sanitizes catalogue ids and links
+  ---
+  duration_ms: 0.415333
+  type: 'test'
+  ...
+# Subtest: answer parsing: suggestion caps and grounding sources
+ok 70 - answer parsing: suggestion caps and grounding sources
+  ---
+  duration_ms: 6.570667
+  type: 'test'
+  ...
+# Subtest: transport: an empty answer is retried exactly once, then reported as no_draft
+ok 71 - transport: an empty answer is retried exactly once, then reported as no_draft
+  ---
+  duration_ms: 43.624125
+  type: 'test'
+  ...
+# Subtest: transport: the retry recovers a draft when the second answer parses
+ok 72 - transport: the retry recovers a draft when the second answer parses
+  ---
+  duration_ms: 1.204084
+  type: 'test'
+  ...
+# Subtest: transport: a real failure is not retried internally (only the client may re-ask)
+ok 73 - transport: a real failure is not retried internally (only the client may re-ask)
+  ---
+  duration_ms: 0.459209
+  type: 'test'
+  ...
+# Subtest: transport: an unparsable HTTP-200 body is treated as an empty answer and retried once
+ok 74 - transport: an unparsable HTTP-200 body is treated as an empty answer and retried once
+  ---
+  duration_ms: 0.9855
+  type: 'test'
+  ...
+# Subtest: prompt: demands a best-effort draft always and JSON only
+ok 75 - prompt: demands a best-effort draft always and JSON only
+  ---
+  duration_ms: 0.151333
+  type: 'test'
+  ...
+# Subtest: degraded draft: purely own data, deterministic, and it invented nothing
+ok 76 - degraded draft: purely own data, deterministic, and it invented nothing
+  ---
+  duration_ms: 0.240209
+  type: 'test'
+  ...
+# Subtest: conversionPercent: rounds to the nearest integer and clamps to 0..100
+ok 77 - conversionPercent: rounds to the nearest integer and clamps to 0..100
+  ---
+  duration_ms: 0.47475
+  type: 'test'
+  ...
+# Subtest: conversionPercent: a zero previous step has no percentage at all
+ok 78 - conversionPercent: a zero previous step has no percentage at all
+  ---
+  duration_ms: 0.095417
+  type: 'test'
+  ...
+# Subtest: funnelSteps: chains the five steps and shares each against its predecessor
+ok 79 - funnelSteps: chains the five steps and shares each against its predecessor
+  ---
+  duration_ms: 0.51625
+  type: 'test'
+  ...
+# Subtest: funnelSteps: shares survive an empty event
+ok 80 - funnelSteps: shares survive an empty event
+  ---
+  duration_ms: 0.206208
+  type: 'test'
+  ...
+# Subtest: funnelSteps: a step larger than the previous one still reports a bounded share
+ok 81 - funnelSteps: a step larger than the previous one still reports a bounded share
+  ---
+  duration_ms: 0.075125
+  type: 'test'
+  ...
+# Subtest: isValidTimezone: real IANA zones pass, junk fails
+ok 82 - isValidTimezone: real IANA zones pass, junk fails
+  ---
+  duration_ms: 23.5595
+  type: 'test'
+  ...
+# Subtest: evaluateJoinPolicy: public active event joins without code
+ok 83 - evaluateJoinPolicy: public active event joins without code
+  ---
+  duration_ms: 0.604792
+  type: 'test'
+  ...
+# Subtest: evaluateJoinPolicy: non-active event → event_not_active
+ok 84 - evaluateJoinPolicy: non-active event → event_not_active
+  ---
+  duration_ms: 0.077333
+  type: 'test'
+  ...
+# Subtest: evaluateJoinPolicy: registration mode without/with wrong code → join_forbidden (no code leak)
+ok 85 - evaluateJoinPolicy: registration mode without/with wrong code → join_forbidden (no code leak)
+  ---
+  duration_ms: 0.417958
+  type: 'test'
+  ...
+# Subtest: evaluateJoinPolicy: closed event joins with the exact code
+ok 86 - evaluateJoinPolicy: closed event joins with the exact code
+  ---
+  duration_ms: 0.164916
+  type: 'test'
+  ...
+# Subtest: evaluateJoinPolicy: join code is ignored for public events
+ok 87 - evaluateJoinPolicy: join code is ignored for public events
+  ---
+  duration_ms: 0.063459
+  type: 'test'
+  ...
+# Subtest: evaluateJoinPolicy: capacity reached → event_full
+ok 88 - evaluateJoinPolicy: capacity reached → event_full
+  ---
+  duration_ms: 0.054958
+  type: 'test'
+  ...
+# Subtest: join code bounds: min is 8, max 64 (F-02)
+ok 89 - join code bounds: min is 8, max 64 (F-02)
+  ---
+  duration_ms: 0.085875
+  type: 'test'
+  ...
+# Subtest: evaluateJoinPolicy: constant-time compare keeps the same accept/reject outcomes
+ok 90 - evaluateJoinPolicy: constant-time compare keeps the same accept/reject outcomes
+  ---
+  duration_ms: 0.370083
+  type: 'test'
+  ...
+# Subtest: validateEventInput: valid minimal body
+ok 91 - validateEventInput: valid minimal body
+  ---
+  duration_ms: 0.7275
+  type: 'test'
+  ...
+# Subtest: validateEventInput: dates parsed, end before start rejected
+ok 92 - validateEventInput: dates parsed, end before start rejected
+  ---
+  duration_ms: 1.405125
+  type: 'test'
+  ...
+# Subtest: validateEventInput: invalid bodies fail closed with specific codes
+ok 93 - validateEventInput: invalid bodies fail closed with specific codes
+  ---
+  duration_ms: 0.396625
+  type: 'test'
+  ...
+# Subtest: validateEventInput: non-object bodies rejected
+ok 94 - validateEventInput: non-object bodies rejected
+  ---
+  duration_ms: 1.247417
+  type: 'test'
+  ...
+# Subtest: isValidEventSlug: lowercase alnum + dashes, 3..64 chars
+ok 95 - isValidEventSlug: lowercase alnum + dashes, 3..64 chars
+  ---
+  duration_ms: 0.431291
+  type: 'test'
+  ...
+# Subtest: dictionaries: ru and es cover every en key (or documented fallback)
+ok 96 - dictionaries: ru and es cover every en key (or documented fallback)
+  ---
+  duration_ms: 1.282708
+  type: 'test'
+  ...
+# Subtest: dictionaries: ru and es have no unknown keys
+ok 97 - dictionaries: ru and es have no unknown keys
+  ---
+  duration_ms: 0.2675
+  type: 'test'
+  ...
+# Subtest: dictionaries: all values are non-empty strings
+ok 98 - dictionaries: all values are non-empty strings
+  ---
+  duration_ms: 3.433
+  type: 'test'
+  ...
+# Subtest: dictionaries: placeholder variables match across locales
+ok 99 - dictionaries: placeholder variables match across locales
+  ---
+  duration_ms: 3.36125
+  type: 'test'
+  ...
+# Subtest: locale resolution: valid values pass, everything else falls back to en
+ok 100 - locale resolution: valid values pass, everything else falls back to en
+  ---
+  duration_ms: 0.333542
+  type: 'test'
+  ...
+# Subtest: t(): localized lookup, English fallback and interpolation
+ok 101 - t(): localized lookup, English fallback and interpolation
+  ---
+  duration_ms: 0.285166
+  type: 'test'
+  ...
+# Subtest: import constants match the brief (5MB / 5000 rows / preview sample 50)
+ok 102 - import constants match the brief (5MB / 5000 rows / preview sample 50)
+  ---
+  duration_ms: 0.534291
+  type: 'test'
+  ...
+# Subtest: import: auto-map finds canonical columns
+ok 103 - import: auto-map finds canonical columns
+  ---
+  duration_ms: 0.401083
+  type: 'test'
+  ...
+# Subtest: import: mapping override uses organizer-provided headers
+ok 104 - import: mapping override uses organizer-provided headers
+  ---
+  duration_ms: 0.14825
+  type: 'test'
+  ...
+# Subtest: import: headline column is accepted as role fallback
+ok 105 - import: headline column is accepted as role fallback
+  ---
+  duration_ms: 1.00975
+  type: 'test'
+  ...
+# Subtest: import: emails are normalized; invalid emails flagged, not fatal
+ok 106 - import: emails are normalized; invalid emails flagged, not fatal
+  ---
+  duration_ms: 0.549084
+  type: 'test'
+  ...
+# Subtest: import: approval_status normalization (interpretation ③)
+ok 107 - import: approval_status normalization (interpretation ③)
+  ---
+  duration_ms: 1.25475
+  type: 'test'
+  ...
+# Subtest: import: rows without name AND without valid email are errors and skipped
+ok 108 - import: rows without name AND without valid email are errors and skipped
+  ---
+  duration_ms: 0.663833
+  type: 'test'
+  ...
+# Subtest: import: duplicates within a file collapse to the first record
+ok 109 - import: duplicates within a file collapse to the first record
+  ---
+  duration_ms: 0.188
+  type: 'test'
+  ...
+# Subtest: import: preview sample capped at 50, counts correct
+ok 110 - import: preview sample capped at 50, counts correct
+  ---
+  duration_ms: 0.833708
+  type: 'test'
+  ...
+# Subtest: import: mapped extra columns land in imported_data (formula cells stay data)
+ok 111 - import: mapped extra columns land in imported_data (formula cells stay data)
+  ---
+  duration_ms: 0.36825
+  type: 'test'
+  ...
+# Subtest: import: empty header row → error, no records
+ok 112 - import: empty header row → error, no records
+  ---
+  duration_ms: 0.127041
+  type: 'test'
+  ...
+# Subtest: canonical pair: lexicographic min/max, stable in both directions
+ok 113 - canonical pair: lexicographic min/max, stable in both directions
+  ---
+  duration_ms: 0.812125
+  type: 'test'
+  ...
+# Subtest: context keys: event:<uuid> | personal:<min uuid> (interpretation ②)
+ok 114 - context keys: event:<uuid> | personal:<min uuid> (interpretation ②)
+  ---
+  duration_ms: 0.101583
+  type: 'test'
+  ...
+# Subtest: reveal fields allowlist: contact kinds only, no email (login email is never stored)
+ok 115 - reveal fields allowlist: contact kinds only, no email (login email is never stored)
+  ---
+  duration_ms: 0.062666
+  type: 'test'
+  ...
+# Subtest: consent sources: the domain list matches the migration 009 CHECK (ADR 0010)
+ok 116 - consent sources: the domain list matches the migration 009 CHECK (ADR 0010)
+  ---
+  duration_ms: 0.680625
+  type: 'test'
+  ...
+# Subtest: validateCreateIntroInput: valid with event and reveal fields
+ok 117 - validateCreateIntroInput: valid with event and reveal fields
+  ---
+  duration_ms: 0.37325
+  type: 'test'
+  ...
+# Subtest: validateCreateIntroInput: valid personal (no event), empty reveal fields default
+ok 118 - validateCreateIntroInput: valid personal (no event), empty reveal fields default
+  ---
+  duration_ms: 0.13125
+  type: 'test'
+  ...
+# Subtest: validateCreateIntroInput: invalid bodies fail closed
+ok 119 - validateCreateIntroInput: invalid bodies fail closed
+  ---
+  duration_ms: 0.171166
+  type: 'test'
+  ...
+# Subtest: validateRespondInput: accept/decline/withdraw with optional reveal fields
+ok 120 - validateRespondInput: accept/decline/withdraw with optional reveal fields
+  ---
+  duration_ms: 0.149417
+  type: 'test'
+  ...
+# Subtest: links: the five card fields are LinkedIn, site, GitHub, Telegram, WhatsApp
+ok 121 - links: the five card fields are LinkedIn, site, GitHub, Telegram, WhatsApp
+  ---
+  duration_ms: 0.955833
+  type: 'test'
+  ...
+# Subtest: links: the kind is detected from the domain
+ok 122 - links: the kind is detected from the domain
+  ---
+  duration_ms: 0.334041
+  type: 'test'
+  ...
+# Subtest: links: unsafe schemes are rejected for every kind
+ok 123 - links: unsafe schemes are rejected for every kind
+  ---
+  duration_ms: 0.192916
+  type: 'test'
+  ...
+# Subtest: links: linkedin_url requires a linkedin profile-ish path
+ok 124 - links: linkedin_url requires a linkedin profile-ish path
+  ---
+  duration_ms: 0.206375
+  type: 'test'
+  ...
+# Subtest: links: github_url requires a single profile segment
+ok 125 - links: github_url requires a single profile segment
+  ---
+  duration_ms: 0.179292
+  type: 'test'
+  ...
+# Subtest: links: telegram handles normalize to @handle and reject junk
+ok 126 - links: telegram handles normalize to @handle and reject junk
+  ---
+  duration_ms: 0.266291
+  type: 'test'
+  ...
+# Subtest: links: whatsapp normalizes to +digits and rejects foreign hosts
+ok 127 - links: whatsapp normalizes to +digits and rejects foreign hosts
+  ---
+  duration_ms: 0.116916
+  type: 'test'
+  ...
+# Subtest: links: website accepts a bare host and strips credentials
+ok 128 - links: website accepts a bare host and strips credentials
+  ---
+  duration_ms: 0.077542
+  type: 'test'
+  ...
+# Subtest: links: linkHref is the only href builder and refuses unsafe values
+ok 129 - links: linkHref is the only href builder and refuses unsafe values
+  ---
+  duration_ms: 0.368042
+  type: 'test'
+  ...
+# Subtest: links: only URL kinds are rendered as URL links
+ok 130 - links: only URL kinds are rendered as URL links
+  ---
+  duration_ms: 0.333833
+  type: 'test'
+  ...
+# Subtest: resolveRequestLocale: a valid ?lang= wins and is reported as query-derived
+ok 131 - resolveRequestLocale: a valid ?lang= wins and is reported as query-derived
+  ---
+  duration_ms: 0.864709
+  type: 'test'
+  ...
+# Subtest: resolveRequestLocale: an invalid ?lang= is ignored and never overrides the cookie
+ok 132 - resolveRequestLocale: an invalid ?lang= is ignored and never overrides the cookie
+  ---
+  duration_ms: 0.226792
+  type: 'test'
+  ...
+# Subtest: proxy: ?lang=ru renders this request in ru and persists the choice in the cookie
+ok 133 - proxy: ?lang=ru renders this request in ru and persists the choice in the cookie
+  ---
+  duration_ms: 7.814625
+  type: 'test'
+  ...
+# Subtest: proxy: an invalid ?lang= is a no-op (no cookie written, nothing forwarded)
+ok 134 - proxy: an invalid ?lang= is a no-op (no cookie written, nothing forwarded)
+  ---
+  duration_ms: 1.091
+  type: 'test'
+  ...
+# Subtest: proxy: the query parameter overrides an existing cookie for the current render
+ok 135 - proxy: the query parameter overrides an existing cookie for the current render
+  ---
+  duration_ms: 0.4585
+  type: 'test'
+  ...
+# Subtest: proxy: the override is wired to the query parameter name the links and docs use
+ok 136 - proxy: the override is wired to the query parameter name the links and docs use
+  ---
+  duration_ms: 0.056333
+  type: 'test'
+  ...
+# Subtest: AC-27 core: complementary needs/offers produce a mutual score
+ok 137 - AC-27 core: complementary needs/offers produce a mutual score
+  ---
+  duration_ms: 1.093833
+  type: 'test'
+  ...
+# Subtest: AC-27 core: both seeking the same thing → null (no mutual fit)
+ok 138 - AC-27 core: both seeking the same thing → null (no mutual fit)
+  ---
+  duration_ms: 0.142792
+  type: 'test'
+  ...
+# Subtest: AC-27 core: one-sided fit → null (nothing to offer the other side)
+ok 139 - AC-27 core: one-sided fit → null (nothing to offer the other side)
+  ---
+  duration_ms: 0.075875
+  type: 'test'
+  ...
+# Subtest: AC-29 core: scorePair is symmetric (same score, swapped reasons)
+ok 140 - AC-29 core: scorePair is symmetric (same score, swapped reasons)
+  ---
+  duration_ms: 0.076333
+  type: 'test'
+  ...
+# Subtest: core: partial overlap computes the frozen formula exactly
+ok 141 - core: partial overlap computes the frozen formula exactly
+  ---
+  duration_ms: 0.145875
+  type: 'test'
+  ...
+# Subtest: core: asymmetric coverage (0.5/1.0) computes the frozen formula exactly
+ok 142 - core: asymmetric coverage (0.5/1.0) computes the frozen formula exactly
+  ---
+  duration_ms: 0.136083
+  type: 'test'
+  ...
+# Subtest: core: self, ineligible and blocked pairs are rejected
+ok 143 - core: self, ineligible and blocked pairs are rejected
+  ---
+  duration_ms: 0.107125
+  type: 'test'
+  ...
+# Subtest: core: missing/invalid inputs throw TypeError like the original
+ok 144 - core: missing/invalid inputs throw TypeError like the original
+  ---
+  duration_ms: 0.227917
+  type: 'test'
+  ...
+# Subtest: recommend: filters non-matches, sorts by score/pending/id, caps at limit
+ok 145 - recommend: filters non-matches, sorts by score/pending/id, caps at limit
+  ---
+  duration_ms: 0.517875
+  type: 'test'
+  ...
+# Subtest: recommend: limit must be integer 0..3
+ok 146 - recommend: limit must be integer 0..3
+  ---
+  duration_ms: 0.354208
+  type: 'test'
+  ...
+# Subtest: recommend: deterministic tie-break by profile id
+ok 147 - recommend: deterministic tie-break by profile id
+  ---
+  duration_ms: 0.137583
+  type: 'test'
+  ...
+# Subtest: canRevealPrivate: contract shape (mutually_accepted + policy version match)
+ok 148 - canRevealPrivate: contract shape (mutually_accepted + policy version match)
+  ---
+  duration_ms: 0.079542
+  type: 'test'
+  ...
+# Subtest: parity: scorePair matches the original .mjs on shared cases
+ok 149 - parity: scorePair matches the original .mjs on shared cases
+  ---
+  duration_ms: 2.24725
+  type: 'test'
+  ...
+# Subtest: parity: recommend matches the original on shared candidate lists
+ok 150 - parity: recommend matches the original on shared candidate lists
+  ---
+  duration_ms: 0.399083
+  type: 'test'
+  ...
+# Subtest: parity: canRevealPrivate matches the original
+ok 151 - parity: canRevealPrivate matches the original
+  ---
+  duration_ms: 0.130417
+  type: 'test'
+  ...
+# Subtest: normalTags parity: outputs match original on all cases
+ok 152 - normalTags parity: outputs match original on all cases
+  ---
+  duration_ms: 5.746083
+  type: 'test'
+  ...
+# Subtest: normalTags parity: throws match original on all cases
+ok 153 - normalTags parity: throws match original on all cases
+  ---
+  duration_ms: 0.507125
+  type: 'test'
+  ...
+# Subtest: normalTags parity: non-array inputs throw identically
+ok 154 - normalTags parity: non-array inputs throw identically
+  ---
+  duration_ms: 0.118833
+  type: 'test'
+  ...
+# Subtest: normalTags: spec archive case — normalize duplicates case whitespace
+ok 155 - normalTags: spec archive case — normalize duplicates case whitespace
+  ---
+  duration_ms: 0.068041
+  type: 'test'
+  ...
+# Subtest: normalTags: 80-char tag accepted, 81 rejected
+ok 156 - normalTags: 80-char tag accepted, 81 rejected
+  ---
+  duration_ms: 0.087791
+  type: 'test'
+  ...
+# Subtest: escapeVCard parity: outputs match original on all cases
+ok 157 - escapeVCard parity: outputs match original on all cases
+  ---
+  duration_ms: 0.227042
+  type: 'test'
+  ...
+# Subtest: escapeVCard: CRLF escaped (spec archive case)
+ok 158 - escapeVCard: CRLF escaped (spec archive case)
+  ---
+  duration_ms: 0.123
+  type: 'test'
+  ...
+# Subtest: escapeVCard: delimiters escaped (spec archive case)
+ok 159 - escapeVCard: delimiters escaped (spec archive case)
+  ---
+  duration_ms: 0.052458
+  type: 'test'
+  ...
+# Subtest: escapeVCard: escaping order — backslash never double-escapes produced sequences
+ok 160 - escapeVCard: escaping order — backslash never double-escapes produced sequences
+  ---
+  duration_ms: 0.2845
+  type: 'test'
+  ...
+# Subtest: score: intent complement is the gate — 45 points on its own
+ok 161 - score: intent complement is the gate — 45 points on its own
+  ---
+  duration_ms: 1.283959
+  type: 'test'
+  ...
+# Subtest: score: complement works in either direction
+ok 162 - score: complement works in either direction
+  ---
+  duration_ms: 0.439083
+  type: 'test'
+  ...
+# Subtest: score: interest-only match passes the gate at >= 0.34
+ok 163 - score: interest-only match passes the gate at >= 0.34
+  ---
+  duration_ms: 0.170042
+  type: 'test'
+  ...
+# Subtest: score: a single shared interest out of three (0.333) does NOT pass the gate
+ok 164 - score: a single shared interest out of three (0.333) does NOT pass the gate
+  ---
+  duration_ms: 0.175666
+  type: 'test'
+  ...
+# Subtest: score: interestOverlap uses max(1, min(|a|,|b|)) so a 1-interest profile can fully match
+ok 165 - score: interestOverlap uses max(1, min(|a|,|b|)) so a 1-interest profile can fully match
+  ---
+  duration_ms: 0.085125
+  type: 'test'
+  ...
+# Subtest: score: function+industry passes the gate without intents or interests
+ok 166 - score: function+industry passes the gate without intents or interests
+  ---
+  duration_ms: 0.086625
+  type: 'test'
+  ...
+# Subtest: score: complementary functions count (founder↔investor, sales↔marketing), same industry needed for the gate
+ok 167 - score: complementary functions count (founder↔investor, sales↔marketing), same industry needed for the gate
+  ---
+  duration_ms: 0.236917
+  type: 'test'
+  ...
+# Subtest: score: a full match across all four components is exactly 100
+ok 168 - score: a full match across all four components is exactly 100
+  ---
+  duration_ms: 0.092833
+  type: 'test'
+  ...
+# Subtest: score: profiles without v3 data are NOT scored by this layer (eligible:false)
+ok 169 - score: profiles without v3 data are NOT scored by this layer (eligible:false)
+  ---
+  duration_ms: 0.634042
+  type: 'test'
+  ...
+# Subtest: score: hard ineligibility returns null (same id, blocked, not eligible)
+ok 170 - score: hard ineligibility returns null (same id, blocked, not eligible)
+  ---
+  duration_ms: 0.558333
+  type: 'test'
+  ...
+# Subtest: score: unknown / stale values are ignored, not crashed on
+ok 171 - score: unknown / stale values are ignored, not crashed on
+  ---
+  duration_ms: 0.149791
+  type: 'test'
+  ...
+# Subtest: score: same industry requires both sides to be set
+ok 172 - score: same industry requires both sides to be set
+  ---
+  duration_ms: 0.071875
+  type: 'test'
+  ...
+# Subtest: reasonsFor: an intent the viewer offers becomes intent_offer_match with catalogue ids
+ok 173 - reasonsFor: an intent the viewer offers becomes intent_offer_match with catalogue ids
+  ---
+  duration_ms: 0.134667
+  type: 'test'
+  ...
+# Subtest: reasonsFor: the reverse direction is a different code for the same pair
+ok 174 - reasonsFor: the reverse direction is a different code for the same pair
+  ---
+  duration_ms: 0.116417
+  type: 'test'
+  ...
+# Subtest: reasonsFor: interest + context reasons, catalogue-ordered
+ok 175 - reasonsFor: interest + context reasons, catalogue-ordered
+  ---
+  duration_ms: 0.0905
+  type: 'test'
+  ...
+# Subtest: reasonsFor: deterministic and independent of input order
+ok 176 - reasonsFor: deterministic and independent of input order
+  ---
+  duration_ms: 0.093958
+  type: 'test'
+  ...
+# Subtest: reasonsFor: empty for self, unknown ids, and no visible overlap
+ok 177 - reasonsFor: empty for self, unknown ids, and no visible overlap
+  ---
+  duration_ms: 0.214208
+  type: 'test'
+  ...
+# Subtest: reasonsFor: at most 3 intent-level reasons, context reasons never counted in
+ok 178 - reasonsFor: at most 3 intent-level reasons, context reasons never counted in
+  ---
+  duration_ms: 0.0635
+  type: 'test'
+  ...
+# Subtest: score result reasons mirror reasonsFor for the same pair
+ok 179 - score result reasons mirror reasonsFor for the same pair
+  ---
+  duration_ms: 0.053292
+  type: 'test'
+  ...
+# Subtest: draft: an empty draft is versioned, starts at step 1 and hides nothing
+ok 180 - draft: an empty draft is versioned, starts at step 1 and hides nothing
+  ---
+  duration_ms: 10.016459
+  type: 'test'
+  ...
+# Subtest: draft: serialize → parse is lossless for every wizard field
+ok 181 - draft: serialize → parse is lossless for every wizard field
+  ---
+  duration_ms: 34.244833
+  type: 'test'
+  ...
+# Subtest: draft: parseDraft accepts an object too and never throws on junk
+ok 182 - draft: parseDraft accepts an object too and never throws on junk
+  ---
+  duration_ms: 6.001583
+  type: 'test'
+  ...
+# Subtest: draft: a draft from another version is discarded, never half-read
+ok 183 - draft: a draft from another version is discarded, never half-read
+  ---
+  duration_ms: 5.15125
+  type: 'test'
+  ...
+# Subtest: draft: the step is clamped into range and unknown links/kinds are dropped
+ok 184 - draft: the step is clamped into range and unknown links/kinds are dropped
+  ---
+  duration_ms: 4.021708
+  type: 'test'
+  ...
+# Subtest: draft: over-long lists are truncated to the catalogue limits
+ok 185 - draft: over-long lists are truncated to the catalogue limits
+  ---
+  duration_ms: 0.339125
+  type: 'test'
+  ...
+# Subtest: draft: publish checkboxes invert into the hidden_fields deny list
+ok 186 - draft: publish checkboxes invert into the hidden_fields deny list
+  ---
+  duration_ms: 1.041209
+  type: 'test'
+  ...
+# Subtest: directory filters: the default is intent mode with nothing narrowed
+ok 187 - directory filters: the default is intent mode with nothing narrowed
+  ---
+  duration_ms: 11.710291
+  type: 'test'
+  ...
+# Subtest: directory filters: query round-trips through the URL contract
+ok 188 - directory filters: query round-trips through the URL contract
+  ---
+  duration_ms: 0.725459
+  type: 'test'
+  ...
+# Subtest: directory filters: the API query uses the canonical job_function param
+ok 189 - directory filters: the API query uses the canonical job_function param
+  ---
+  duration_ms: 0.440708
+  type: 'test'
+  ...
+# Subtest: directory filters: invalid modes fall back and blank values are omitted
+ok 190 - directory filters: invalid modes fall back and blank values are omitted
+  ---
+  duration_ms: 0.16425
+  type: 'test'
+  ...
+# Subtest: directory filters: all three modes serialize and survive the round trip
+ok 191 - directory filters: all three modes serialize and survive the round trip
+  ---
+  duration_ms: 0.086292
+  type: 'test'
+  ...
+# Subtest: plan: production + RESEND_API_KEY → real delivery
+ok 192 - plan: production + RESEND_API_KEY → real delivery
+  ---
+  duration_ms: 0.911333
+  type: 'test'
+  ...
+# Subtest: plan: production without key → EXPLICIT reject 503 email_channel_disabled (F-01 CI gate)
+ok 193 - plan: production without key → EXPLICIT reject 503 email_channel_disabled (F-01 CI gate)
+  ---
+  duration_ms: 0.141625
+  type: 'test'
+  ...
+# Subtest: plan: development without key → deliver (dev log transport)
+ok 194 - plan: development without key → deliver (dev log transport)
+  ---
+  duration_ms: 0.065041
+  type: 'test'
+  ...
+# Subtest: plan: test env without key → deliver (dev log transport)
+ok 195 - plan: test env without key → deliver (dev log transport)
+  ---
+  duration_ms: 0.058875
+  type: 'test'
+  ...
+# Subtest: plan: AUTH_EXPOSE_DEMO_OTP on a NON-demo account does NOT expose the code
+ok 196 - plan: AUTH_EXPOSE_DEMO_OTP on a NON-demo account does NOT expose the code
+  ---
+  duration_ms: 0.063083
+  type: 'test'
+  ...
+# Subtest: plan: demo fallback (AUTH_EXPOSE_DEMO_OTP + is_demo) exposes the code even in production without a provider
+ok 197 - plan: demo fallback (AUTH_EXPOSE_DEMO_OTP + is_demo) exposes the code even in production without a provider
+  ---
+  duration_ms: 0.05375
+  type: 'test'
+  ...
+# Subtest: plan: demo fallback is OFF by default
+ok 198 - plan: demo fallback is OFF by default
+  ---
+  duration_ms: 0.051208
+  type: 'test'
+  ...
+# Subtest: plan: AUTH_DEV_EXPOSE_OTP is dev-only — ignored in production
+ok 199 - plan: AUTH_DEV_EXPOSE_OTP is dev-only — ignored in production
+  ---
+  duration_ms: 0.046333
+  type: 'test'
+  ...
+# Subtest: plan: AUTH_DEV_EXPOSE_OTP in development → expose (pre-existing test mechanism)
+ok 200 - plan: AUTH_DEV_EXPOSE_OTP in development → expose (pre-existing test mechanism)
+  ---
+  duration_ms: 0.258916
+  type: 'test'
+  ...
+# Subtest: plan(ADR 0009): production + switch on + email allowlisted → expose (no provider needed)
+ok 201 - plan(ADR 0009): production + switch on + email allowlisted → expose (no provider needed)
+  ---
+  duration_ms: 0.335167
+  type: 'test'
+  ...
+# Subtest: plan(ADR 0009): switch on but email NOT on the list → reject (no blanket exposure)
+ok 202 - plan(ADR 0009): switch on but email NOT on the list → reject (no blanket exposure)
+  ---
+  duration_ms: 0.123666
+  type: 'test'
+  ...
+# Subtest: plan(ADR 0009): email on the list but switch OFF → reject
+ok 203 - plan(ADR 0009): email on the list but switch OFF → reject
+  ---
+  duration_ms: 0.050292
+  type: 'test'
+  ...
+# Subtest: plan(ADR 0009): allowlist is OFF by default
+ok 204 - plan(ADR 0009): allowlist is OFF by default
+  ---
+  duration_ms: 0.038791
+  type: 'test'
+  ...
+# Subtest: plan(ADR 0009): a configured provider still wins over an unrelated allowlist miss
+ok 205 - plan(ADR 0009): a configured provider still wins over an unrelated allowlist miss
+  ---
+  duration_ms: 0.094417
+  type: 'test'
+  ...
+# Subtest: plan(ADR 0009): demo branch is untouched by the new fields
+ok 206 - plan(ADR 0009): demo branch is untouched by the new fields
+  ---
+  duration_ms: 0.040625
+  type: 'test'
+  ...
+# Subtest: plan(ADR 0009): dev-expose branch takes precedence over the allowlist branch
+ok 207 - plan(ADR 0009): dev-expose branch takes precedence over the allowlist branch
+  ---
+  duration_ms: 1.728917
+  type: 'test'
+  ...
+# Subtest: selectEmailTransport: production + key → real Resend transport
+ok 208 - selectEmailTransport: production + key → real Resend transport
+  ---
+  duration_ms: 0.419833
+  type: 'test'
+  ...
+# Subtest: selectEmailTransport: development without key → dev otp.log transport
+ok 209 - selectEmailTransport: development without key → dev otp.log transport
+  ---
+  duration_ms: 0.221334
+  type: 'test'
+  ...
+# Subtest: selectEmailTransport: production without key → disabled (never dev log)
+ok 210 - selectEmailTransport: production without key → disabled (never dev log)
+  ---
+  duration_ms: 0.147084
+  type: 'test'
+  ...
+# Subtest: selectEmailTransport: development with key → real transport (key wins)
+ok 211 - selectEmailTransport: development with key → real transport (key wins)
+  ---
+  duration_ms: 0.104333
+  type: 'test'
+  ...
+# Subtest: disabled transport fails honestly with channel_disabled
+ok 212 - disabled transport fails honestly with channel_disabled
+  ---
+  duration_ms: 0.219167
+  type: 'test'
+  ...
+# Subtest: parseEmailAllowlist: trims, lowercases, drops empties and de-duplicates
+ok 213 - parseEmailAllowlist: trims, lowercases, drops empties and de-duplicates
+  ---
+  duration_ms: 1.274166
+  type: 'test'
+  ...
+# Subtest: parseEmailAllowlist: empty / whitespace-only / comma-only input → []
+ok 214 - parseEmailAllowlist: empty / whitespace-only / comma-only input → []
+  ---
+  duration_ms: 0.108833
+  type: 'test'
+  ...
+# Subtest: parseEmailAllowlist: preserves order of first appearance
+ok 215 - parseEmailAllowlist: preserves order of first appearance
+  ---
+  duration_ms: 0.13375
+  type: 'test'
+  ...
+# Subtest: isEmailAllowlisted: exact membership match
+ok 216 - isEmailAllowlisted: exact membership match
+  ---
+  duration_ms: 0.267209
+  type: 'test'
+  ...
+# Subtest: isEmailAllowlisted: operator formatting (case, spaces) still matches
+ok 217 - isEmailAllowlisted: operator formatting (case, spaces) still matches
+  ---
+  duration_ms: 0.15275
+  type: 'test'
+  ...
+# Subtest: isEmailAllowlisted: a different address does NOT match
+ok 218 - isEmailAllowlisted: a different address does NOT match
+  ---
+  duration_ms: 0.13975
+  type: 'test'
+  ...
+# Subtest: isEmailAllowlisted: empty list never matches (switch alone exposes nothing)
+ok 219 - isEmailAllowlisted: empty list never matches (switch alone exposes nothing)
+  ---
+  duration_ms: 0.110959
+  type: 'test'
+  ...
+# Subtest: isEmailAllowlisted: a different pepper never matches the same address
+ok 220 - isEmailAllowlisted: a different pepper never matches the same address
+  ---
+  duration_ms: 0.068834
+  type: 'test'
+  ...
+# Subtest: isEmailAllowlisted: a match later in the list is still found (full scan, no early exit)
+ok 221 - isEmailAllowlisted: a match later in the list is still found (full scan, no early exit)
+  ---
+  duration_ms: 0.348542
+  type: 'test'
+  ...
+# Subtest: warning: silent in development
+ok 222 - warning: silent in development
+  ---
+  duration_ms: 0.522583
+  type: 'test'
+  ...
+# Subtest: warning: silent in test
+ok 223 - warning: silent in test
+  ---
+  duration_ms: 0.121542
+  type: 'test'
+  ...
+# Subtest: warning: silent in production when the switch is off
+ok 224 - warning: silent in production when the switch is off
+  ---
+  duration_ms: 0.054125
+  type: 'test'
+  ...
+# Subtest: warning: fires in production with the switch on, exact text + count
+ok 225 - warning: fires in production with the switch on, exact text + count
+  ---
+  duration_ms: 0.089708
+  type: 'test'
+  ...
+# Subtest: warning: singular/plural is grammatical
+ok 226 - warning: singular/plural is grammatical
+  ---
+  duration_ms: 0.06525
+  type: 'test'
+  ...
+# Subtest: warning: text matches the runbook string verbatim
+ok 227 - warning: text matches the runbook string verbatim
+  ---
+  duration_ms: 0.054083
+  type: 'test'
+  ...
+# Subtest: createOtpExposureWarner: logs at most once per instance
+ok 228 - createOtpExposureWarner: logs at most once per instance
+  ---
+  duration_ms: 0.649
+  type: 'test'
+  ...
+# Subtest: createOtpExposureWarner: a non-firing call does not consume the once-guard
+ok 229 - createOtpExposureWarner: a non-firing call does not consume the once-guard
+  ---
+  duration_ms: 0.130041
+  type: 'test'
+  ...
+# Subtest: createOtpExposureWarner: fresh instances are independent
+ok 230 - createOtpExposureWarner: fresh instances are independent
+  ---
+  duration_ms: 0.300875
+  type: 'test'
+  ...
+# Subtest: warnIfOtpExposureOnProduction: warns once per process and never prints addresses
+ok 231 - warnIfOtpExposureOnProduction: warns once per process and never prints addresses
+  ---
+  duration_ms: 0.520834
+  type: 'test'
+  ...
+# Subtest: otp hash: deterministic for the same code and pepper
+ok 232 - otp hash: deterministic for the same code and pepper
+  ---
+  duration_ms: 0.722666
+  type: 'test'
+  ...
+# Subtest: otp hash: different codes produce different hashes
+ok 233 - otp hash: different codes produce different hashes
+  ---
+  duration_ms: 0.105084
+  type: 'test'
+  ...
+# Subtest: otp hash: different peppers produce different hashes
+ok 234 - otp hash: different peppers produce different hashes
+  ---
+  duration_ms: 0.115459
+  type: 'test'
+  ...
+# Subtest: otp hash: output is a 64-char hex digest (HMAC-SHA256), never the plaintext code
+ok 235 - otp hash: output is a 64-char hex digest (HMAC-SHA256), never the plaintext code
+  ---
+  duration_ms: 0.167791
+  type: 'test'
+  ...
+# Subtest: otp hash: leading zeros are significant
+ok 236 - otp hash: leading zeros are significant
+  ---
+  duration_ms: 0.197459
+  type: 'test'
+  ...
+# Subtest: otp code generation: always 6 digits, zero-padded
+ok 237 - otp code generation: always 6 digits, zero-padded
+  ---
+  duration_ms: 2.108791
+  type: 'test'
+  ...
+# Subtest: otp code generation: covers the full range over many samples
+ok 238 - otp code generation: covers the full range over many samples
+  ---
+  duration_ms: 4.044958
+  type: 'test'
+  ...
+# Subtest: timing safe compare: equal and unequal hex strings
+ok 239 - timing safe compare: equal and unequal hex strings
+  ---
+  duration_ms: 1.018792
+  type: 'test'
+  ...
+# Subtest: backoff: attempt 1 with zero jitter is exactly 5s
+ok 240 - backoff: attempt 1 with zero jitter is exactly 5s
+  ---
+  duration_ms: 1.683333
+  type: 'test'
+  ...
+# Subtest: backoff: attempt 3 with zero jitter is 45s
+ok 241 - backoff: attempt 3 with zero jitter is 45s
+  ---
+  duration_ms: 0.150583
+  type: 'test'
+  ...
+# Subtest: backoff: jitter stays within 0..2.5s
+ok 242 - backoff: jitter stays within 0..2.5s
+  ---
+  duration_ms: 0.069542
+  type: 'test'
+  ...
+# Subtest: backoff: non-positive attempt clamps to 1
+ok 243 - backoff: non-positive attempt clamps to 1
+  ---
+  duration_ms: 0.060416
+  type: 'test'
+  ...
+# Subtest: backoff: grows monotonically with attempt number
+ok 244 - backoff: grows monotonically with attempt number
+  ---
+  duration_ms: 0.175458
+  type: 'test'
+  ...
+# Subtest: unknown cap: exactly 3 tries before terminal unknown (AC-42 contract)
+ok 245 - unknown cap: exactly 3 tries before terminal unknown (AC-42 contract)
+  ---
+  duration_ms: 2.820291
+  type: 'test'
+  ...
+# Subtest: takeFromBucket: a fresh bucket starts full and drains one token per take
+ok 246 - takeFromBucket: a fresh bucket starts full and drains one token per take
+  ---
+  duration_ms: 0.518667
+  type: 'test'
+  ...
+# Subtest: takeFromBucket: tokens refill linearly with the injected clock
+ok 247 - takeFromBucket: tokens refill linearly with the injected clock
+  ---
+  duration_ms: 0.11175
+  type: 'test'
+  ...
+# Subtest: takeFromBucket: refill never exceeds capacity
+ok 248 - takeFromBucket: refill never exceeds capacity
+  ---
+  duration_ms: 0.1435
+  type: 'test'
+  ...
+# Subtest: consumeIpToken: same ip+route drains, other routes and ips are isolated
+ok 249 - consumeIpToken: same ip+route drains, other routes and ips are isolated
+  ---
+  duration_ms: 0.141541
+  type: 'test'
+  ...
+# Subtest: reason codes: the vocabulary is exactly the six documented facts
+ok 250 - reason codes: the vocabulary is exactly the six documented facts
+  ---
+  duration_ms: 0.776959
+  type: 'test'
+  ...
+# Subtest: formatReason: intent codes interpolate the resolved need goal
+ok 251 - formatReason: intent codes interpolate the resolved need goal
+  ---
+  duration_ms: 0.280583
+  type: 'test'
+  ...
+# Subtest: formatReason: interests join in catalogue order, tags stay raw user text
+ok 252 - formatReason: interests join in catalogue order, tags stay raw user text
+  ---
+  duration_ms: 0.104459
+  type: 'test'
+  ...
+# Subtest: formatReason: function and industry resolve through the catalogue
+ok 253 - formatReason: function and industry resolve through the catalogue
+  ---
+  duration_ms: 0.577708
+  type: 'test'
+  ...
+# Subtest: formatReason: a missing param or unknown code degrades instead of throwing
+ok 254 - formatReason: a missing param or unknown code degrades instead of throwing
+  ---
+  duration_ms: 0.511291
+  type: 'test'
+  ...
+# Subtest: formatReasons: drops empty renderings, keeps order
+ok 255 - formatReasons: drops empty renderings, keeps order
+  ---
+  duration_ms: 0.397375
+  type: 'test'
+  ...
+# Subtest: reason templates: every code has a template in every locale, per audience
+ok 256 - reason templates: every code has a template in every locale, per audience
+  ---
+  duration_ms: 0.881333
+  type: 'test'
+  ...
+# Subtest: reason templates: the two audiences cannot render the same sentence by accident
+ok 257 - reason templates: the two audiences cannot render the same sentence by accident
+  ---
+  duration_ms: 0.578458
+  type: 'test'
+  ...
+# Subtest: reason templates: localized, not English copies
+ok 258 - reason templates: localized, not English copies
+  ---
+  duration_ms: 0.952125
+  type: 'test'
+  ...
+# Subtest: formatReason: rendering reuses the same templates for all three locales
+ok 259 - formatReason: rendering reuses the same templates for all three locales
+  ---
+  duration_ms: 0.657875
+  type: 'test'
+  ...
+# Subtest: channel: active telegram binding wins over an available email
+ok 260 - channel: active telegram binding wins over an available email
+  ---
+  duration_ms: 1.45975
+  type: 'test'
+  ...
+# Subtest: channel: active binding without consent is suppressed, never downgraded to email
+ok 261 - channel: active binding without consent is suppressed, never downgraded to email
+  ---
+  duration_ms: 0.126208
+  type: 'test'
+  ...
+# Subtest: channel: revoked/blocked bindings stay terminal even with an email on file
+ok 262 - channel: revoked/blocked bindings stay terminal even with an email on file
+  ---
+  duration_ms: 0.070083
+  type: 'test'
+  ...
+# Subtest: channel: no binding + email + consent → email
+ok 263 - channel: no binding + email + consent → email
+  ---
+  duration_ms: 0.074959
+  type: 'test'
+  ...
+# Subtest: channel: no binding + email + no consent → consent_revoked
+ok 264 - channel: no binding + email + no consent → consent_revoked
+  ---
+  duration_ms: 0.187
+  type: 'test'
+  ...
+# Subtest: channel: no binding + no email → no_channel regardless of consent
+ok 265 - channel: no binding + no email → no_channel regardless of consent
+  ---
+  duration_ms: 0.137042
+  type: 'test'
+  ...
+# Subtest: channel: jobs that do not opt into consent still use email
+ok 266 - channel: jobs that do not opt into consent still use email
+  ---
+  duration_ms: 0.051
+  type: 'test'
+  ...
+# Subtest: channel: a binding state that is neither active nor revoked/blocked is treated as absent
+ok 267 - channel: a binding state that is neither active nor revoked/blocked is treated as absent
+  ---
+  duration_ms: 0.06775
+  type: 'test'
+  ...
+# Subtest: safeNextPath: plain in-app paths pass
+ok 268 - safeNextPath: plain in-app paths pass
+  ---
+  duration_ms: 0.451125
+  type: 'test'
+  ...
+# Subtest: safeNextPath: off-site and protocol-relative targets rejected
+ok 269 - safeNextPath: off-site and protocol-relative targets rejected
+  ---
+  duration_ms: 0.084
+  type: 'test'
+  ...
+# Subtest: safeNextPath: backslash bypasses are rejected (F-10)
+ok 270 - safeNextPath: backslash bypasses are rejected (F-10)
+  ---
+  duration_ms: 0.06025
+  type: 'test'
+  ...
+# Subtest: safeNextPath: non-strings rejected
+ok 271 - safeNextPath: non-strings rejected
+  ---
+  duration_ms: 0.116125
+  type: 'test'
+  ...
+# Subtest: revision: matching revision is accepted and bumped
+ok 272 - revision: matching revision is accepted and bumped
+  ---
+  duration_ms: 0.917917
+  type: 'test'
+  ...
+# Subtest: revision: stale revision is a conflict carrying the current revision
+ok 273 - revision: stale revision is a conflict carrying the current revision
+  ---
+  duration_ms: 0.264458
+  type: 'test'
+  ...
+# Subtest: revision: missing or malformed revision is a conflict (route turns missing into 400)
+ok 274 - revision: missing or malformed revision is a conflict (route turns missing into 400)
+  ---
+  duration_ms: 0.216709
+  type: 'test'
+  ...
+# Subtest: profile validation: minimal valid body with tag normalization
+ok 275 - profile validation: minimal valid body with tag normalization
+  ---
+  duration_ms: 0.625208
+  type: 'test'
+  ...
+# Subtest: profile validation: rejects bad bodies
+ok 276 - profile validation: rejects bad bodies
+  ---
+  duration_ms: 0.211709
+  type: 'test'
+  ...
+# Subtest: contact validation: whitelisted kinds, boolean public_enabled
+ok 277 - contact validation: whitelisted kinds, boolean public_enabled
+  ---
+  duration_ms: 0.127417
+  type: 'test'
+  ...
+# Subtest: vcard: header/footer, CRLF endings, public contacts only
+ok 278 - vcard: header/footer, CRLF endings, public contacts only
+  ---
+  duration_ms: 0.344167
+  type: 'test'
+  ...
+# Subtest: vcard: multi-line display name cannot inject properties
+ok 279 - vcard: multi-line display name cannot inject properties
+  ---
+  duration_ms: 0.081
+  type: 'test'
+  ...
+# Subtest: service notices: every kind renders a subject and a body with the app link (EN default)
+ok 280 - service notices: every kind renders a subject and a body with the app link (EN default)
+  ---
+  duration_ms: 0.64875
+  type: 'test'
+  ...
+# Subtest: service notices: a trailing slash on APP_BASE_URL never doubles in the link
+ok 281 - service notices: a trailing slash on APP_BASE_URL never doubles in the link
+  ---
+  duration_ms: 0.095458
+  type: 'test'
+  ...
+# Subtest: service notices: bodies carry no contact values, no handles and no names
+ok 282 - service notices: bodies carry no contact values, no handles and no names
+  ---
+  duration_ms: 0.365625
+  type: 'test'
+  ...
+# Subtest: service notices: the declined/withdrawn bodies disclose no cause and no blame
+ok 283 - service notices: the declined/withdrawn bodies disclose no cause and no blame
+  ---
+  duration_ms: 0.174041
+  type: 'test'
+  ...
+# Subtest: service notices: the completed/declined notices never name a side or a party
+ok 284 - service notices: the completed/declined notices never name a side or a party
+  ---
+  duration_ms: 0.208541
+  type: 'test'
+  ...
+# Subtest: service notices: the requested notice never names the initiator (unlike the chat body)
+ok 285 - service notices: the requested notice never names the initiator (unlike the chat body)
+  ---
+  duration_ms: 0.121167
+  type: 'test'
+  ...
+# Subtest: service notices: locales render different copy for the same kind
+ok 286 - service notices: locales render different copy for the same kind
+  ---
+  duration_ms: 0.143417
+  type: 'test'
+  ...
+# Subtest: service notice kinds are recognised only from the closed registry
+ok 287 - service notice kinds are recognised only from the closed registry
+  ---
+  duration_ms: 0.072209
+  type: 'test'
+  ...
+# Subtest: campaign email subject is neutral and locale-dependent
+ok 288 - campaign email subject is neutral and locale-dependent
+  ---
+  duration_ms: 0.32
+  type: 'test'
+  ...
+# Subtest: public slug: base64url alphabet, exactly 22 chars (>= 128-bit entropy)
+ok 289 - public slug: base64url alphabet, exactly 22 chars (>= 128-bit entropy)
+  ---
+  duration_ms: 1.334917
+  type: 'test'
+  ...
+# Subtest: public slug: 2000 generations are unique (collision-free sample)
+ok 290 - public slug: 2000 generations are unique (collision-free sample)
+  ---
+  duration_ms: 8.363875
+  type: 'test'
+  ...
+# Subtest: public slug: decodes to 16 bytes (128 bits)
+ok 291 - public slug: decodes to 16 bytes (128 bits)
+  ---
+  duration_ms: 0.123458
+  type: 'test'
+  ...
+# Subtest: public slug: satisfies the profiles CHECK (char_length >= 22)
+ok 292 - public slug: satisfies the profiles CHECK (char_length >= 22)
+  ---
+  duration_ms: 0.1005
+  type: 'test'
+  ...
+# Subtest: public slug: contains no URL-unsafe characters
+ok 293 - public slug: contains no URL-unsafe characters
+  ---
+  duration_ms: 0.368584
+  type: 'test'
+  ...
+# Subtest: static safety: no dangerouslySetInnerHTML anywhere in src/
+ok 294 - static safety: no dangerouslySetInnerHTML anywhere in src/
+  ---
+  duration_ms: 24.729041
+  type: 'test'
+  ...
+# Subtest: static safety: no eval( or new Function( anywhere in src/
+ok 295 - static safety: no eval( or new Function( anywhere in src/
+  ---
+  duration_ms: 31.97325
+  type: 'test'
+  ...
+# Subtest: static safety: fetch( targets stay within the outbound allowlist
+ok 296 - static safety: fetch( targets stay within the outbound allowlist
+  ---
+  duration_ms: 43.11825
+  type: 'test'
+  ...
+# Subtest: picker: the shipped catalogue parses and carries the enforced limits
+ok 297 - picker: the shipped catalogue parses and carries the enforced limits
+  ---
+  duration_ms: 0.621584
+  type: 'test'
+  ...
+# Subtest: picker: parseCatalog rejects unusable payloads instead of half-rendering
+ok 298 - picker: parseCatalog rejects unusable payloads instead of half-rendering
+  ---
+  duration_ms: 0.243875
+  type: 'test'
+  ...
+# Subtest: picker: intent sides expose both the chip label and the reason goal
+ok 299 - picker: intent sides expose both the chip label and the reason goal
+  ---
+  duration_ms: 0.267333
+  type: 'test'
+  ...
+# Subtest: picker: limits are per axis and never silently exceeded
+ok 300 - picker: limits are per axis and never silently exceeded
+  ---
+  duration_ms: 0.47575
+  type: 'test'
+  ...
+# Subtest: picker: toggle is idempotent per id and preserves order
+ok 301 - picker: toggle is idempotent per id and preserves order
+  ---
+  duration_ms: 0.173833
+  type: 'test'
+  ...
+# Subtest: picker: keywords normalize like the API and enforce both limits
+ok 302 - picker: keywords normalize like the API and enforce both limits
+  ---
+  duration_ms: 0.178375
+  type: 'test'
+  ...
+# Subtest: picker: chip search matches labels and ids, case-insensitively
+ok 303 - picker: chip search matches labels and ids, case-insensitively
+  ---
+  duration_ms: 0.174417
+  type: 'test'
+  ...
+# Subtest: picker: interests are grouped, and an empty group disappears while searching
+ok 304 - picker: interests are grouped, and an empty group disappears while searching
+  ---
+  duration_ms: 0.262375
+  type: 'test'
+  ...
+# Subtest: picker: labels fall back to EN for a locale the catalogue does not carry
+ok 305 - picker: labels fall back to EN for a locale the catalogue does not carry
+  ---
+  duration_ms: 0.318917
+  type: 'test'
+  ...
+# Subtest: picker: stored ids resolve to labels, unknown ids degrade to the raw id
+ok 306 - picker: stored ids resolve to labels, unknown ids degrade to the raw id
+  ---
+  duration_ms: 1.110083
+  type: 'test'
+  ...
+# Subtest: picker: reason labels resolve need goals, interests, functions and industries
+ok 307 - picker: reason labels resolve need goals, interests, functions and industries
+  ---
+  duration_ms: 0.257709
+  type: 'test'
+  ...
+# Subtest: picker: itemsFor returns every catalogue entry in catalogue order
+ok 308 - picker: itemsFor returns every catalogue entry in catalogue order
+  ---
+  duration_ms: 0.114333
+  type: 'test'
+  ...
+# Subtest: picker: an empty catalogue degrades gracefully (no throw, empty lists)
+ok 309 - picker: an empty catalogue degrades gracefully (no throw, empty lists)
+  ---
+  duration_ms: 0.050166
+  type: 'test'
+  ...
+# Subtest: taxonomy: 16 intent pairs, 32 unique side ids, valid kinds
+ok 310 - taxonomy: 16 intent pairs, 32 unique side ids, valid kinds
+  ---
+  duration_ms: 1.387209
   type: 'test'
   ...
 # Subtest: taxonomy: complementOf is symmetric and null for unknown ids
-ok 279 - taxonomy: complementOf is symmetric and null for unknown ids
+ok 311 - taxonomy: complementOf is symmetric and null for unknown ids
   ---
-  duration_ms: 0.155667
+  duration_ms: 0.242417
   type: 'test'
   ...
 # Subtest: taxonomy: every label is non-empty in RU and EN
-ok 280 - taxonomy: every label is non-empty in RU and EN
+ok 312 - taxonomy: every label is non-empty in RU and EN
   ---
-  duration_ms: 0.26175
+  duration_ms: 0.298334
   type: 'test'
   ...
 # Subtest: taxonomy: interests are unique, grouped, and each group is used
-ok 281 - taxonomy: interests are unique, grouped, and each group is used
+ok 313 - taxonomy: interests are unique, grouped, and each group is used
   ---
-  duration_ms: 0.178333
+  duration_ms: 0.190125
   type: 'test'
   ...
 # Subtest: taxonomy: an alias string is never declared by two interests
-ok 282 - taxonomy: an alias string is never declared by two interests
+ok 314 - taxonomy: an alias string is never declared by two interests
   ---
-  duration_ms: 0.296209
+  duration_ms: 0.321
   type: 'test'
   ...
 # Subtest: normalizeInterest: canonical ids, RU/EN aliases and legacy v1 ids resolve
-ok 283 - normalizeInterest: canonical ids, RU/EN aliases and legacy v1 ids resolve
+ok 315 - normalizeInterest: canonical ids, RU/EN aliases and legacy v1 ids resolve
   ---
-  duration_ms: 0.180125
+  duration_ms: 0.208083
   type: 'test'
   ...
 # Subtest: normalizeKeyword: trims, lowercases, collapses whitespace, truncates over-long input
-ok 284 - normalizeKeyword: trims, lowercases, collapses whitespace, truncates over-long input
+ok 316 - normalizeKeyword: trims, lowercases, collapses whitespace, truncates over-long input
   ---
-  duration_ms: 0.074583
+  duration_ms: 0.079042
   type: 'test'
   ...
 # Subtest: intent tag resolution: lenient flips sides, strict rejects the wrong side
-ok 285 - intent tag resolution: lenient flips sides, strict rejects the wrong side
+ok 317 - intent tag resolution: lenient flips sides, strict rejects the wrong side
   ---
-  duration_ms: 0.08575
+  duration_ms: 0.089958
   type: 'test'
   ...
 # Subtest: validators: intents — defaults, dedupe, limits, wrong-side and unknown ids
-ok 286 - validators: intents — defaults, dedupe, limits, wrong-side and unknown ids
+ok 318 - validators: intents — defaults, dedupe, limits, wrong-side and unknown ids
   ---
-  duration_ms: 0.955083
+  duration_ms: 0.966083
   type: 'test'
   ...
 # Subtest: validators: interests enforce the catalogue and MAX_INTERESTS
-ok 287 - validators: interests enforce the catalogue and MAX_INTERESTS
+ok 319 - validators: interests enforce the catalogue and MAX_INTERESTS
   ---
-  duration_ms: 0.441708
+  duration_ms: 0.482792
   type: 'test'
   ...
 # Subtest: validators: keywords — MAX_KEYWORDS, length cap, normalization
-ok 288 - validators: keywords — MAX_KEYWORDS, length cap, normalization
+ok 320 - validators: keywords — MAX_KEYWORDS, length cap, normalization
   ---
-  duration_ms: 0.179917
+  duration_ms: 0.179875
   type: 'test'
   ...
 # Subtest: validators: job_function / industry accept prefer-not-to-say → null
-ok 289 - validators: job_function / industry accept prefer-not-to-say → null
+ok 321 - validators: job_function / industry accept prefer-not-to-say → null
   ---
-  duration_ms: 0.111833
+  duration_ms: 0.125708
   type: 'test'
   ...
 # Subtest: taxonomyPayload: shaped for GET /api/taxonomy with both locales at once
-ok 290 - taxonomyPayload: shaped for GET /api/taxonomy with both locales at once
+ok 322 - taxonomyPayload: shaped for GET /api/taxonomy with both locales at once
   ---
-  duration_ms: 0.1665
+  duration_ms: 0.177416
   type: 'test'
   ...
 # Subtest: selectTransport: production without token → disabled (never mock)
-ok 291 - selectTransport: production without token → disabled (never mock)
+ok 323 - selectTransport: production without token → disabled (never mock)
   ---
-  duration_ms: 0.576834
+  duration_ms: 1.245583
   type: 'test'
   ...
 # Subtest: selectTransport: production with TELEGRAM_MOCK=1 → STILL disabled (mock gate)
-ok 292 - selectTransport: production with TELEGRAM_MOCK=1 → STILL disabled (mock gate)
+ok 324 - selectTransport: production with TELEGRAM_MOCK=1 → STILL disabled (mock gate)
   ---
-  duration_ms: 0.087708
+  duration_ms: 0.112084
   type: 'test'
   ...
 # Subtest: selectTransport: dev + TELEGRAM_MOCK=1 → mock
-ok 293 - selectTransport: dev + TELEGRAM_MOCK=1 → mock
+ok 325 - selectTransport: dev + TELEGRAM_MOCK=1 → mock
   ---
-  duration_ms: 1.449
+  duration_ms: 2.540417
   type: 'test'
   ...
 # Subtest: selectTransport: TELEGRAM_BOT_TOKEN set → real transport regardless of mock flag
-ok 294 - selectTransport: TELEGRAM_BOT_TOKEN set → real transport regardless of mock flag
+ok 326 - selectTransport: TELEGRAM_BOT_TOKEN set → real transport regardless of mock flag
   ---
-  duration_ms: 0.10475
+  duration_ms: 0.138292
   type: 'test'
   ...
 # Subtest: selectTransport: dev without token and without mock → disabled, never silent drop
-ok 295 - selectTransport: dev without token and without mock → disabled, never silent drop
+ok 327 - selectTransport: dev without token and without mock → disabled, never silent drop
   ---
-  duration_ms: 0.149834
+  duration_ms: 0.178041
   type: 'test'
   ...
 # Subtest: gate: mock transport is never statically imported outside tests
-ok 296 - gate: mock transport is never statically imported outside tests
+ok 328 - gate: mock transport is never statically imported outside tests
   ---
-  duration_ms: 19.289791
+  duration_ms: 16.624667
   type: 'test'
   ...
 # Subtest: gate: index.ts contains the dev-only mock condition
-ok 297 - gate: index.ts contains the dev-only mock condition
+ok 329 - gate: index.ts contains the dev-only mock condition
   ---
-  duration_ms: 0.155833
+  duration_ms: 0.239709
   type: 'test'
   ...
 # Subtest: mock transport: no script → every send succeeds with a stable message id
-ok 298 - mock transport: no script → every send succeeds with a stable message id
+ok 330 - mock transport: no script → every send succeeds with a stable message id
   ---
-  duration_ms: 0.106333
+  duration_ms: 0.113291
   type: 'test'
   ...
 # Subtest: mock transport: scripted outcomes are consumed FIFO
-ok 299 - mock transport: scripted outcomes are consumed FIFO
+ok 331 - mock transport: scripted outcomes are consumed FIFO
   ---
-  duration_ms: 0.326
+  duration_ms: 0.341458
   type: 'test'
   ...
 # Subtest: transport: 2xx ok:true → sent with provider message id
-ok 300 - transport: 2xx ok:true → sent with provider message id
+ok 332 - transport: 2xx ok:true → sent with provider message id
   ---
-  duration_ms: 14.240333
+  duration_ms: 27.58925
   type: 'test'
   ...
 # Subtest: transport: request goes to the Bot API sendMessage with chat_id+text, no parse_mode
-ok 301 - transport: request goes to the Bot API sendMessage with chat_id+text, no parse_mode
+ok 333 - transport: request goes to the Bot API sendMessage with chat_id+text, no parse_mode
   ---
-  duration_ms: 0.456708
+  duration_ms: 0.327208
   type: 'test'
   ...
 # Subtest: transport: 429 with Retry-After → rate_limited + retryAfterSeconds (AC-43 input)
-ok 302 - transport: 429 with Retry-After → rate_limited + retryAfterSeconds (AC-43 input)
+ok 334 - transport: 429 with Retry-After → rate_limited + retryAfterSeconds (AC-43 input)
   ---
-  duration_ms: 0.499542
+  duration_ms: 0.455625
   type: 'test'
   ...
 # Subtest: transport: 429 without Retry-After header → rate_limited, no seconds
-ok 303 - transport: 429 without Retry-After header → rate_limited, no seconds
+ok 335 - transport: 429 without Retry-After header → rate_limited, no seconds
   ---
-  duration_ms: 0.205291
+  duration_ms: 0.200083
   type: 'test'
   ...
 # Subtest: transport: permanent 4xx → failed, no retry
-ok 304 - transport: permanent 4xx → failed, no retry
+ok 336 - transport: permanent 4xx → failed, no retry
   ---
-  duration_ms: 0.6725
+  duration_ms: 0.655166
   type: 'test'
   ...
 # Subtest: transport: 5xx → unknown (retryable)
-ok 305 - transport: 5xx → unknown (retryable)
+ok 337 - transport: 5xx → unknown (retryable)
   ---
-  duration_ms: 0.62375
+  duration_ms: 2.343375
   type: 'test'
   ...
 # Subtest: transport: network failure → unknown network_error
-ok 306 - transport: network failure → unknown network_error
+ok 338 - transport: network failure → unknown network_error
   ---
-  duration_ms: 0.182917
+  duration_ms: 0.398208
   type: 'test'
   ...
 # Subtest: transport: timeout after send → unknown timeout (AC-42 input)
-ok 307 - transport: timeout after send → unknown timeout (AC-42 input)
+ok 339 - transport: timeout after send → unknown timeout (AC-42 input)
   ---
-  duration_ms: 0.099667
+  duration_ms: 0.217625
   type: 'test'
   ...
 # Subtest: transport: 200 with ok:false (no message id) → failed, not silent success
-ok 308 - transport: 200 with ok:false (no message id) → failed, not silent success
+ok 340 - transport: 200 with ok:false (no message id) → failed, not silent success
   ---
-  duration_ms: 0.45125
+  duration_ms: 0.823333
   type: 'test'
   ...
 # Subtest: totp: RFC 6238 SHA1 vectors (8 digits)
-ok 309 - totp: RFC 6238 SHA1 vectors (8 digits)
+ok 341 - totp: RFC 6238 SHA1 vectors (8 digits)
   ---
-  duration_ms: 0.926875
+  duration_ms: 1.481833
   type: 'test'
   ...
 # Subtest: totp: RFC 6238 SHA256 vectors (8 digits)
-ok 310 - totp: RFC 6238 SHA256 vectors (8 digits)
+ok 342 - totp: RFC 6238 SHA256 vectors (8 digits)
   ---
-  duration_ms: 0.442375
+  duration_ms: 0.429459
   type: 'test'
   ...
 # Subtest: totp: 6-digit code is the low 6 digits of the 8-digit value
-ok 311 - totp: 6-digit code is the low 6 digits of the 8-digit value
+ok 343 - totp: 6-digit code is the low 6 digits of the 8-digit value
   ---
-  duration_ms: 0.087541
+  duration_ms: 0.180375
   type: 'test'
   ...
 # Subtest: totp: verify accepts the current code and ±1 step, rejects beyond
-ok 312 - totp: verify accepts the current code and ±1 step, rejects beyond
+ok 344 - totp: verify accepts the current code and ±1 step, rejects beyond
   ---
-  duration_ms: 0.388292
+  duration_ms: 0.455417
   type: 'test'
   ...
 # Subtest: totp: verify rejects malformed and wrong codes
-ok 313 - totp: verify rejects malformed and wrong codes
+ok 345 - totp: verify rejects malformed and wrong codes
   ---
-  duration_ms: 0.125834
+  duration_ms: 0.137542
   type: 'test'
   ...
 # Subtest: totp: generated secrets round-trip through base32
-ok 314 - totp: generated secrets round-trip through base32
+ok 346 - totp: generated secrets round-trip through base32
   ---
-  duration_ms: 0.254375
+  duration_ms: 0.29525
   type: 'test'
   ...
 # Subtest: base32: RFC 4648 vectors (unpadded)
-ok 315 - base32: RFC 4648 vectors (unpadded)
+ok 347 - base32: RFC 4648 vectors (unpadded)
   ---
-  duration_ms: 0.238292
+  duration_ms: 0.275458
   type: 'test'
   ...
 # Subtest: recovery codes: shape, uniqueness, normalization and hashing
-ok 316 - recovery codes: shape, uniqueness, normalization and hashing
+ok 348 - recovery codes: shape, uniqueness, normalization and hashing
   ---
-  duration_ms: 0.502708
+  duration_ms: 0.560125
   type: 'test'
   ...
 # Subtest: otpauth URI: spec F-03 format
-ok 317 - otpauth URI: spec F-03 format
+ok 349 - otpauth URI: spec F-03 format
   ---
-  duration_ms: 0.294375
+  duration_ms: 0.305709
   type: 'test'
   ...
 # Subtest: telegram update: valid message update parsed to minimal redacted payload
-ok 318 - telegram update: valid message update parsed to minimal redacted payload
+ok 350 - telegram update: valid message update parsed to minimal redacted payload
   ---
-  duration_ms: 0.897458
+  duration_ms: 0.875709
   type: 'test'
   ...
 # Subtest: telegram update: non-message update accepted with minimal payload (no processing)
-ok 319 - telegram update: non-message update accepted with minimal payload (no processing)
+ok 351 - telegram update: non-message update accepted with minimal payload (no processing)
   ---
-  duration_ms: 0.082041
+  duration_ms: 0.090208
   type: 'test'
   ...
 # Subtest: telegram update: message without from and text (channel post shape) is valid
-ok 320 - telegram update: message without from and text (channel post shape) is valid
+ok 352 - telegram update: message without from and text (channel post shape) is valid
   ---
-  duration_ms: 0.071958
+  duration_ms: 0.081375
   type: 'test'
   ...
 # Subtest: telegram update: invalid bodies fail closed with specific codes
-ok 321 - telegram update: invalid bodies fail closed with specific codes
+ok 353 - telegram update: invalid bodies fail closed with specific codes
   ---
-  duration_ms: 0.163292
+  duration_ms: 0.24475
   type: 'test'
   ...
 # Subtest: secureSecretEqual: equal secrets match
-ok 322 - secureSecretEqual: equal secrets match
+ok 354 - secureSecretEqual: equal secrets match
   ---
-  duration_ms: 0.188917
+  duration_ms: 1.402625
   type: 'test'
   ...
 # Subtest: secureSecretEqual: different values and lengths never match, never throw
-ok 323 - secureSecretEqual: different values and lengths never match, never throw
+ok 355 - secureSecretEqual: different values and lengths never match, never throw
   ---
-  duration_ms: 0.1515
+  duration_ms: 0.743459
   type: 'test'
   ...
-1..323
-# tests 323
+1..355
+# tests 355
 # suites 0
-# pass 323
+# pass 355
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 810.721875
+# duration_ms 1218.239167
