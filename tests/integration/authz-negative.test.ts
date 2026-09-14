@@ -4,7 +4,12 @@ import { after, before } from 'node:test';
 import { POST as requestOtp } from '../../src/app/api/auth/otp/request/route';
 import { POST as verifyOtp } from '../../src/app/api/auth/otp/verify/route';
 import { POST as createProfileRoute } from '../../src/app/api/me/profile/route';
-import { PUT as putContactRoute, GET as getContactsRoute } from '../../src/app/api/me/contacts/route';
+import {
+  PUT as putContactRoute,
+  GET as getContactsRoute,
+  DELETE as deleteContactRoute,
+} from '../../src/app/api/me/contacts/route';
+import { GET as getAccountRoute } from '../../src/app/api/me/route';
 import { POST as exportRoute } from '../../src/app/api/me/export/route';
 import { POST as joinRoute } from '../../src/app/api/events/[eventIdOrSlug]/join/route';
 import { GET as directoryRoute } from '../../src/app/api/events/[eventIdOrSlug]/directory/route';
@@ -444,4 +449,81 @@ test('authz: DELETE /api/blocks only removes the CALLER block — the victim blo
     WHERE blocker_account_id = ${memberB.accountId} AND target_account_id = ${outsider.accountId}
   `;
   assert.equal(kept[0]!.count, 1);
+});
+
+test('authz: contacts DELETE is session-scoped and reports 200/404 honestly', async () => {
+  const alice = await login('contacts-owner');
+  const mallory = await login('contacts-other');
+  const put = async (actor: Actor, kind: string, value: string) => {
+    const res = await putContactRoute(
+      makeRequest('/api/me/contacts', {
+        method: 'PUT',
+        body: { kind, value, public_enabled: true },
+        cookie: actor.cookie,
+      }),
+    );
+    assertStatus(res, 200);
+  };
+  const del = (actor: Actor | null, kind: string) =>
+    deleteContactRoute(makeRequest(`/api/me/contacts?kind=${kind}`, { method: 'DELETE', cookie: actor?.cookie }));
+  const ownKinds = async (actor: Actor) => {
+    const res = await getContactsRoute(makeRequest('/api/me/contacts', { cookie: actor.cookie }));
+    assertStatus(res, 200);
+    return ((await res.json()) as { contacts: { kind: string }[] }).contacts.map((c) => c.kind).sort();
+  };
+
+  await put(alice, 'website', 'https://alice.example');
+  await put(mallory, 'website', 'https://mallory.example');
+
+  // No session → 401. Unknown kind → 400 (the same closed vocabulary as PUT).
+  assertStatus(await del(null, 'website'), 401);
+  const badKind = await del(alice, 'not-a-kind');
+  assert.equal(badKind.status, 400);
+  assert.equal(((await badKind.json()) as { code: string }).code, 'invalid_kind');
+  // A kind the caller does not have → 404, and nothing else is touched.
+  assert.equal((await del(alice, 'phone')).status, 404);
+
+  // Cross-account: Mallory removing HER website must leave Alice's row in place.
+  assertStatus(await del(mallory, 'website'), 200);
+  assert.deepEqual(await ownKinds(alice), ['website']);
+  const aliceRows = await sql<{ encrypted_value: string }[]>`
+    SELECT encrypted_value FROM contact_fields WHERE profile_id = ${alice.profileId} AND kind = 'website'
+  `;
+  assert.equal(aliceRows.length, 1, 'the victim contact row must survive a foreign delete');
+
+  // The owner removes it — and the response never echoes the stored value.
+  const removed = await del(alice, 'website');
+  assertStatus(removed, 200);
+  assert.deepEqual(await removed.json(), { ok: true, deleted: true, kind: 'website' });
+  assert.deepEqual(await ownKinds(alice), []);
+  // A second attempt is an honest 404, not a silent success.
+  assert.equal((await del(alice, 'website')).status, 404);
+});
+
+test('authz: GET /api/me is owner-only, minimal and secretless', async () => {
+  assertStatus(await getAccountRoute(makeRequest('/api/me', { cookie: '' })), 401);
+
+  const res = await getAccountRoute(makeRequest('/api/me', { cookie: outsider.cookie }));
+  assertStatus(res, 200);
+  assert.equal(res.headers.get('cache-control'), 'no-store, private');
+  const body = (await res.json()) as { ok: boolean; account: Record<string, unknown> };
+  assert.equal(body.ok, true);
+  assert.equal(body.account['id'], outsider.accountId);
+  assert.equal(body.account['status'], 'active');
+  assert.equal(body.account['has_profile'], true);
+  assert.equal(typeof body.account['public_slug'], 'string');
+  // (An earlier test in this file edits the outsider's display name, so the
+  // expectation is read from the DB rather than hardcoded.)
+  const current = await sql<{ display_name: string; public_slug: string }[]>`
+    SELECT display_name, public_slug FROM profiles WHERE account_id = ${outsider.accountId}
+  `;
+  assert.equal(body.account['display_name'], current[0]!.display_name);
+  assert.equal(body.account['public_slug'], current[0]!.public_slug);
+  assert.ok(!Number.isNaN(Date.parse(String(body.account['created_at']))));
+
+  // No credential material of any kind leaves the endpoint.
+  const raw = JSON.stringify(body).toLowerCase();
+  for (const forbidden of ['email', 'lookup_hash', 'auth_subject', 'token', 'password', 'consent', 'secret']) {
+    assert.ok(!raw.includes(forbidden), `GET /api/me must not expose «${forbidden}»`);
+  }
 });

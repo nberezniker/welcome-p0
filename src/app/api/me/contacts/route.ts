@@ -4,7 +4,7 @@ import { requireAccount } from '../../../../lib/auth';
 import { requireEncryptionKey } from '../../../../lib/env';
 import { decryptValue, encryptValue } from '../../../../lib/crypto';
 import { privateCacheHeaders, internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
-import { validateContactInput } from '../../../../domain/profile';
+import { validateContactInput, CONTACT_KINDS } from '../../../../domain/profile';
 
 export async function GET(req: NextRequest) {
   try {
@@ -79,4 +79,38 @@ async function putRoute(req: NextRequest) {
   }
 }
 
+async function deleteRoute(req: NextRequest) {
+  try {
+    const auth = await requireAccount(req);
+    if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
+
+    // The kind comes from the query string; the same closed vocabulary as PUT.
+    const kind = req.nextUrl.searchParams.get('kind');
+    if (typeof kind !== 'string' || !(CONTACT_KINDS as readonly string[]).includes(kind)) {
+      return jsonError(400, 'invalid_kind', `kind must be one of: ${CONTACT_KINDS.join(', ')}`);
+    }
+
+    const sql = getSql();
+    // Scope the delete to the caller's OWN profile: a contact can only ever be
+    // removed by its owner, and a kind that is not set is a 404, not a silent
+    // success (the client can tell "removed" from "there was nothing").
+    const rows = await sql<{ kind: string }[]>`
+      DELETE FROM contact_fields
+      WHERE kind = ${kind}
+        AND profile_id IN (SELECT id FROM profiles WHERE account_id = ${auth.accountId})
+      RETURNING kind
+    `;
+    if (rows.length === 0) {
+      return jsonError(404, 'not_found', 'No such contact', { headers: privateCacheHeaders() });
+    }
+
+    // The stored value is never echoed back (it is encrypted at rest; the
+    // delete confirms the kind only).
+    return jsonOk({ ok: true, deleted: true, kind }, { headers: privateCacheHeaders() });
+  } catch (err) {
+    return internalError(err);
+  }
+}
+
 export const PUT = withApi(putRoute);
+export const DELETE = withApi(deleteRoute);
