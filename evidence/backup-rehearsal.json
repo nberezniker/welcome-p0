@@ -1,0 +1,168 @@
+{
+  "started_at": "2026-09-14T23:51:19.038Z",
+  "finished_at": "2026-09-14T23:51:26.800Z",
+  "duration_s": 7.8,
+  "source": {
+    "engine": "PostgreSQL 18.6 (2078fcb)",
+    "host": "postgres://ep-solitary-bread-b25sor11.c-6.eu-central-1.aws.neon.tech/neondb?sslmode=require",
+    "tables": 32
+  },
+  "dump": {
+    "file": ".runtime/backups/neon-2026-09-14T23-51-19-038Z.dump",
+    "bytes": 164341,
+    "ms": 3557,
+    "archived_entries": 280,
+    "gitignored": true
+  },
+  "restore": {
+    "engine": "PostgreSQL 18.4 (Homebrew)",
+    "database": "welcome_restore_test",
+    "ms": 170,
+    "tables": 32
+  },
+  "comparisons": [
+    {
+      "table": "accounts",
+      "prod": {
+        "count": 7,
+        "checksum": "cd977802f7f570e58d18e37850c9cad0"
+      },
+      "restored": {
+        "count": 7,
+        "checksum": "cd977802f7f570e58d18e37850c9cad0"
+      },
+      "same": true
+    },
+    {
+      "table": "profiles",
+      "prod": {
+        "count": 4,
+        "checksum": "6dced1aa372f6a8375a9493be8d2e382"
+      },
+      "restored": {
+        "count": 4,
+        "checksum": "6dced1aa372f6a8375a9493be8d2e382"
+      },
+      "same": true
+    },
+    {
+      "table": "contact_fields",
+      "prod": {
+        "count": 9,
+        "checksum": "7427a6c70f12cdc82677bbfadee5c740"
+      },
+      "restored": {
+        "count": 9,
+        "checksum": "7427a6c70f12cdc82677bbfadee5c740"
+      },
+      "same": true
+    },
+    {
+      "table": "events",
+      "prod": {
+        "count": 1,
+        "checksum": "2dedad28e5a001474a6288f52d7a22ac"
+      },
+      "restored": {
+        "count": 1,
+        "checksum": "2dedad28e5a001474a6288f52d7a22ac"
+      },
+      "same": true
+    },
+    {
+      "table": "event_memberships",
+      "prod": {
+        "count": 4,
+        "checksum": "e20a163c08dfb5d02725cbb4a6326518"
+      },
+      "restored": {
+        "count": 4,
+        "checksum": "e20a163c08dfb5d02725cbb4a6326518"
+      },
+      "same": true
+    },
+    {
+      "table": "registrations",
+      "prod": {
+        "count": 8,
+        "checksum": "32b22059a4ac1f8260ac6f6d3d9a3baf"
+      },
+      "restored": {
+        "count": 8,
+        "checksum": "32b22059a4ac1f8260ac6f6d3d9a3baf"
+      },
+      "same": true
+    },
+    {
+      "table": "introductions",
+      "prod": {
+        "count": 4,
+        "checksum": "84f56ce3b056ad14004477bb75da7c70"
+      },
+      "restored": {
+        "count": 4,
+        "checksum": "84f56ce3b056ad14004477bb75da7c70"
+      },
+      "same": true
+    },
+    {
+      "table": "introduction_consents",
+      "prod": {
+        "count": 8,
+        "checksum": "1a01aba57d71bbc13e032c493ea0baec"
+      },
+      "restored": {
+        "count": 8,
+        "checksum": "1a01aba57d71bbc13e032c493ea0baec"
+      },
+      "same": true
+    },
+    {
+      "table": "outbox_jobs",
+      "prod": {
+        "count": 167,
+        "checksum": "1c9960d7c23e6a16e6775eb0098e0797"
+      },
+      "restored": {
+        "count": 167,
+        "checksum": "1c9960d7c23e6a16e6775eb0098e0797"
+      },
+      "same": true
+    },
+    {
+      "table": "audit_events",
+      "prod": {
+        "count": 577,
+        "checksum": "88d2677fd093f180139a1a9ecfa8abc4"
+      },
+      "restored": {
+        "count": 577,
+        "checksum": "88d2677fd093f180139a1a9ecfa8abc4"
+      },
+      "same": true
+    },
+    {
+      "table": "consent_events",
+      "prod": {
+        "count": 26,
+        "checksum": "ddd0d1e7680ff8f5a62856813e3230dd"
+      },
+      "restored": {
+        "count": 26,
+        "checksum": "ddd0d1e7680ff8f5a62856813e3230dd"
+      },
+      "same": true
+    }
+  ],
+  "mismatches": 0,
+  "pitr": {
+    "available": "unknown",
+    "verified": false,
+    "method": null,
+    "notes": [
+      "neonctl not installed",
+      "NEON_API_KEY is absent, and no console session is available, so a branch/PITR restore could NOT be performed or verified in this rehearsal.",
+      "Restoring the dump proves the DATA is recoverable. It does not prove the retention window or the branch-restore path — that stays an untested assumption until an API key is supplied."
+    ]
+  }
+}
