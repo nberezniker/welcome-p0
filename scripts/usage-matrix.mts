@@ -1156,6 +1156,41 @@ async function jobRow(dedupeKey: string): Promise<{ status: string; attempt: num
   return rows[0] ?? null;
 }
 
+interface NoticeRow {
+  id: string;
+  kind: string;
+  status: string;
+  text: string;
+  account_id: string;
+}
+
+/** The outbox row behind an introduction decision notice (ADR 0010). */
+async function noticeRow(dedupeKey: string): Promise<NoticeRow | null> {
+  if (!sql) return null;
+  const rows = await sql<NoticeRow[]>`
+    SELECT id, kind, status, payload->>'text' AS text, payload->>'account_id' AS account_id
+    FROM outbox_jobs WHERE dedupe_key = ${dedupeKey} LIMIT 1`;
+  return rows[0] ?? null;
+}
+
+async function noticeCount(dedupeKey: string): Promise<number> {
+  if (!sql) return 0;
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM outbox_jobs WHERE dedupe_key = ${dedupeKey}`;
+  return rows[0]?.count ?? 0;
+}
+
+/** Latest delivery attempt of the job behind a dedupe key — carries the code. */
+async function noticeAttempt(dedupeKey: string): Promise<{ state: string; code: string | null }> {
+  if (!sql) throw new Error('no db');
+  const rows = await sql<{ state: string; code: string | null }[]>`
+    SELECT da.state, da.code FROM delivery_attempts da
+    JOIN outbox_jobs j ON j.id = da.job_id
+    WHERE j.dedupe_key = ${dedupeKey} ORDER BY da.id DESC LIMIT 1`;
+  must(rows.length > 0, `no delivery attempt recorded for ${dedupeKey}`);
+  return rows[0]!;
+}
+
 const membershipId = async (user: FixtureUser, eventId: string): Promise<string> => {
   if (!sql) throw new Error('no db');
   const rows = await sql<{ id: string }[]>`
@@ -1311,6 +1346,27 @@ async function modeG(): Promise<void> {
     const recs = await s.get(`/api/events/${F.eventA}/recommendations`);
     equals(recs.status, 403, 'recommendations as non-member');
     return { actual: '403 forbidden ×2', evidence: `${ev(dir)} | ${ev(recs)}` };
+  });
+
+  await check('G8', 'G', 'directory: смотрящий не показывается сам себе (все режимы)', 'alpha.profileId отсутствует в members для all/intent/interest', async () => {
+    const s = await userSession(alpha);
+    const counts: string[] = [];
+    for (const mode of ['all', 'intent', 'interest']) {
+      const res = await s.get(`/api/events/${F.eventA}/directory?mode=${mode}`);
+      equals(res.status, 200, `mode=${mode} status`);
+      const members = (res.json as { members?: { profile_id: string }[] }).members ?? [];
+      must(!members.some((m) => m.profile_id === alpha.profileId), `self listed in mode=${mode}`);
+      counts.push(`${mode}=${members.length}`);
+    }
+    // Recommendations already excluded self; assert the change did not regress it.
+    const recs = await s.get(`/api/events/${F.eventA}/recommendations`);
+    equals(recs.status, 200, 'recommendations status');
+    const items = (recs.json as { recommendations?: { profile_id: string }[] }).recommendations ?? [];
+    must(!items.some((i) => i.profile_id === alpha.profileId), 'self recommended');
+    return {
+      actual: `self отсутствует во всех трёх режимах (${counts.join(', ')}); рекомендации тоже без себя (${items.length})`,
+      evidence: `alpha.profileId отсутствует в members: ${counts.join(', ')}; recommendations=${items.length}`,
+    };
   });
 }
 
@@ -1522,8 +1578,9 @@ async function modeJ(): Promise<void> {
   const delta = users.get('delta')!;
   let abId = '';
   let acId = '';
+  let withdrawnNoticeKey = '';
 
-  await check('J1', 'J', 'intro create (событийный контекст)', '200 already_existed:false + id', async () => {
+  await check('J1', 'J', 'intro create (событийный контекст)', '200 already_existed:false + id; инициатор уже accept (implicit_by_initiation)', async () => {
     const s = await userSession(alpha);
     const res = await s.post('/api/introductions', { target_profile_id: bravo.profileId, event_id: F.eventA, reveal_fields: ['phone', 'website'] });
     equals(res.status, 200, 'create status');
@@ -1532,7 +1589,17 @@ async function modeJ(): Promise<void> {
     must(abId.length > 0, 'introduction id missing');
     equals(body.already_existed, false, 'already_existed on first create');
     equals(body.introduction?.state, 'pending', 'initial state');
-    return { actual: '200 pending, already_existed=false', evidence: ev(res, 'ok', 'introduction', 'already_existed') };
+    // ADR 0010: the initiator consents BY requesting — its card opens in the
+    // "waiting for an answer" state, never in the accept/decline prompt.
+    const view = await s.get(`/api/introductions/${abId}`);
+    equals(view.status, 200, 'initiator view status');
+    equals(introBody(view)?.state, 'pending', 'state for the initiator');
+    equals(introBody(view)?.my_decision, 'accept', 'initiator consent is implicit_by_initiation');
+    equals(introBody(view)?.other_accepted, false, 'counterparty has not answered');
+    return {
+      actual: '200 pending, already_existed=false; у инициатора my_decision=accept, other_accepted=false',
+      evidence: `${ev(res, 'ok', 'introduction', 'already_existed')} | ${ev(view, 'ok', 'introduction')}`,
+    };
   });
 
   await check('J2', 'J', 'intro create идемпотентен (повтор → тот же id)', '200 already_existed:true, same id', async () => {
@@ -1547,17 +1614,27 @@ async function modeJ(): Promise<void> {
     return { actual: '200 already_existed=true, тот же id, одна строка пары', evidence: ev(res, 'ok', 'already_existed') };
   });
 
-  await check('J3', 'J', 'respond decline (и маскировка decline для второй стороны)', 'decline 200 declined; вторая сторона видит pending', async () => {
+  await check('J3', 'J', 'respond decline + нейтральное уведомление инициатору', 'decline 200; state declined виден обеим сторонам; джоба intro_declined без причины', async () => {
     const s = await userSession(bravo);
     const res = await s.post(`/api/introductions/${abId}/respond`, { decision: 'decline' });
     equals(res.status, 200, 'decline status');
     const view = await userSession(alpha).then((a) => a.get(`/api/introductions/${abId}`));
     equals(view.status, 200, 'counterparty view status');
-    equals((view.json as { introduction?: IntroView }).introduction?.state, 'pending', 'decline must be masked for the counterparty');
-    return { actual: 'decline → 200 (state declined у ответившего); у инициатора state=pending', evidence: `${ev(res, 'ok', 'introduction')} | ${ev(view, 'ok')}` };
+    // ADR 0010: the state is honest for both parties — no more fake 'pending'.
+    equals((view.json as { introduction?: IntroView }).introduction?.state, 'declined', 'state is visible to the counterparty too');
+    // The other side gets ONE neutral notice: that it ended, never why.
+    const job = await noticeRow(`intro_declined:${abId}:${alpha.accountId}`);
+    must(job !== null, 'decline notice job missing');
+    equals(job.kind, 'intro_declined_notice', 'decline notice kind');
+    equals(job.text, 'WELCOME: знакомство не состоялось.', 'decline notice text');
+    must(!/reason|причин|decline|отклон|spam|report/i.test(job.text), 'notice must not carry a reason or blame');
+    return {
+      actual: `decline → 200; у обеих сторон state=declined; джоба ${job.kind} для alpha, текст нейтральный`,
+      evidence: `${ev(res, 'ok', 'introduction')} | ${ev(view, 'ok', 'introduction')} | outbox ${job.kind} text=${job.text}`,
+    };
   });
 
-  await check('J4', 'J', 'mutual-переход и reveal только при mutual', 'два accept → mutual; reveal = пересечение полей', async () => {
+  await check('J4', 'J', 'mutual после ОДНОГО accept контрагента', 'charlie accept → mutual; reveal = пересечение полей', async () => {
     const cs = await userSession(charlie);
     await cs.put('/api/me/contacts', { kind: 'phone', value: CHARLIE_PHONE, public_enabled: false });
     const s = await userSession(alpha);
@@ -1565,15 +1642,14 @@ async function modeJ(): Promise<void> {
     equals(created.status, 200, 'create status');
     acId = (created.json as { introduction?: { id: string } }).introduction!.id;
     const beforeMutual = await s.get(`/api/introductions/${acId}`);
-    equals(beforeMutual.status, 200, 'counterparty view status');
+    equals(beforeMutual.status, 200, 'initiator view status');
     must(introBody(beforeMutual) !== undefined, `GET /api/introductions/<id> had no introduction: ${clip(redact(beforeMutual.text), 120)}`);
+    equals(introBody(beforeMutual)?.my_decision, 'accept', 'initiator already consents');
     equals(introRevealed(beforeMutual).length, 0, 'reveal must be empty while pending');
-    const bAccept = await cs.post(`/api/introductions/${acId}/respond`, { decision: 'accept', reveal_fields: ['phone'] });
-    equals(bAccept.status, 200, 'counterparty accept');
-    equals(introBody(bAccept)?.state, 'pending', 'one-sided accept stays pending');
-    const aAccept = await s.post(`/api/introductions/${acId}/respond`, { decision: 'accept', reveal_fields: ['phone'] });
-    equals(aAccept.status, 200, 'initiator accept');
-    equals(introBody(aAccept)?.state, 'mutual', 'mutual after both accepts');
+    // ONE accept from the counterparty is the whole transition (ADR 0010).
+    const cAccept = await cs.post(`/api/introductions/${acId}/respond`, { decision: 'accept', reveal_fields: ['phone'] });
+    equals(cAccept.status, 200, 'counterparty accept');
+    equals(introBody(cAccept)?.state, 'mutual', 'one counterparty accept completes the pair');
     const view = await s.get(`/api/introductions/${acId}`);
     const revealed = introRevealed(view);
     equals(revealed.length, 1, 'revealed field count');
@@ -1581,8 +1657,8 @@ async function modeJ(): Promise<void> {
     equals(revealed[0]?.value, CHARLIE_PHONE, 'revealed value');
     must(await isPhonePrivate(charlie), 'fixture phone is not private — reveal would not prove anything');
     return {
-      actual: `pending → mutual после двух accept; revealed=[phone: ${CHARLIE_PHONE}] при public_enabled=false`,
-      evidence: `${ev(beforeMutual, 'ok', 'revealed')} | ${ev(aAccept, 'ok', 'introduction')} | ${ev(view, 'ok', 'introduction', 'revealed')}`,
+      actual: `pending → mutual после ОДНОГО accept контрагента; revealed=[phone: ${CHARLIE_PHONE}] при public_enabled=false`,
+      evidence: `${ev(beforeMutual, 'ok', 'introduction', 'revealed')} | ${ev(cAccept, 'ok', 'introduction')} | ${ev(view, 'ok', 'introduction', 'revealed')}`,
     };
   });
 
@@ -1636,7 +1712,7 @@ async function modeJ(): Promise<void> {
     return { actual: `Charlie отсутствует в directory (${members.length} записей) и рекомендациях (${items.length})`, evidence: `members=${members.length}, recommendations=${items.length}, blocked=Charlie` };
   });
 
-  await check('J9', 'J', 'respond withdraw (отзыв до mutual)', '200 state revoked', async () => {
+  await check('J9', 'J', 'respond withdraw (отзыв до mutual) + нейтральное уведомление контрагенту', '200 state revoked; джоба intro_withdrawn без причины, ровно одна', async () => {
     const s = await userSession(alpha);
     const created = await s.post('/api/introductions', { target_profile_id: delta.profileId, event_id: F.eventA });
     equals(created.status, 200, 'create status');
@@ -1644,10 +1720,52 @@ async function modeJ(): Promise<void> {
     const res = await s.post(`/api/introductions/${id}/respond`, { decision: 'withdraw' });
     equals(res.status, 200, 'withdraw status');
     equals((res.json as { introduction?: IntroView }).introduction?.state, 'revoked', 'state after withdraw');
+    withdrawnNoticeKey = `intro_withdrawn:${id}:${delta.accountId}`;
+    const job = await noticeRow(withdrawnNoticeKey);
+    must(job !== null, 'withdraw notice job missing');
+    equals(job.kind, 'intro_withdrawn_notice', 'withdraw notice kind');
+    equals(job.text, 'WELCOME: знакомство отозвано.', 'withdraw notice text');
+    must(!/reason|причин|withdraw|отозвал|spam|report/i.test(job.text), 'notice must not carry a reason or blame');
     const after = await s.post(`/api/introductions/${id}/respond`, { decision: 'decline' });
     equals(after.status, 409, 'respond after revoke');
     equals((after.json as { code?: string }).code, 'invalid_state', 'respond after revoke code');
-    return { actual: 'withdraw → 200 revoked; повторный respond → 409 invalid_state', evidence: `${ev(res, 'ok', 'introduction')} | ${ev(after)}` };
+    // Idempotent: the refused repeat never produced a second job.
+    equals(await noticeCount(withdrawnNoticeKey), 1, 'withdraw notice job count');
+    return {
+      actual: `withdraw → 200 revoked (повтор → 409); джоба ${job.kind} для delta, текст нейтральный, ровно одна`,
+      evidence: `${ev(res, 'ok', 'introduction')} | ${ev(after)} | outbox ${job.kind} text=${job.text}`,
+    };
+  });
+
+  await check('J10', 'J', 'уведомления о решении подавляются по правилам (no_channel / consent_revoked)', 'decline → suppressed:no_channel; withdraw при активном binding без service_channel-согласия → suppressed:consent_revoked', async () => {
+    // Case 1: the decline notice went to alpha, who has no telegram binding.
+    const declinedKey = `intro_declined:${abId}:${alpha.accountId}`;
+    // Case 2: give delta an ACTIVE binding so the CONSENT precondition is what
+    // decides — and record an explicit global withdrawal so the gate is
+    // unambiguous (nothing can actually be sent to a synthetic chat id).
+    const chatId = `matrix-notice-${rand(4)}`;
+    await sql!`INSERT INTO channel_bindings (account_id, provider, external_id, state)
+               VALUES (${delta.accountId}, 'telegram', ${chatId}, 'active')`;
+    await sql!`INSERT INTO consent_events (account_id, purpose, scope_type, policy_version, action)
+               VALUES (${delta.accountId}, 'service_channel', 'global', ${'matrix-2026-09-14'}, 'withdraw')`;
+
+    const t = await tick();
+    equals(t.status, 200, 'worker tick status');
+    const declined = await noticeAttempt(declinedKey);
+    equals(declined.state, 'suppressed', 'decline notice status');
+    equals(declined.code, 'no_channel', 'decline notice suppression code');
+    const withdrawn = await noticeAttempt(withdrawnNoticeKey);
+    equals(withdrawn.state, 'suppressed', 'withdraw notice status');
+    equals(withdrawn.code, 'consent_revoked', 'withdraw notice suppression code');
+    // Both jobs are terminal and stay at one row each.
+    equals((await jobRow(declinedKey))?.status, 'suppressed', 'decline job status in db');
+    equals((await jobRow(withdrawnNoticeKey))?.status, 'suppressed', 'withdraw job status in db');
+    equals(await noticeCount(declinedKey), 1, 'decline job count');
+    equals(await noticeCount(withdrawnNoticeKey), 1, 'withdraw job count');
+    return {
+      actual: `decline=${declined.state}:${declined.code} (нет канала), withdraw=${withdrawn.state}:${withdrawn.code} (binding активен, согласие отозвано)`,
+      evidence: `delivery_attempts: ${declinedKey} → ${declined.state}/${declined.code}; ${withdrawnNoticeKey} → ${withdrawn.state}/${withdrawn.code}`,
+    };
   });
 }
 
