@@ -1,0 +1,56 @@
+{
+  "run_at": "2026-09-14T11:39:16.312Z",
+  "commit": "c92ad88da14344d4723301dd38b3c1129f20f1ea",
+  "command": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:integration && pnpm test:e2e && pnpm build && pnpm scan:secrets && pnpm drill:defect",
+  "all_green": true,
+  "gates": [
+    {
+      "id": "typecheck",
+      "command": "pnpm typecheck",
+      "exit": 0,
+      "summary": "0 ошибок tsc --noEmit"
+    },
+    {
+      "id": "lint",
+      "command": "pnpm lint",
+      "exit": 0,
+      "summary": "eslint clean (0 errors, 0 warnings)"
+    },
+    {
+      "id": "test:unit",
+      "command": "pnpm test:unit",
+      "exit": 0,
+      "summary": "310 pass / 0 fail (node --test + tsx)"
+    },
+    {
+      "id": "test:integration",
+      "command": "pnpm test:integration",
+      "exit": 0,
+      "summary": "241 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–008)"
+    },
+    {
+      "id": "test:e2e",
+      "command": "pnpm test:e2e",
+      "exit": 0,
+      "summary": "6 passed (Playwright chromium, next dev :3111, welcome_e2e)"
+    },
+    {
+      "id": "build",
+      "command": "pnpm build",
+      "exit": 0,
+      "summary": "Compiled successfully, 73 routes, undefined static pages, BUILD_ID 7No4J6qQTGH7syXU9gRLc"
+    },
+    {
+      "id": "scan:secrets",
+      "command": "pnpm scan:secrets",
+      "exit": 0,
+      "summary": "no secrets found in tracked files"
+    },
+    {
+      "id": "drill:defect",
+      "command": "pnpm drill:defect",
+      "exit": 0,
+      "summary": "DRILL-OK: инъекция → гейт FAIL (exit 1) → revert → PASS (exit 0), без остатка в src/"
+    }
+  ]
+}

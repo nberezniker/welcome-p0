@@ -2,12 +2,12 @@
 > welcome-p0@0.1.0 drill:defect /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
 > node --env-file-if-exists=.env.local scripts/defect-drill.mjs
 
-defect drill on commit 0568f5a31a0bab0fa1aff50c8b5c7f21c71d8093
+defect drill on commit c92ad88da14344d4723301dd38b3c1129f20f1ea
 {
   severity_local: 'NOTICE',
   severity: 'NOTICE',
   code: '00000',
-  message: 'drop cascades to 32 other objects',
+  message: 'drop cascades to 33 other objects',
   detail: 'drop cascades to table schema_migrations\n' +
     'drop cascades to extension pgcrypto\n' +
     'drop cascades to table accounts\n' +
@@ -39,7 +39,8 @@ defect drill on commit 0568f5a31a0bab0fa1aff50c8b5c7f21c71d8093
     'drop cascades to table otp_verify_failures\n' +
     'drop cascades to table mfa_credentials\n' +
     'drop cascades to table mfa_recovery_codes\n' +
-    'drop cascades to table mfa_verify_failures',
+    'drop cascades to table mfa_verify_failures\n' +
+    'drop cascades to table enrichment_requests',
   file: 'dependency.c',
   line: '1227',
   routine: 'reportDependentObjects'
