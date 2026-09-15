@@ -6,6 +6,7 @@ import { POST as verifyOtp } from '../../src/app/api/auth/otp/verify/route';
 import { POST as createProfileRoute } from '../../src/app/api/me/profile/route';
 import { POST as createEventRoute } from '../../src/app/api/organizer/events/route';
 import { GET as icsRoute } from '../../src/app/api/events/[eventIdOrSlug]/ics/route';
+import { icsFilename } from '../../src/domain/ics';
 import { closeSql } from '../../src/lib/db';
 import { loginViaOtp, makeRequest, uniqueEmail, assertStatus } from './helpers';
 
@@ -67,7 +68,7 @@ test('ics: public download with the right headers, UTC stamps and a stable UID',
   const res = await getIcs(event.slug);
   assertStatus(res, 200);
   assert.match(res.headers.get('content-type') ?? '', /^text\/calendar; charset=utf-8$/);
-  assert.equal(res.headers.get('content-disposition'), `attachment; filename="welcome-${event.slug}.ics"`);
+  assert.equal(res.headers.get('content-disposition'), `attachment; filename="${icsFilename(event.slug)}"`);
 
   const body = await res.text();
   assert.ok(body.startsWith('BEGIN:VCALENDAR\r\n'));

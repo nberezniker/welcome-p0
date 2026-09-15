@@ -87,6 +87,36 @@ test('registry: providerById resolves registered ids and rejects unregistered on
   assert.equal(providerById('notion'), null);
 });
 
+test('registry: every UI label derived from a registry id exists in EN/RU/ES', () => {
+  // /me/connections builds its labels from registry values (title/description
+  // per provider, plus kind/direction/capability/status/reason words), so a new
+  // row without copy must fail here rather than render a raw key.
+  const dicts: Record<string, Partial<Dictionary>> = { en, ru, es };
+  const keys = new Set<string>();
+  for (const provider of PROVIDERS) {
+    keys.add(`providers.${provider.id}.title`);
+    keys.add(`providers.${provider.id}.description`);
+    keys.add(`connections.kind.${provider.kind}`);
+    keys.add(`connections.direction.${provider.direction}`);
+    for (const capability of provider.capabilities) keys.add(`connections.capability.${capability}`);
+  }
+  for (const status of ['live', 'disabled', 'planned']) keys.add(`providers.status.${status}`);
+  for (const reason of [
+    'not_configured',
+    'needs_oauth_client',
+    'not_implemented',
+    'policy_restricted',
+    'awaiting_access',
+  ]) {
+    keys.add(`providers.reason.${reason}`);
+  }
+  for (const key of keys) {
+    for (const [locale, dict] of Object.entries(dicts)) {
+      assert.ok(key in dict, `${key} missing from ${locale}`);
+    }
+  }
+});
+
 test('resolver: a live env-gated provider without its variable is disabled + not_configured', () => {
   const telegram = providerById('telegram')!;
   const email = providerById('email')!;

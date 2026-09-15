@@ -110,10 +110,12 @@ export function icsUid(id: string, host: string): string {
 
 /**
  * Filename-safe event slug for `Content-Disposition`. Keeps a download from
- * being named after whatever the organizer typed.
+ * being named after whatever the organizer typed. Underscores are kept: the
+ * generated slugs use them (`generateEventSlug`), so folding them to dashes
+ * would rename the file relative to the event it belongs to.
  */
 export function icsFilename(slug: string): string {
-  const safe = slug.replace(/[^a-z0-9-]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  const safe = slug.replace(/[^a-z0-9_-]/gi, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
   return `welcome-${safe || 'event'}.ics`;
 }
 

@@ -76,8 +76,10 @@ test('icsUid: stable per event id, host sanitized, never derived from the name',
   assert.equal(icsUid('event-1', ''), 'welcome-event-event-1@welcome');
 });
 
-test('icsFilename: url-safe, always .ics', () => {
+test('icsFilename: url-safe, keeps generated underscores, always .ics', () => {
   assert.equal(icsFilename('e2e-mixer'), 'welcome-e2e-mixer.ics');
+  // generateEventSlug() emits base64url, so underscores are part of a real slug.
+  assert.equal(icsFilename('Ke8X0tueiySWLUlaxy_UCw'), 'welcome-Ke8X0tueiySWLUlaxy_UCw.ics');
   assert.equal(icsFilename('../../etc/passwd'), 'welcome-etc-passwd.ics');
 });
 
