@@ -525,6 +525,8 @@ export const en = {
   'event.openDirectory': 'Member directory',
   'event.myEventsLink': 'Manage per-event settings',
   'event.notFound': 'Event not found.',
+  'event.metaTitle': '{name} — WELCOME event',
+  'event.metaDescription': 'Event page: date, place and how to join.',
   'event.consentTextTitle': 'Data notice from the organizer',
   'event.participantsNote': 'Participation never subscribes you to advertising.',
 

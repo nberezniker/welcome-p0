@@ -1,10 +1,11 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { getSql } from '../../../lib/db';
-import { getT, type Locale } from '../../../i18n';
+import { getT } from '../../../i18n';
 import { loadEventView } from '../../../lib/event-view';
 import { getOptionalAccountId } from '../../../lib/session-page';
 import { appBaseUrl } from '../../../lib/env';
+import { formatEventWhen } from '../../../lib/event-time';
 import { googleCalendarUrl } from '../../../domain/ics';
 import { ShareLinks } from '../../../components/share-links';
 import JoinEventButton from './join-button';
@@ -12,23 +13,35 @@ import EventMemberPanel from './member-panel';
 
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = {
-  title: 'Событие',
-  robots: { index: false, follow: false },
-};
+/**
+ * Event metadata, mirroring the public card (/p/[slug]): the unfurled URL is the
+ * canonical one on APP_BASE_URL and the OG tags carry the event's own name, so a
+ * pasted link reads as the event instead of a generic title.
+ *
+ * The projection is loaded with NO viewer — metadata is consumed by crawlers and
+ * chat clients, and the member-only room link must never be part of it.
+ */
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const { t } = await getT();
+  const view = await loadEventView(getSql(), slug, null);
+  // A missing event must not leak "this slug exists" through metadata.
+  if (!view) return { title: t('event.notFound'), robots: { index: false, follow: false } };
 
-const DATE_LOCALES: Record<Locale, string> = { en: 'en-GB', ru: 'ru-RU', es: 'es-ES' };
+  const event = view.event;
+  const title = t('event.metaTitle', { name: event.name });
+  // What the organizer wrote is already public on the page; the fallback keeps a
+  // description-less event from unfurling as a bare title.
+  const description = event.description?.trim() || t('event.metaDescription');
+  const url = `${appBaseUrl().replace(/\/+$/, '')}/e/${event.slug}`;
 
-function formatInTz(date: Date, timezone: string, locale: Locale): string {
-  try {
-    return new Intl.DateTimeFormat(DATE_LOCALES[locale], {
-      timeZone: timezone,
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(date);
-  } catch {
-    return date.toISOString();
-  }
+  return {
+    title,
+    description,
+    robots: { index: false, follow: false },
+    alternates: { canonical: url },
+    openGraph: { title, description, type: 'website', url },
+  };
 }
 
 /** Event landing (locale-aware): public info, join (code-aware), member panel
@@ -87,8 +100,12 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             <div>
               <dt className="inline font-semibold text-ink">{t('event.timeTitle')}: </dt>
               <dd className="inline">
-                {formatInTz(new Date(event.starts_at), event.timezone, locale)}
-                {event.ends_at ? ` — ${formatInTz(new Date(event.ends_at), event.timezone, locale)}` : ''}
+                {formatEventWhen(
+                  new Date(event.starts_at),
+                  event.ends_at ? new Date(event.ends_at) : null,
+                  event.timezone,
+                  locale,
+                )}
               </dd>
             </div>
           )}

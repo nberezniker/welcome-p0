@@ -512,6 +512,8 @@ export const es: Partial<Dictionary> = {
   'event.openDirectory': 'Directorio de miembros',
   'event.myEventsLink': 'Ajustar participación',
   'event.notFound': 'Evento no encontrado.',
+  'event.metaTitle': '{name} — evento WELCOME',
+  'event.metaDescription': 'Página del evento: fecha, lugar y cómo unirse.',
   'event.consentTextTitle': 'Aviso de datos del organizador',
   'event.participantsNote': 'La participación nunca te suscribe a publicidad.',
 

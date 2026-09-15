@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import { legacyHostRedirects } from "./src/lib/legacy-host-redirect";
 
 // F-04: security headers on every path. Production CSP is script-strict:
 // Next.js App Router ships its bootstrap/hydration payload via INLINE <script>
@@ -41,6 +42,12 @@ const nextConfig: NextConfig = {
   // the e2e suite targets 127.0.0.1, which no longer matches the implicit
   // localhost allowlist. Dev-only setting — no effect on production builds.
   allowedDevOrigins: ['127.0.0.1', 'localhost'],
+  // Legacy hosts keep serving /api/* (health checks, API clients) but send page
+  // navigation to the canonical domain. Rules and their rationale live in
+  // src/lib/legacy-host-redirect.ts.
+  async redirects() {
+    return legacyHostRedirects();
+  },
   async headers() {
     return [
       {

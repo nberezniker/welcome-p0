@@ -510,6 +510,8 @@ export const ru: Partial<Dictionary> = {
   'event.openDirectory': 'Каталог участников',
   'event.myEventsLink': 'Настроить участие',
   'event.notFound': 'Событие не найдено.',
+  'event.metaTitle': '{name} — событие WELCOME',
+  'event.metaDescription': 'Страница события: дата, место и как присоединиться.',
   'event.consentTextTitle': 'Уведомление организатора о данных',
   'event.participantsNote': 'Участие никогда не подписывает вас на рекламу.',
 
