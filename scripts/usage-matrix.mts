@@ -42,7 +42,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const argv = process.argv.slice(2);
 const LIVE = argv.includes('--live');
 const DEV_BASE = 'http://localhost:3000';
-const LIVE_BASE = 'https://welcome-p0-nikiti4.vercel.app';
+const LIVE_BASE = 'https://welcome.colmogravity.net';
 const BASE = (
   argv.find((a) => a.startsWith('--base='))?.slice('--base='.length) ??
   (LIVE ? LIVE_BASE : DEV_BASE)

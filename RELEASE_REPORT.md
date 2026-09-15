@@ -6,6 +6,18 @@
 - **Commit:** `7605b005bc90f77b90d82a561a0b6e6bdcbe1f34` (branch `main`) — the tree that passed the final full gate run (`drill:defect` enforces a clean worktree). The final Phase-6 commit adds only evidence/report files on top of this tree; a file cannot contain the SHA of the commit that first contains it.
 - **Spend: 0 EUR.** No paid resources were created (no domains, hosting, managed DBs, API plans, contest submissions).
 
+## 0. Post-release status (2026-09-15) — addendum, not a rewrite
+
+The verdicts below record the Phase-6 local verification of 2026-09-07 and are
+left exactly as they were written; the "nothing was deployed" statement was true
+on that date. Since then the project was deployed and is reachable at
+<https://welcome.colmogravity.net>: web app (Vercel `fra1`) + managed Postgres
+(Frankfurt), Telegram notice channel live, and a verified email sending domain
+(`send.colmogravity.net`) so one-time codes reach arbitrary addresses. The
+deployed instance carries synthetic demo data only. No `PASS_STAGING` /
+`PASS_PRODUCTION` badge is claimed here — the verification record below is still
+the authoritative one for the code itself.
+
 ## 1. Scope verdicts
 
 | Scope | Status | Basis |

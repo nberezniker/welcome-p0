@@ -6,9 +6,16 @@ Persistent personal networking profile + reusable QR: one profile you control,
 a public card you can print on a QR badge, event matching and consent-gated
 contact exchange, with Telegram as the P0 messaging channel.
 
-**Status:** `PASS_LOCAL` (Phase 6 of 6, 2026-09-07). Nothing was ever deployed —
-no staging, no production, no real Telegram traffic. See
+**Status:** `PASS_LOCAL` (Phase 6 of 6, 2026-09-07) — see
 [RELEASE_REPORT.md](RELEASE_REPORT.md) and [evidence/](evidence/).
+
+**Live since 2026-09-15:** <https://welcome.colmogravity.net> (Vercel `fra1` + managed
+Postgres, Frankfurt). The deployed instance runs the same tree as `main`, with a
+synthetic demo event and demo accounts — it is not a claim of real users or
+traction. Working end to end there: email one-time-code login, public card + QR,
+event directory, consent-gated mutual contact reveal, Telegram as one of the
+notice channels, organizer funnel. Growth/marketing surfaces stay behind the
+honesty rules in `spec/` §7 (no invented customers, logos or benchmarks).
 
 ## Architecture
 
