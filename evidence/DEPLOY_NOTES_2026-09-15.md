@@ -1,4 +1,60 @@
-# Deploy notes — 2026-09-15 (packet 2)
+# Deploy notes — 2026-09-15 (packets 2 and 3)
+
+Operational facts, not feature documentation. Sections 1–3 were written for
+packet 2 (email channel, sessions, badges); the packet-3 section below is the one
+that applies to the interop + matching-v4 work, and it comes FIRST because it is
+the one that can break an environment.
+
+## Packet 3 (interop + matching v4): migration 011 must run BEFORE the code
+
+**What it is:** `db/migrations/011_profile_goals.sql` — one additive column and
+one index:
+
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS goals text[] NOT NULL DEFAULT '{}';
+CREATE INDEX IF NOT EXISTS profiles_goals_gin ON profiles USING gin (goals);
+```
+
+**Already applied to the production database** (Neon `neondb`,
+`ep-solitary-bread-b25sor11`) on 2026-09-15 ~10:05 UTC, before the live matrix run
+of packet 3, which then scored 122 PASS / 0 FAIL / 1 SKIP (123 checks). On
+PostgreSQL 11+ adding a column with a constant default does not rewrite the
+table, so it is safe on a live database and ahead of the code.
+
+**Symptom when it is missing:** `POST/GET /api/me/profile` and
+`GET /api/events/<id>/recommendations` return `500 internal_error`, with
+`column "goals" does not exist` (Postgres `42703`) in the server log. Public
+pages, `/api/providers`, `/api/events/<id>/ics` and `/api/taxonomy` keep working,
+so it looks like a partial outage rather than a missing migration. As with
+migration 010, the order is: **migrate the target database, then release the
+code**.
+
+**Privacy note for anyone reading the column:** `profiles.goals` holds the
+user's PRIVATE goals. It is never published (not in the public card, the vCard,
+the OG metadata or the directory) and it is deliberately NOT mirrored on
+`event_memberships` — unlike the v3 axes, there is no per-event override.
+
+### Running the live matrix locally: two environment traps
+
+Neither is a product defect; both cost a whole run if missed.
+
+1. **The ADR-0009 OTP allowlist must contain every fixture login address.**
+   The matrix signs in as its own synthetic accounts AND as the owner's account
+   (`nberezniker@gmail.com`) and `matrix-claim@welcome.test`. In production
+   without `RESEND_API_KEY` an OTP request for a non-allowlisted address is
+   answered `503 email_channel_disabled`; the runner retries, those retries burn
+   the per-account window (3 codes / 15 min), and every later check that needs
+   the owner — sessions, imports, campaigns, tenant isolation, claims — fails in
+   a cascade that looks like 39 unrelated bugs. `matrix-plain@welcome.test` must
+   stay OFF the list: it is the anti-enumeration control.
+2. **Enrichment needs three variables to be live:** `ENRICHMENT_PROVIDER=vertex-gemini`,
+   `GCP_PROJECT_ID` and a credential source (`GCP_SA_JSON_B64` in the secrets
+   file). Without them the route answers its honest 503 `enrichment_disabled`
+   and checks F1/F2 report a gap of the local server, not of the deployment.
+
+A third, older trap still applies: the matrix cannot be re-run back to back —
+see «OTP budget is 3 codes per account per 15 minutes» below.
+
 
 Findings from running the live usage matrix against the production database.
 Operational facts, not feature documentation.

@@ -493,12 +493,19 @@ async function createEvent(opts: {
   accessMode?: 'public' | 'closed' | 'registration';
   joinCode?: string | null;
   status?: string;
+  /** Schedule (mode S: the .ics endpoint needs one, and only a real one). */
+  startsAt?: Date;
+  endsAt?: Date;
+  /** Room link (mode S: proves it never travels inside a downloaded file). */
+  onlineLink?: string;
 }): Promise<string> {
   if (!sql) throw new Error('DATABASE_URL unavailable');
   const rows = await sql<{ id: string }[]>`
-    INSERT INTO events (organizer_id, slug, name, mode, access_mode, join_code, status, timezone, max_participants)
+    INSERT INTO events (organizer_id, slug, name, mode, access_mode, join_code, status, timezone, max_participants,
+                        starts_at, ends_at, online_link)
     VALUES (${opts.organizerId}, ${opts.slug}, ${opts.name}, 'offline', ${opts.accessMode ?? 'public'},
-            ${opts.joinCode ?? null}, ${opts.status ?? 'active'}, 'Europe/Madrid', 500)
+            ${opts.joinCode ?? null}, ${opts.status ?? 'active'}, 'Europe/Madrid', 500,
+            ${opts.startsAt ?? null}, ${opts.endsAt ?? null}, ${opts.onlineLink ?? null})
     RETURNING id`;
   created.events.push(rows[0]!.id);
   return rows[0]!.id;
@@ -632,6 +639,8 @@ async function updateProfile(s: Session, patch: Record<string, unknown>): Promis
     job_function: p?.['job_function'] ?? null,
     keywords: p?.['keywords'] ?? [],
     hidden_fields: p?.['hidden_fields'] ?? [],
+    // Goals are part of the replaced set too (absent would CLEAR them).
+    goals: p?.['goals'] ?? [],
   };
   if (p && 'revision' in p) base['revision'] = p['revision'];
   return s.post('/api/me/profile', { ...base, ...patch });
@@ -2978,6 +2987,281 @@ async function modeR(): Promise<void> {
 // Mode M — privacy: export / delete / blocks / reports
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Mode S — interop & matching v4 (packet 3): provider registry, ICS, goals, the
+// four recommendation modes and the connections page.
+//
+// The run targets a LOCAL production build against the PRODUCTION database, so
+// these checks also prove that migration 011 is applied where it must be, and
+// that nothing in the new surface leaks a secret or a private goal.
+// ---------------------------------------------------------------------------
+
+/** Provider ids, catalogue ids and modes as the DESIGN fixes them (not imported). */
+const PROVIDER_IDS = [
+  'telegram', 'email', 'vcard', 'csv', 'ics', 'share-deeplinks', 'google-contacts', 'google-calendar',
+  'microsoft-people', 'github', 'linkedin', 'whatsapp', 'instagram', 'x', 'luma',
+];
+const GOAL_CATALOGUE = [
+  'learn-skill', 'find-mentor', 'become-mentor', 'find-cofounder', 'hire', 'get-hired', 'find-clients',
+  'get-more-clients', 'enter-market', 'fundraise', 'invest', 'find-partners', 'find-community',
+  'get-feedback', 'give-feedback', 'grow-network',
+];
+const REC_MODES = ['useful', 'grow', 'similar', 'explore'];
+
+/** Fails when any live secret value appears verbatim in a response body. */
+function assertNoSecrets(text: string, label: string): void {
+  for (const secret of REDACT) {
+    if (secret.length >= 8 && text.includes(secret)) throw new Error(`${label}: response contains a secret value`);
+  }
+}
+
+const S: { icsSlug: string; icsId: string; noDateSlug: string; roomLink: string; modesEvent: string } = {
+  icsSlug: '',
+  icsId: '',
+  noDateSlug: '',
+  roomLink: `https://meet.example/matrix-room-${rand(4)}`,
+  // A dedicated event for the mode checks: event A has already accumulated
+  // introductions from the earlier modes, and the recommender (correctly)
+  // hides pairs that are inside the intro cooldown — which would make the
+  // "modes return different people" check depend on mode order.
+  modesEvent: '',
+};
+
+async function modeS(): Promise<void> {
+  // ── S1: the public provider registry ──────────────────────────────────────
+  await check('S1', 'S', 'GET /api/providers публично отдаёт реестр без сессии', '200, 15 провайдеров в порядке §A3, no-store', async () => {
+    const res = await anon.get('/api/providers');
+    equals(res.status, 200, 'providers status');
+    const body = res.json as { ok?: boolean; providers?: { id: string }[] };
+    equals(body.ok, true, 'ok flag');
+    const ids = (body.providers ?? []).map((p) => p.id);
+    equals(ids.join(','), PROVIDER_IDS.join(','), 'registry ids and order');
+    equals(res.headers.get('cache-control'), 'no-store', 'cache-control');
+    assertNoSecrets(res.text, 'S1');
+    return {
+      actual: `200, ${ids.length} провайдеров, Cache-Control no-store, session не нужна`,
+      evidence: ev(res, 'providers'),
+    };
+  });
+
+  // ── S2: statuses are honest and env-derived ───────────────────────────────
+  await check('S2', 'S', 'статусы провайдеров: live только при наличии ключа, иначе disabled+причина', 'telegram/email по факту env, planned/disabled из реестра, только ИМЕНА переменных', async () => {
+    const res = await anon.get('/api/providers');
+    equals(res.status, 200, 'providers status');
+    const list = (res.json as { providers: Record<string, unknown>[] }).providers;
+    const byId = new Map(list.map((p) => [p['id'] as string, p]));
+
+    const allowed = new Set(['id', 'kind', 'auth', 'capabilities', 'direction', 'status', 'reason_code', 'missing_env', 'env']);
+    for (const item of list) {
+      for (const key of Object.keys(item)) must(allowed.has(key), `providers: unexpected field ${key}`);
+    }
+
+    const envGated: [string, string][] = [
+      ['telegram', 'TELEGRAM_BOT_TOKEN'],
+      ['email', 'RESEND_API_KEY'],
+    ];
+    const observed: string[] = [];
+    for (const [id, envName] of envGated) {
+      const row = byId.get(id)!;
+      const configured = Boolean(SECRETS[envName] || process.env[envName]);
+      equals(row['status'], configured ? 'live' : 'disabled', `${id} status`);
+      if (!configured) {
+        equals(row['reason_code'], 'not_configured', `${id} reason`);
+        must((row['missing_env'] as string[]).includes(envName), `${id} must name the missing variable`);
+      }
+      must((row['env'] as string[]).includes(envName), `${id} must list ${envName} as a NAME`);
+      observed.push(`${id}=${row['status'] as string}`);
+    }
+    // Design states cannot be flipped by configuration.
+    equals(byId.get('ics')!['status'], 'planned', 'ics status');
+    equals(byId.get('linkedin')!['status'], 'disabled', 'linkedin status');
+    equals(byId.get('linkedin')!['reason_code'], 'policy_restricted', 'linkedin reason');
+    equals(byId.get('vcard')!['status'], 'live', 'vcard status');
+    observed.push('ics=planned', 'linkedin=disabled(policy_restricted)', 'vcard=live');
+
+    assertNoSecrets(res.text, 'S2');
+    for (const value of Object.values(SECRETS)) {
+      if (value.length >= 8) must(!res.text.includes(value), 'S2: a secret value reached the providers payload');
+    }
+    return { actual: observed.join(', '), evidence: ev(res, 'providers') };
+  });
+
+  // ── S3: the calendar file ────────────────────────────────────────────────
+  S.icsSlug = `matrix-ics-${rand(3)}`;
+  S.icsId = await createEvent({
+    organizerId: F.organizerA,
+    slug: S.icsSlug,
+    name: `${MARK}ICS Event`,
+    startsAt: new Date(Date.now() + 86_400_000),
+    endsAt: new Date(Date.now() + 93_600_000),
+    onlineLink: S.roomLink,
+  });
+  S.noDateSlug = `matrix-nodate-${rand(3)}`;
+  await createEvent({ organizerId: F.organizerA, slug: S.noDateSlug, name: `${MARK}No Date` });
+
+  await check('S3', 'S', 'GET /api/events/<slug>/ics — публичный календарный файл', '200 text/calendar, attachment, UID, UTC, без комнатной ссылки', async () => {
+    const res = await anon.get(`/api/events/${S.icsSlug}/ics`);
+    equals(res.status, 200, 'ics status');
+    must(/^text\/calendar; charset=utf-8$/.test(res.headers.get('content-type') ?? ''), `content-type: ${res.headers.get('content-type')}`);
+    must((res.headers.get('content-disposition') ?? '').includes(`welcome-${S.icsSlug}.ics`), 'attachment filename');
+    const body = res.text;
+    must(body.startsWith('BEGIN:VCALENDAR\r\n'), 'VCALENDAR must open the file');
+    must(body.trimEnd().endsWith('END:VCALENDAR'), 'VCALENDAR must close the file');
+    must(body.includes('X-WR-TIMEZONE:Europe/Madrid'), 'organizer timezone as metadata');
+    must(/DTSTART:\d{8}T\d{6}Z/.test(body), 'DTSTART must be UTC');
+    must(body.includes(`UID:welcome-event-${S.icsId}@`), 'stable UID must carry the event id');
+    assertNoSecrets(body, 'S3');
+    must(!body.includes(S.roomLink), 'the online room link must never travel inside the file');
+    must(!body.includes('matrix-room-'), 'no fragment of the room link either');
+    return {
+      actual: `200, text/calendar, attachment, DTSTART UTC, UID по id события, комнатная ссылка отсутствует`,
+      evidence: `content-type=${res.headers.get('content-type')} disposition=${res.headers.get('content-disposition')} bytes=${body.length}`,
+    };
+  });
+
+  await check('S4', 'S', 'ICS: 404 на несуществующее событие, 409 без расписания', '404 not_found; 409 no_schedule', async () => {
+    const missing = await anon.get(`/api/events/matrix-does-not-exist-${rand(3)}/ics`);
+    equals(missing.status, 404, 'missing event status');
+    const noDate = await anon.get(`/api/events/${S.noDateSlug}/ics`);
+    equals(noDate.status, 409, 'no-schedule status');
+    equals((noDate.json as { code?: string }).code, 'no_schedule', 'no-schedule code');
+    return { actual: '404 на отсутствующее событие, 409 + no_schedule без starts_at', evidence: `${ev(missing, 'code')} | ${ev(noDate, 'code')}` };
+  });
+
+  await check('S5', 'S', 'страница /e/<slug>: кнопки календаря и диплинки шэринга', 'есть ссылка на .ics, Google Calendar и 4 сети с rel=noopener noreferrer', async () => {
+    const res = await anon.get(`/e/${S.icsSlug}`);
+    equals(res.status, 200, 'event page status');
+    must(res.text.includes(`href="/api/events/${S.icsSlug}/ics"`), 'the .ics link must be on the page');
+    must(res.text.includes('https://calendar.google.com/calendar/render?action=TEMPLATE'), 'Google template link');
+    for (const host of ['https://www.linkedin.com/', 'https://wa.me/', 'https://t.me/', 'https://x.com/']) {
+      must(res.text.includes(host), `share deeplink to ${host} missing`);
+    }
+    const relCount = (res.text.match(/rel="noopener noreferrer"/g) ?? []).length;
+    must(relCount >= 4, `share links must carry rel=noopener noreferrer (found ${relCount})`);
+    assertNoSecrets(res.text, 'S5');
+    must(!res.text.includes('matrix-room-'), 'the room link must not be on the public event page');
+    return { actual: `.ics + Google Calendar + 4 сети, ${relCount} ссылок с rel="noopener noreferrer"`, evidence: `HTTP ${res.status}, ${res.text.length} bytes` };
+  });
+
+  // ── S6: goals are private ────────────────────────────────────────────────
+  const alpha = users.get('alpha')!;
+  await check('S6', 'S', 'цели профиля: сохраняются в порядке приоритета и приватны', 'GET возвращает тот же порядок; целей нет ни в карточке, ни в vCard', async () => {
+    const session = await userSession(alpha);
+    const picked = ['find-cofounder', 'fundraise', 'grow-network'];
+    const saved = await updateProfile(session, { goals: picked });
+    equals(saved.status, 200, 'profile save status');
+    const read = await session.get('/api/me/profile');
+    equals((read.json as { profile: { goals: string[] } }).profile.goals.join(','), picked.join(','), 'goals order');
+
+    const card = await anon.get(`/api/public/profiles/${alpha.slug}`);
+    equals(card.status, 200, 'public profile status');
+    must(!('goals' in (card.json as Record<string, unknown>)), 'the public projection must not expose goals');
+    assertNoSecrets(card.text, 'S6');
+
+    const vcard = await anon.get(`/api/public/profiles/${alpha.slug}/vcard`);
+    equals(vcard.status, 200, 'vcard status');
+    for (const goal of picked) {
+      must(!vcard.text.includes(goal), `vCard must not contain the private goal ${goal}`);
+      must(!card.text.includes(goal), `public JSON must not contain the private goal ${goal}`);
+    }
+    return { actual: `${picked.join(' → ')} сохранены и прочитаны в том же порядке; в публичном JSON и vCard целей нет`, evidence: `${ev(read, 'profile')} | ${ev(card, 'display_name')}` };
+  });
+
+  await check('S7', 'S', 'цели: каталог в /api/taxonomy (v3 + goальs) и 400 на четвёртую/неизвестную', 'version v3, 16 целей, limits.goals=3; 400 invalid_goals', async () => {
+    const taxonomy = await anon.get('/api/taxonomy');
+    equals(taxonomy.status, 200, 'taxonomy status');
+    const t = taxonomy.json as { version: string; limits: Record<string, number>; goals?: { id: string }[] };
+    equals(t.version, 'v3', 'catalogue version must stay v3');
+    equals(t.limits['goals'], 3, 'limits.goals');
+    equals((t.goals ?? []).map((g) => g.id).join(','), GOAL_CATALOGUE.join(','), 'goal catalogue');
+
+    const session = await userSession(alpha);
+    const tooMany = await updateProfile(session, { goals: ['fundraise', 'hire', 'invest', 'find-partners'] });
+    equals(tooMany.status, 400, 'four goals status');
+    equals((tooMany.json as { code?: string }).code, 'invalid_goals', 'four goals code');
+    const unknown = await updateProfile(session, { goals: ['be-a-unicorn'] });
+    equals(unknown.status, 400, 'unknown goal status');
+    // The rejected writes must not have wiped the stored list.
+    const after = await session.get('/api/me/profile');
+    equals((after.json as { profile: { goals: string[] } }).profile.goals.length, 3, 'stored goals survived the 400s');
+    return { actual: `taxonomy: v3 + 16 целей + limits.goals=3; 400 invalid_goals на 4 цели и на неизвестную; список не затёрт`, evidence: `${ev(taxonomy, 'version', 'limits')} | ${ev(tooMany, 'code')} | ${ev(unknown, 'code')}` };
+  });
+
+  // ── S8: the four recommendation modes ────────────────────────────────────
+  S.modesEvent = await createEvent({
+    organizerId: F.organizerA,
+    slug: `matrix-modes-${rand(3)}`,
+    name: `${MARK}Modes`,
+  });
+  await addMembership(alpha, S.modesEvent);
+  await addMembership(users.get('bravo')!, S.modesEvent);
+
+  await check('S8', 'S', 'GET .../recommendations?mode= — четыре режима и 400 на неизвестный', 'все 4 → 200 с эхом mode; unknown → 400 invalid_mode; есть v4-строки причин', async () => {
+    const session = await userSession(alpha);
+    const observed: string[] = [];
+    let sawV4Lines = false;
+    const allowed = new Set(['profile_id', 'display_name', 'headline', 'company', 'score', 'mode', 'reasons_for_me', 'reasons_for_them', 'reasons_useful', 'reasons_growth', 'algorithm']);
+    for (const mode of REC_MODES) {
+      const res = await session.get(`/api/events/${S.modesEvent}/recommendations?mode=${mode}`);
+      equals(res.status, 200, `${mode} status`);
+      const body = res.json as { mode?: string; recommendations?: Record<string, unknown>[]; excluded_reason?: unknown };
+      equals(body.mode, mode, `${mode} echo`);
+      must(Array.isArray(body.recommendations), `${mode} recommendations array`);
+      for (const item of body.recommendations ?? []) {
+        for (const key of Object.keys(item)) must(allowed.has(key), `${mode}: unexpected field ${key}`);
+        const useful = item['reasons_useful'] as unknown[] | undefined;
+        const growth = item['reasons_growth'] as unknown[] | undefined;
+        must(Array.isArray(useful) && Array.isArray(growth), `${mode}: two-line reasons must be arrays`);
+        if ((useful?.length ?? 0) > 0 || (growth?.length ?? 0) > 0) sawV4Lines = true;
+      }
+      observed.push(`${mode}=${(body.recommendations ?? []).length}`);
+      assertNoSecrets(res.text, `S8/${mode}`);
+    }
+    must(sawV4Lines, 'no recommendation carried a v4 two-line reason — the v4 layer never ran');
+
+    const bogus = await session.get(`/api/events/${S.modesEvent}/recommendations?mode=best`);
+    equals(bogus.status, 400, 'unknown mode status');
+    equals((bogus.json as { code?: string }).code, 'invalid_mode', 'unknown mode code');
+    return { actual: `${observed.join(', ')}; unknown → 400 invalid_mode; v4-строки причин присутствуют`, evidence: `${observed.join(', ')} | ${ev(bogus, 'code')}` };
+  });
+
+  // ── S9: the connections page ─────────────────────────────────────────────
+  await check('S9', 'S', '/me/connections: закрыт без сессии, с сессией показывает провайдеров без секретов', 'signed-out → redirect /login; signed-in → 200 + все id + только ИМЕНА переменных', async () => {
+    const anonRes = await anon.get('/me/connections');
+    must([302, 303, 307, 308].includes(anonRes.status), `signed-out status was ${anonRes.status}`);
+    must((anonRes.headers.get('location') ?? '').includes('/login'), 'signed-out must be sent to /login');
+
+    const session = await userSession(alpha);
+    const res = await session.get('/me/connections');
+    equals(res.status, 200, 'connections status');
+    for (const id of PROVIDER_IDS) {
+      must(res.text.includes(`data-testid="provider-${id}"`), `provider card ${id} missing`);
+    }
+    must(res.text.includes('TELEGRAM_BOT_TOKEN'), 'env NAMES must be listed');
+    assertNoSecrets(res.text, 'S9');
+    must(!res.text.includes('candidateOffers'), 'the matching patterns must not reach the page');
+    return { actual: `signed-out ${anonRes.status} → ${anonRes.headers.get('location')}; signed-in 200 с 15 карточками и именами переменных`, evidence: `signed-out: ${anonRes.status} ${anonRes.headers.get('location')} | signed-in: HTTP ${res.status}, ${res.text.length} bytes` };
+  });
+
+  // ── S10: the public card affordances ─────────────────────────────────────
+  await check('S10', 'S', 'публичная карточка: og:url, «Добавить в контакты» и диплинки', 'og:url карточки, ссылка на vCard без сессии, 4 сети', async () => {
+    const res = await anon.get(`/p/${alpha.slug}`);
+    equals(res.status, 200, 'card status');
+    must(res.text.includes('property="og:url"'), 'og:url must be present');
+    must(res.text.includes(`/api/public/profiles/${alpha.slug}/vcard`), 'the vCard link must be on the card');
+    for (const host of ['https://www.linkedin.com/', 'https://wa.me/', 'https://t.me/', 'https://x.com/']) {
+      must(res.text.includes(host), `share deeplink to ${host} missing`);
+    }
+    assertNoSecrets(res.text, 'S10');
+    must(!res.text.includes('find-cofounder'), 'a private goal must never render on the card');
+
+    const vcard = await anon.get(`/api/public/profiles/${alpha.slug}/vcard`);
+    equals(vcard.status, 200, 'anonymous vCard download');
+    must(vcard.text.startsWith('BEGIN:VCARD'), 'vCard body');
+    return { actual: `200: og:url + vCard + 4 сети, анонимная выгрузка .vcf работает, приватных целей нет`, evidence: `HTTP ${res.status}, ${res.text.length} bytes | vCard HTTP ${vcard.status}` };
+  });
+}
+
 async function modeM(): Promise<void> {
   const alpha = users.get('alpha')!;
   const bravo = users.get('bravo')!;
@@ -3462,6 +3746,7 @@ async function main(): Promise<void> {
   await run('Q', modeQ); // before P: P burns the shared per-IP bucket on purpose
   await run('P', modeP);
   await run('R', modeR);
+  await run('S', modeS); // interop + matching v4 (packet 3)
   await run('M', modeM); // last: it deletes an account and files reports
   const cleanupNotes = KEEP ? ['--keep: фикстуры оставлены намеренно'] : await purgeMatrix();
   const finishedAt = new Date().toISOString();
