@@ -28,7 +28,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import postgres from 'postgres';
-import { emailLookupHash, encryptValue } from '../src/lib/crypto.ts';
+import { emailLookupHash, encryptValue, hashSessionToken } from '../src/lib/crypto.ts';
 import { totpAt } from '../src/lib/totp.ts';
 import { en } from '../src/i18n/en.ts';
 import { ru } from '../src/i18n/ru.ts';
@@ -595,6 +595,23 @@ async function userSession(user: FixtureUser): Promise<Session> {
   return user.session;
 }
 
+/**
+ * Creates a REAL session row for an account and returns a Session carrying its
+ * cookie, without going through OTP. Checks that need "a second device" must not
+ * spend the per-account OTP budget — the login flow is rate-limited (window
+ * 15 мин), and exhausting it would turn a fixture into a self-inflicted 429.
+ */
+async function sessionFor(accountId: string, key: string): Promise<Session> {
+  if (!sql) throw new Error('DATABASE_URL unavailable');
+  const token = randomBytes(32).toString('base64url');
+  await sql`
+    INSERT INTO sessions (account_id, token_hash, expires_at)
+    VALUES (${accountId}::uuid, ${hashSessionToken(token)}, now() + interval '1 hour')`;
+  const s = new Session(key);
+  s.cookies.set('welcome_session', token);
+  return s;
+}
+
 /** Applies a patch on top of the CURRENT profile so no axis is wiped by accident
  * (POST /api/me/profile replaces the whole axis set). */
 async function updateProfile(s: Session, patch: Record<string, unknown>): Promise<Res> {
@@ -911,6 +928,89 @@ async function modeB(): Promise<void> {
       status: 'SKIP',
       actual: `цикл покрыт integration-набором: ${mfaTests} MFA-подтест(ов) в evidence/matrix/integration.log; в матрице дополнительно выполнен живой enroll/confirm/disable по HTTP`,
       evidence: `${mfaTests} MFA subtests in the integration run`,
+    };
+  });
+
+  await check('B6', 'B', 'активные сессии: список без токенов, текущая помечена', '200; ровно ключи id/created_at/last_seen_at/current; одна current и она первая; в теле нет слова token', async () => {
+    const s = await login(F.owner.email, 'sessions-list');
+    const res = await s.get('/api/me/sessions');
+    equals(res.status, 200, 'sessions list status');
+    const sessions = (res.json as { sessions?: Record<string, unknown>[] }).sessions;
+    must(Array.isArray(sessions) && sessions!.length >= 1, 'sessions array missing or empty');
+    for (const row of sessions!) {
+      equals(Object.keys(row).sort().join(','), 'created_at,current,id,last_seen_at', `session keys (${JSON.stringify(row)})`);
+      must(!Number.isNaN(Date.parse(row['created_at'] as string)), 'created_at must be ISO-8601');
+      must(!Number.isNaN(Date.parse(row['last_seen_at'] as string)), 'last_seen_at must be ISO-8601');
+    }
+    equals(sessions!.filter((r) => r['current'] === true).length, 1, 'exactly one current session');
+    equals(sessions![0]!['current'], true, 'the current session must be listed first');
+    // No token material of any kind, anywhere in the payload.
+    must(!/token/i.test(res.text), 'the sessions payload must not mention tokens');
+    must(!res.text.includes(s.cookies.get('welcome_session') ?? '\u0000'), 'the session token must not appear in the payload');
+    return {
+      actual: `сессий=${sessions!.length}, current-первая=true, ключи строк только id/created_at/last_seen_at/current, токенов в теле нет`,
+      evidence: clip(JSON.stringify(pick(sessions![0]!, ['id', 'created_at', 'last_seen_at', 'current'])), 200),
+    };
+  });
+
+  await check('B7', 'B', 'отзыв чужой сессии того же аккаунта: строка удаляется, cookie умирает', 'DELETE → 200 current_revoked=false; отозванная сессия → 401; строки в БД нет', async () => {
+    const first = await login(F.owner.email, 'sessions-first');
+    // A genuinely separate session row for the SAME account (own device, not
+    // somebody else's data) — created directly so no OTP budget is spent.
+    const second = await sessionFor(F.owner.accountId, 'sessions-second');
+    const secondToken = second.cookies.get('welcome_session')!;
+    const rows = await sql!<{ id: string }[]>`
+      SELECT id FROM sessions WHERE token_hash = ${hashSessionToken(secondToken)} LIMIT 1`;
+    must(rows.length === 1, 'second session row not found');
+    const targetId = rows[0]!.id;
+
+    const listed = await first.get('/api/me/sessions');
+    const inList = ((listed.json as { sessions: { id: string; current: boolean }[] }).sessions).find((r) => r.id === targetId);
+    must(!!inList, 'the second session must be listed for the first one');
+    equals(inList!.current, false, 'a different device is not the current one');
+
+    const del = await first.del(`/api/me/sessions/${targetId}`);
+    equals(del.status, 200, 'revoke status');
+    equals((del.json as { current_revoked?: boolean }).current_revoked, false, 'current_revoked');
+
+    const dead = await second.get('/api/me/sessions');
+    equals(dead.status, 401, 'the revoked session must no longer authenticate');
+    const gone = await sql!<{ id: string }[]>`SELECT id FROM sessions WHERE id = ${targetId}::uuid`;
+    equals(gone.length, 0, 'the session row must be deleted');
+    equals((await first.get('/api/me/sessions')).status, 200, 'the calling session must survive');
+    return {
+      actual: `отзыв → 200 current_revoked=false; отозванная сессия → 401; строка удалена; сессия-инициатор работает`,
+      evidence: `${ev(del, 'revoked', 'current_revoked')} | ${ev(dead)}`,
+    };
+  });
+
+  await check('B8', 'B', 'чужая сессия → 404 (не 403), битый id → 404, anon → 401', 'чужая сессия не удаляется и не подтверждает своё существование', async () => {
+    const owner = await login(F.owner.email, 'sessions-owner-404');
+    const foreign = await sessionFor(F.orgB.accountId, 'sessions-foreign');
+    const foreignToken = foreign.cookies.get('welcome_session')!;
+    const foreignRows = await sql!<{ id: string }[]>`
+      SELECT id FROM sessions WHERE token_hash = ${hashSessionToken(foreignToken)} LIMIT 1`;
+    must(foreignRows.length === 1, 'foreign session row not found');
+
+    const res = await owner.del(`/api/me/sessions/${foreignRows[0]!.id}`);
+    equals(res.status, 404, 'a session that is not yours must answer 404');
+    equals((res.json as { code?: string }).code, 'not_found', '404 code');
+    // The refusal must not have deleted it.
+    equals((await foreign.get('/api/me/sessions')).status, 200, 'the foreign session must survive');
+
+    const malformed = await owner.del('/api/me/sessions/not-a-uuid');
+    equals(malformed.status, 404, 'malformed id must be a 404, not a crash');
+
+    const anonList = await anon.get('/api/me/sessions');
+    equals(anonList.status, 401, 'anonymous list');
+    const anonDel = await anon.del(`/api/me/sessions/${foreignRows[0]!.id}`);
+    equals(anonDel.status, 401, 'anonymous revoke');
+
+    // Clean up the extra session we created for the synthetic org B account.
+    await sql!`DELETE FROM sessions WHERE id = ${foreignRows[0]!.id}::uuid`;
+    return {
+      actual: 'чужая сессия → 404 not_found (не 403) и остаётся живой; битый id → 404; anon GET/DELETE → 401',
+      evidence: `${ev(res, 'code')} | ${ev(malformed, 'code')} | ${ev(anonList)} | ${ev(anonDel)}`,
     };
   });
 }
@@ -1465,21 +1565,37 @@ async function modeH(): Promise<void> {
   ];
   const text = csv(csvRows);
 
-  await check('H1', 'H', 'import preview: counts + quarantined', '200 с totalRows/validEmails/quarantined/sample', async () => {
+  await check('H1', 'H', 'import preview: counts, mapping и счётчики would_*', '200 с totalRows/…/sample + mapping + would_insert/would_update/would_skip/quarantined_count', async () => {
     const s = await userSession(owner);
     const res = await importRequest(s, { csv_text: text, mode: 'preview' });
     equals(res.status, 200, 'preview status');
     const preview = (res.json as { preview?: Record<string, unknown> }).preview;
     must(!!preview, 'preview object missing');
+    // Legacy shape kept verbatim for existing clients.
     const keys = ['totalRows', 'validEmails', 'invalidEmails', 'quarantined', 'duplicatesInFile', 'sample'];
     for (const k of keys) must(k in preview!, `preview.${k} missing`);
     equals(preview!.totalRows, 3, 'totalRows');
     must((preview!.quarantined as number) >= 1, 'quarantined count is 0 (unknown status must quarantine)');
     must(Array.isArray(preview!.sample), 'sample is not an array');
+    // The organizer-facing contract: the resolved mapping, the CSV columns, and
+    // how many rows the commit will insert / update / skip.
+    const body = res.json as Record<string, unknown>;
+    for (const k of ['mapping', 'columns', 'would_insert', 'would_update', 'would_skip', 'quarantined_count']) {
+      must(k in body, `${k} missing from the preview response`);
+    }
+    const mapping = body['mapping'] as Record<string, string | null>;
+    equals(mapping['name'], 'name', 'auto-resolved name column');
+    equals(mapping['email'], 'email', 'auto-resolved email column');
+    equals(mapping['external_id'], null, 'unmapped field must be reported as null, not invented');
+    equals((body['would_skip'] as number), 0, 'every row has an upsert key (email)');
+    equals(body['would_update'], 0, 'nothing exists yet at first preview');
+    must((body['would_insert'] as number) >= 3, `would_insert=${body['would_insert']}`);
+    equals(body['quarantined_count'], preview!.quarantined, 'quarantined_count mirrors preview.quarantined');
     return {
-      actual: `preview.totalRows=3, validEmails=${preview!.validEmails}, quarantined=${preview!.quarantined}`,
-      evidence: clip(JSON.stringify(pick(preview, keys)), 200),
-      deviation: 'в ответе preview нет ключей `mapping` и `would_update` из задания — фактический контракт: totalRows/validEmails/invalidEmails/quarantined/duplicatesInFile/sample. Mapping — входной параметр, не часть отчёта.',
+      actual:
+        `totalRows=3, quarantined=${preview!.quarantined}, would_insert=${body['would_insert']}, ` +
+        `would_update=${body['would_update']}, would_skip=${body['would_skip']}, mapping.name=${mapping['name']}`,
+      evidence: clip(JSON.stringify(pick(body, [...keys, 'mapping', 'columns', 'would_insert', 'would_update', 'would_skip', 'quarantined_count'])), 240),
     };
   });
 
@@ -1552,6 +1668,92 @@ async function modeH(): Promise<void> {
     equals(invite.status, 403, 'invite on quarantined');
     equals((invite.json as { code?: string }).code, 'claim_not_allowed', 'invite code');
     return { actual: `approval_status='quarantined' в БД; invite → 403 claim_not_allowed`, evidence: `${ev(invite)} (status=${row[0]!.approval_status})` };
+  });
+
+  // Explicit column mapping: headers auto-mapping cannot resolve, so only the
+  // organizer's own mapping makes the file importable.
+  const mappedHeader = ['Guest', 'Contact', 'Team'];
+  const mappedRows = [
+    mappedHeader,
+    [`${MARK}Mapped One`, `matrix-mapped-one@welcome.test`, `${MARK}Co`],
+    [`${MARK}Mapped Two`, `matrix-mapped-two@welcome.test`, `${MARK}Co`],
+  ];
+  const mappedText = csv(mappedRows);
+  const MAPPING = { Guest: 'name', Contact: 'email' };
+
+  await check('H7', 'H', 'ручной маппинг колонок меняет результат', 'без mapping: would_insert=0; с mapping: would_insert=2 и имена в БД', async () => {
+    const s = await userSession(owner);
+    // Auto-mapping cannot know "Guest"/"Contact": the rows are not importable,
+    // and the preview says so instead of guessing a column.
+    const auto = await importRequest(s, { csv_text: mappedText, mode: 'preview' });
+    equals(auto.status, 200, 'auto preview status');
+    const autoBody = auto.json as Record<string, unknown>;
+    equals((autoBody['mapping'] as Record<string, unknown>)['name'], null, 'Guest must not auto-map to name');
+    equals(autoBody['would_insert'], 0, 'nothing importable without a mapping');
+
+    // The same bytes with the organizer's mapping.
+    const mapped = await importRequest(s, { csv_text: mappedText, mode: 'preview', mapping: MAPPING });
+    equals(mapped.status, 200, 'mapped preview status');
+    const mappedBody = mapped.json as Record<string, unknown>;
+    equals((mappedBody['mapping'] as Record<string, unknown>)['name'], 'Guest', 'mapping echo (name)');
+    equals((mappedBody['mapping'] as Record<string, unknown>)['email'], 'Contact', 'mapping echo (email)');
+    equals(mappedBody['would_insert'], 2, 'two rows importable with the mapping');
+
+    // Preview still writes nothing.
+    const beforeCommit = await sql!<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM registrations
+      WHERE event_id = ${F.eventA} AND imported_data->>'Contact' = ${'matrix-mapped-one@welcome.test'}`;
+    equals(beforeCommit[0]!.count, 0, 'preview must not write');
+
+    const commit = await importRequest(s, { csv_text: mappedText, mode: 'commit', mapping: MAPPING });
+    equals(commit.status, 200, 'mapped commit status');
+    const counts = (commit.json as { counts?: { created: number } }).counts!;
+    equals(counts.created, 2, 'created with mapping');
+
+    const names = await sql!<{ imported_name: string | null }[]>`
+      SELECT imported_name FROM registrations
+      WHERE event_id = ${F.eventA} AND imported_data->>'Contact' IN
+        (${'matrix-mapped-one@welcome.test'}, ${'matrix-mapped-two@welcome.test'})
+      ORDER BY imported_name ASC`;
+    equals(names.length, 2, 'committed rows');
+    equals(names[0]!.imported_name, `${MARK}Mapped One`, 'first name from the mapped column');
+    equals(names[1]!.imported_name, `${MARK}Mapped Two`, 'second name from the mapped column');
+    return {
+      actual: `без mapping: would_insert=${autoBody['would_insert']}; с mapping: would_insert=2 → commit created=${counts.created}, имена из колонки Guest`,
+      evidence: `${ev(auto, 'would_insert')} | ${ev(mapped, 'would_insert', 'mapping')} | ${ev(commit, 'counts')}`,
+    };
+  });
+
+  await check('H8', 'H', 'невалидный маппинг → 400 с понятным кодом, без записи', 'unknown_mapping_field / unknown_csv_column / duplicate_mapping_field', async () => {
+    const s = await userSession(owner);
+    const countRows = async () =>
+      (await sql!<{ count: number }[]>`
+        SELECT count(*)::int AS count FROM registrations WHERE event_id = ${F.eventA}`)[0]!.count;
+    const before = await countRows();
+
+    const unknownField = await importRequest(s, { csv_text: mappedText, mode: 'preview', mapping: { Guest: 'nickname' } });
+    equals(unknownField.status, 400, 'unknown field status');
+    equals((unknownField.json as { code?: string }).code, 'unknown_mapping_field', 'unknown field code');
+
+    const unknownColumn = await importRequest(s, { csv_text: mappedText, mode: 'preview', mapping: { 'No Such Column': 'name' } });
+    equals(unknownColumn.status, 400, 'unknown column status');
+    equals((unknownColumn.json as { code?: string }).code, 'unknown_csv_column', 'unknown column code');
+
+    const duplicate = await importRequest(s, { csv_text: mappedText, mode: 'preview', mapping: { Guest: 'name', Contact: 'name' } });
+    equals(duplicate.status, 400, 'duplicate status');
+    equals((duplicate.json as { code?: string }).code, 'duplicate_mapping_field', 'duplicate code');
+
+    // `headline` is an accepted spelling of `role`, so the two collide rather
+    // than silently double-mapping the same field.
+    const alias = await importRequest(s, { csv_text: mappedText, mode: 'preview', mapping: { Guest: 'headline', Contact: 'role' } });
+    equals(alias.status, 400, 'alias collision status');
+    equals((alias.json as { code?: string }).code, 'duplicate_mapping_field', 'alias collision code');
+
+    equals(await countRows(), before, 'a rejected mapping must not write anything');
+    return {
+      actual: 'nickname → 400 unknown_mapping_field; неизвестная колонка → 400 unknown_csv_column; два столбца на поле → 400 duplicate_mapping_field; headline+role → 400 (алиас)',
+      evidence: `${ev(unknownField, 'code')} | ${ev(unknownColumn, 'code')} | ${ev(duplicate, 'code')} | ${ev(alias, 'code')}`,
+    };
   });
 }
 
@@ -2306,6 +2508,136 @@ async function modeN(): Promise<void> {
       evidence: `${ev(staffRes)} | ${ev(foreign)} | ${ev(anonRes)} | ${ev(unknown)}`,
     };
   });
+
+  await check('N15', 'N', 'печатный лист QR-бейджей: имена и QR-цели есть, email/телефонов нет', '200; бейдж на каждую печатаемую регистрацию, quarantined не печатается, data-qr-url на карточку/страницу события, ни одного email', async () => {
+    const s = await userSession(F.owner);
+    const slugRows = await sql!<{ slug: string }[]>`
+      SELECT slug FROM events WHERE id = ${F.eventA}::uuid LIMIT 1`;
+    const slug = slugRows[0]!.slug;
+    const res = await s.get(`/organizer/events/${F.eventA}/badges`);
+    equals(res.status, 200, 'badges page status');
+    const html = res.text;
+
+    // Expected contents straight from the database, using the SAME projection as
+    // the page — the check compares against the data, not against a guess.
+    // (Mode I claims the first imported registration, so that guest's badge
+    // shows their profile name, not the imported one: asserting a hardcoded
+    // imported name would be wrong.)
+    const expectedRows = await sql!<{ name: string | null; approval_status: string; public_slug: string | null }[]>`
+      SELECT COALESCE(pr.display_name, r.imported_name) AS name, r.approval_status, pr.public_slug
+      FROM registrations r
+      LEFT JOIN event_memberships m ON m.registration_id = r.id
+      LEFT JOIN profiles pr ON pr.id = m.profile_id
+      WHERE r.event_id = ${F.eventA}::uuid`;
+    const printable = expectedRows.filter((r) => r.approval_status !== 'quarantined');
+    const quarantined = expectedRows.filter((r) => r.approval_status === 'quarantined');
+    // Names with HTML-special characters (the CSV-injection guest) are escaped by
+    // React, so only plain names are compared verbatim.
+    const plainNames = printable
+      .map((r) => r.name)
+      .filter((n): n is string => !!n && /^[\w\s.,()\-]+$/.test(n));
+    must(plainNames.length >= 2, `need at least two plain-name guests to compare (got ${plainNames.length})`);
+
+    for (const name of plainNames) must(html.includes(name), `printable guest missing from the sheet: ${name}`);
+    for (const row of quarantined) {
+      must(!row.name || !html.includes(row.name), `a quarantined guest must not be printed: ${row.name}`);
+    }
+    // Count the CARDS, not `data-testid="badge-"`: the sheet container itself is
+    // `badge-sheet` and would match that prefix (that off-by-one is exactly what
+    // the first version of this check tripped on).
+    const badgeCount = (html.match(/class="badge-card"/g) ?? []).length;
+    equals(badgeCount, printable.length, 'badge count must equal the number of printable registrations');
+    must(html.includes('class="badge-sheet'), 'the sheet grid class must be present');
+
+    must(html.includes('data-qr-url='), 'the QR target must be in the markup');
+    if (printable.some((r) => r.public_slug)) must(html.includes('/p/'), 'a claimed guest must point at their card');
+    if (printable.some((r) => !r.public_slug)) must(html.includes(`/e/${slug}`), 'guests without a card must point at the event page');
+    must(html.includes('data:image/svg+xml;base64,'), 'the QR must be an inline data URL (no external asset)');
+
+    // PII discipline: the projection selects no email column at all.
+    must(!html.includes('@welcome.test'), 'the badge sheet must not contain any email address');
+    must(!/@[a-z0-9.-]+\.[a-z]{2,}/i.test(html.replace(/data:[^"']+/g, '')), 'no email-shaped string may appear in the sheet');
+    must(!/phone|whatsapp/i.test(html), 'no phone/contact field may appear on the sheet');
+    return {
+      actual:
+        `лист 200, бейджей ${badgeCount} = печатаемых регистраций ${printable.length}, quarantined (${quarantined.length}) не напечатаны, ` +
+        `QR-цели /p/ и /e/${slug} на месте, email/телефонов в HTML нет`,
+      evidence: `HTTP ${res.status}, html ${html.length} байт, имена: ${clip(plainNames.slice(0, 3).join(', '), 90)}`,
+    };
+  });
+
+  await check('N16', 'N', 'бейджи: чужие не видят лист, API ссылок закрыт', 'страница чужому → страница 403 без данных; badge-links: staff → 403, чужой организатор → 403, anon → 401', async () => {
+    const staffPage = await (await userSession(F.staff)).get(`/organizer/events/${F.eventA}/badges`);
+    equals(staffPage.status, 200, 'staff page status (renders the 403 view)');
+    must(staffPage.text.includes(en['errors.403.title']), 'staff must get the 403 view');
+    must(!staffPage.text.includes(`${MARK}Import One`), 'the 403 view must not leak guest names');
+    const foreignPage = await (await userSession(F.orgB)).get(`/organizer/events/${F.eventA}/badges`);
+    must(foreignPage.text.includes(en['errors.403.title']), 'a foreign organizer must get the 403 view');
+    must(!foreignPage.text.includes(`${MARK}Import One`), 'the 403 view must not leak guest names');
+
+    const staff = await (await userSession(F.staff)).post(`/api/organizer/events/${F.eventA}/badge-links`);
+    equals(staff.status, 403, 'staff badge-links');
+    const foreign = await (await userSession(F.orgB)).post(`/api/organizer/events/${F.eventA}/badge-links`);
+    equals(foreign.status, 403, 'foreign organizer badge-links');
+    const anonRes = await anon.post(`/api/organizer/events/${F.eventA}/badge-links`);
+    equals(anonRes.status, 401, 'anonymous badge-links');
+    return {
+      actual: 'staff/чужой организатор получают страницу 403 без данных; API badge-links: staff=403, чужой=403, anon=401',
+      evidence: `${ev(staff)} | ${ev(foreign)} | ${ev(anonRes)}`,
+      deviation:
+        'страница /badges отдаёт страницу-заглушку 403 с HTTP 200 — это общая конвенция организаторских страниц (то же у /organizer/events/[eventId] и аналитики); статус-код 403 даёт только API. Проверяем фактическое поведение: отказ есть, данные не утекают.',
+    };
+  });
+
+  await check('N17', 'N', 'claim-ссылки для бейджей: только unclaimed без карантина, CSV без PII, токен хранится хешем', '200; все ссылки — unclaimed/не-quarantine; у quarantined ссылки нет; в CSV нет email и имён', async () => {
+    const s = await userSession(F.owner);
+    const res = await s.post(`/api/organizer/events/${F.eventA}/badge-links`);
+    equals(res.status, 200, 'badge-links status');
+    const body = res.json as {
+      issued?: number;
+      links?: { registration_id: string; name: string | null; claim_url: string; qr_data_url: string }[];
+      csv?: string;
+    };
+    must(Array.isArray(body.links) && body.links!.length >= 1, 'no links issued');
+    equals(body.issued, body.links!.length, 'issued counter');
+    for (const link of body.links!) {
+      must(link.claim_url.includes('/claim/'), 'claim_url must be a claim link');
+      must(link.qr_data_url.startsWith('data:image/svg+xml'), 'the QR must be an inline SVG data URL');
+    }
+
+    // Only claimable rows got a link.
+    const ids = body.links!.map((l) => l.registration_id);
+    const wrong = await sql!<{ id: string }[]>`
+      SELECT id FROM registrations
+      WHERE id = ANY(${ids}::uuid[]) AND (claim_state <> 'unclaimed' OR approval_status = 'quarantined')`;
+    equals(wrong.length, 0, 'links must target only unclaimed, non-quarantined registrations');
+
+    const quarantined = await sql!<{ id: string }[]>`
+      SELECT id FROM registrations
+      WHERE event_id = ${F.eventA}::uuid AND imported_data->>'email' = ${'matrix-import-two@welcome.test'} LIMIT 1`;
+    must(quarantined.length === 1, 'quarantined registration not found');
+    const quarantinedChallenges = await sql!<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM link_challenges WHERE registration_id = ${quarantined[0]!.id}::uuid`;
+    equals(quarantinedChallenges[0]!.count, 0, 'a quarantined registration must get no claim link');
+
+    // The one-time token exists in plaintext exactly once — at issuance. Only
+    // its hash is stored.
+    const token = body.links![0]!.claim_url.split('/claim/')[1]!;
+    const stored = await sql!<{ token_hash: string }[]>`
+      SELECT token_hash FROM link_challenges
+      WHERE registration_id = ${body.links![0]!.registration_id}::uuid ORDER BY created_at DESC LIMIT 1`;
+    must(stored.length === 1 && stored[0]!.token_hash !== token, 'the raw claim token must never be stored');
+
+    // The downloadable CSV carries an opaque id and a URL — no names, no emails.
+    const csvText = body.csv ?? '';
+    must(csvText.startsWith('registration_id,claim_url'), `csv header: ${clip(csvText, 60)}`);
+    must(!csvText.includes('@welcome.test'), 'the CSV must not contain an email');
+    must(!csvText.includes(MARK), 'the CSV must not contain names');
+    return {
+      actual: `выпущено ${body.issued} ссылок только для unclaimed/не-quarantine; у quarantined ссылки нет; токен в БД только хешем; CSV = registration_id,claim_url без PII`,
+      evidence: `HTTP ${res.status}, issued=${body.issued}, csv ${csvText.length} байт, строк ${csvText.trim().split('\n').length}`,
+    };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -2751,29 +3083,49 @@ interface Bug {
  */
 const INCREMENT: { id: string; title: string; commit: string; changed: string; tests: string }[] = [
   {
-    id: 'WP1',
-    title: 'Email как второй канал доставки (выбор канала на момент отправки, ADR 0011)',
-    commit: '4e66f47',
+    id: 'WQ1',
+    title: 'Импорт CSV: явный маппинг колонок + счётчики «добавим/обновим»',
+    commit: '5689453',
     changed:
-      'src/infra/recipient-channel.ts (чистое правило выбора + резолвер адреса из claimed-регистрации), src/domain/service-notices.ts (тексты писем из KIND, без имён/контактов), src/infra/worker.ts (выбор канала + email-диспатч), event_id в payload уведомлений, ADR 0011.',
+      'validateMapping({csvColumn: field}) в src/domain/import.ts (коды unknown_mapping_field / unknown_csv_column / duplicate_mapping_field; headline — алиас role, поэтому коллизия ловится), эхо mapping и columns в mapCsvRows, would_insert/would_update/would_skip/quarantined_count в preview (один read-only запрос тем же ключом, что и commit), селект на каждую колонку + «Пересчитать» в import-panel, i18n EN/RU/ES.',
     tests:
-      'unit: service-notices (7), recipient-channel (8); integration: email-channel (7 — email/telegram-приоритет/consent_revoked/channel_disabled/без утечки адреса в логи и payload); живой чек J11.',
+      'unit: import-map (+11 — коды валидации, эхо маппинга, коллизия алиасов); integration: import-mapping (+13 — маппинг меняет результат, 400 на каждый код, would_update, идемпотентный повтор, would_skip, preview не пишет, 401/403); e2e: organizer-import-mapping (+2); живые чеки H1, H7, H8.',
   },
   {
-    id: 'WP2',
-    title: 'Воронка организатора: эндпоинт аналитики + блок с процентами и SVG-графиком',
-    commit: '6936787',
+    id: 'WQ2',
+    title: 'Управление сессиями: «Активные устройства» в /me/security',
+    commit: '9339356',
     changed:
-      'src/domain/event-analytics.ts (10 агрегатов + by_day 30 дней), GET /api/organizer/events/[eventId]/analytics (owner/admin, no-store), FunnelPanel (шаги с процентом от предыдущего, 30-дневный SVG без внешних либ), i18n EN/RU/ES.',
-    tests: 'unit: event-analytics (5); integration: event-analytics (2 — агрегаты и 403/401); e2e: organizer-funnel; живые чеки N13/N14.',
+      'миграция 010 (sessions.last_seen_at + индекс), throttled bump в requireAccount (≤1 запись / 5 мин), src/lib/sessions.ts (общий листинг), GET /api/me/sessions (без токенов, current первой), DELETE /api/me/sessions/[id] (чужая → 404, своя → cookie сбрасывается), DELETE /api/me/sessions («выйти везде»), sessions-panel в /me/security, i18n EN/RU/ES.',
+    tests:
+      'integration: sessions (+11 — нет токенов в ответе, порядок, истёкшие скрыты, отзыв удаляет строку и убивает cookie, чужая → 404, битый id → 404, выйти везде, anon 401, bump и его throttle); e2e: sessions (+1 — второй реальный контекст виден и реально разлогинен); живые чеки B6–B8.',
   },
   {
-    id: 'WP3',
-    title: 'Сегменты аудитории кампаний по осям таксономии v3',
-    commit: '8feebe8',
+    id: 'WQ3',
+    title: 'Печатный лист QR-бейджей + claim-ссылки для бейджей',
+    commit: '2b26c42',
     changed:
-      'audience_filter в src/domain/campaigns.ts (валидация по каталогу, пусто = без ограничения), фильтр в currentEligibleAudience/approve/send, аудитория-эндпоинт с эхо фильтра и query-override, SegmentPicker в форме кампании, i18n EN/RU/ES.',
-    tests: 'unit: campaign-segments (10); integration: campaign-segments (3 — отбор, preview==send, снятие согласия); e2e: organizer-campaign-segment; живые чеки N10–N12.',
+      '/organizer/events/[eventId]/badges (owner/admin, A4 2×4, имя + инлайн-SVG-QR; email/телефоны не выбираются из БД вовсе, quarantined не печатаются), POST .../badge-links (owner/admin, 200/час, audit; ссылки только для unclaimed вне карантина, CSV registration_id,claim_url без PII), src/lib/qr.ts, печатный CSS в globals.css, i18n EN/RU/ES.',
+    tests:
+      'integration: badges (+8 — проекция и отрендеренный HTML с именами и QR-целями без email/телефонов, quarantined исключён, claimed ведёт на карточку, токен только хешем, страница/API закрыты для чужих); e2e: badges (+1 — лист открывается с страницы события, QR инлайн, claim-ссылки перепривязывают бейджи, print-медиа скрывает управление); живые чеки N15–N17.',
+  },
+  {
+    id: 'WQ4',
+    title: 'a11y-гейт (axe) и два найденных им дефекта',
+    commit: '4a04090',
+    changed:
+      'tests/e2e/a11y.spec.ts (@axe-core/playwright, dev-only; правило 0 нарушений serious/critical на /, /login, /legal/privacy, /p/<slug>, /me/security), скрипт test:a11y; фиксы: --color-accent #d84932 → #c93d26 (4.27:1 → 5.03:1 против белого и 4.56:1 против --color-paper), пустой <div aria-label> в футере → <nav> и не рендерится, когда ссылок нет.',
+    tests:
+      'e2e: a11y (1 спек, 5 страниц; было 2 типа нарушений serious, стало 0 на всех страницах, включая moderate); полный test:e2e — 18 passed; перегенерированы скриншоты-доказательства (accent реально изменился).',
+  },
+  {
+    id: 'WQ5',
+    title: 'Репетиция бэкапа/восстановления (AC-54)',
+    commit: '6acde68',
+    changed:
+      'scripts/backup-rehearsal.mjs (pg_dump прода → gitignored .runtime/, одноразовый кластер PG18, restore в welcome_restore_test, сверка 11 таблиц по числу строк и контрольным суммам, отчёт о PITR как об ограничении), evidence/BACKUP_RESTORE_REHEARSAL.md + backup-rehearsal.json.',
+    tests:
+      'операционный прогон: 32/32 таблицы восстановлены, 11/11 совпали по числу строк и контрольным суммам (0 расхождений), дамп 160 KiB за 3.8s, restore 0.2s, всего 7.8s; PITR не проверен — нет NEON_API_KEY и neonctl (зафиксировано честно).',
   },
 ];
 

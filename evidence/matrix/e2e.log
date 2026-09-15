@@ -1,3 +1,4 @@
+$ pnpm test:e2e
 
 > welcome-p0@0.1.0 test:e2e /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
 > playwright test
@@ -53,25 +54,52 @@ applied 006 006_mfa_step_up.sql
 applied 007 007_taxonomy_v3.sql
 applied 008 008_profile_card_fields.sql
 applied 009 009_introduction_consent_source.sql
+applied 010 010_session_last_seen.sql
 
-Running 13 tests using 1 worker
+Running 18 tests using 1 worker
 
-  ✓   1 tests/e2e/demo-login.spec.ts:23:5 › demo login enabled: the link appears and prefills the seeded demo account (712ms)
-  ✓   2 tests/e2e/demo-login.spec.ts:48:5 › demo login disabled: no demo affordance is rendered (334ms)
-  ✓   3 tests/e2e/landing.spec.ts:46:5 › landing (EN): all sections, heading order, honest CTAs and status (773ms)
-  ✓   4 tests/e2e/landing.spec.ts:104:5 › landing (RU): translated sections, same anchors and no English fallback (654ms)
-  ✓   5 tests/e2e/landing.spec.ts:133:5 › landing: no horizontal overflow at 360px in EN and RU (1.1s)
-  ✓   6 tests/e2e/landing.spec.ts:148:5 › landing: evidence screenshots (desktop 1280 + mobile 360, EN and RU) (2.3s)
-  ✓   7 tests/e2e/onboarding-landing.spec.ts:41:5 › onboarding (3 questions) → mini-landing is public, localized and free of private data (3.7s)
-  ✓   8 tests/e2e/onboarding-landing.spec.ts:159:5 › the onboarding draft survives a reload and /me/profile edits the axes (1.9s)
+[a11y] /: 0 violation type(s) in total
+[a11y] /login: 0 violation type(s) in total
+[a11y] /legal/privacy: 0 violation type(s) in total
 [WebServer] ⨯ Error: The destination stream closed early.
 [WebServer]     at ignore-listed frames {
 [WebServer]   digest: '2891471267'
 [WebServer] }
-  ✓   9 tests/e2e/organizer-campaign-segment.spec.ts:34:5 › campaign segment: picker renders, selection is saved and the preview sizes it (4.3s)
-  ✓  10 tests/e2e/organizer-funnel.spec.ts:35:5 › organizer funnel: shows counted steps, conversion shares and the daily chart (3.2s)
-  ✓  11 tests/e2e/smoke.spec.ts:68:7 › WELCOME P0 smoke › landing, OTP login, profile, public card, event directory, mutual intro reveal (13.1s)
-  ✓  12 tests/e2e/smoke.spec.ts:198:7 › WELCOME P0 smoke › ?lang= switches the landing language and is remembered (R1) (1.5s)
-  ✓  13 tests/e2e/smoke.spec.ts:224:7 › WELCOME P0 smoke › security headers on /, /login and legal pages (F-04, F-15) (701ms)
+[a11y] /p/2LXraFaNWz9RQX0pxqJWsA: 0 violation type(s) in total
+[a11y] /me/security: 0 violation type(s) in total
+  ✓   1 tests/e2e/a11y.spec.ts:74:5 › a11y: no serious or critical violations on the gated pages (5.5s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '2891471267'
+[WebServer] }
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '2891471267'
+[WebServer] }
+  ✓   2 tests/e2e/badges.spec.ts:41:5 › badges: the sheet renders inline QRs and swaps to claim links on demand (2.6s)
+  ✓   3 tests/e2e/demo-login.spec.ts:23:5 › demo login enabled: the link appears and prefills the seeded demo account (451ms)
+  ✓   4 tests/e2e/demo-login.spec.ts:48:5 › demo login disabled: no demo affordance is rendered (334ms)
+  ✓   5 tests/e2e/landing.spec.ts:46:5 › landing (EN): all sections, heading order, honest CTAs and status (765ms)
+  ✓   6 tests/e2e/landing.spec.ts:104:5 › landing (RU): translated sections, same anchors and no English fallback (616ms)
+  ✓   7 tests/e2e/landing.spec.ts:133:5 › landing: no horizontal overflow at 360px in EN and RU (1.2s)
+  ✓   8 tests/e2e/landing.spec.ts:148:5 › landing: evidence screenshots (desktop 1280 + mobile 360, EN and RU) (2.5s)
+  ✓   9 tests/e2e/onboarding-landing.spec.ts:41:5 › onboarding (3 questions) → mini-landing is public, localized and free of private data (3.4s)
+  ✓  10 tests/e2e/onboarding-landing.spec.ts:159:5 › the onboarding draft survives a reload and /me/profile edits the axes (2.1s)
+  ✓  11 tests/e2e/organizer-campaign-segment.spec.ts:34:5 › campaign segment: picker renders, selection is saved and the preview sizes it (3.6s)
+  ✓  12 tests/e2e/organizer-funnel.spec.ts:35:5 › organizer funnel: shows counted steps, conversion shares and the daily chart (2.6s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '2891471267'
+[WebServer] }
+  ✓  13 tests/e2e/organizer-import-mapping.spec.ts:40:5 › organizer import: mapping a column by hand recalculates the counters (1.7s)
+  ✓  14 tests/e2e/organizer-import-mapping.spec.ts:99:5 › organizer import: a duplicate mapping is refused with a readable error (1.1s)
+  ✓  15 tests/e2e/sessions.spec.ts:33:5 › sessions: the device list shows both sessions and revoking one ends it (2.1s)
+[WebServer] ⨯ Error: The destination stream closed early.
+[WebServer]     at ignore-listed frames {
+[WebServer]   digest: '2891471267'
+[WebServer] }
+  ✓  16 tests/e2e/smoke.spec.ts:68:7 › WELCOME P0 smoke › landing, OTP login, profile, public card, event directory, mutual intro reveal (13.7s)
+  ✓  17 tests/e2e/smoke.spec.ts:198:7 › WELCOME P0 smoke › ?lang= switches the landing language and is remembered (R1) (1.5s)
+  ✓  18 tests/e2e/smoke.spec.ts:224:7 › WELCOME P0 smoke › security headers on /, /login and legal pages (F-04, F-15) (712ms)
 
-  13 passed (41.3s)
+  18 passed (55.3s)

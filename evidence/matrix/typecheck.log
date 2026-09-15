@@ -1,3 +1,4 @@
+$ pnpm typecheck
 
 > welcome-p0@0.1.0 typecheck /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
 > tsc --noEmit

@@ -1,21 +1,22 @@
+$ pnpm build
 
 > welcome-p0@0.1.0 build /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
 > next build
 
 ▲ Next.js 16.3.4 (Turbopack)
 - Environments: .env.local
-✓ Running next.config.ts took 30ms
+✓ Running next.config.ts took 28ms
 
   Creating an optimized production build ...
-✓ Compiled successfully in 1006ms
+✓ Compiled successfully in 1971ms
   Running TypeScript ...
-  Finished TypeScript in 1472ms ...
+  Finished TypeScript in 5.7s ...
   Collecting page data using 9 workers ...
   Generating static pages using 9 workers (0/33) ...
   Generating static pages using 9 workers (8/33) 
   Generating static pages using 9 workers (16/33) 
   Generating static pages using 9 workers (24/33) 
-✓ Generating static pages using 9 workers (33/33) in 185ms
+✓ Generating static pages using 9 workers (33/33) in 186ms
   Finalizing page optimization ...
 
 Route (app)
@@ -56,6 +57,8 @@ Route (app)
 ├ ƒ /api/me/notes
 ├ ƒ /api/me/notes/[otherProfileId]
 ├ ƒ /api/me/profile
+├ ƒ /api/me/sessions
+├ ƒ /api/me/sessions/[id]
 ├ ƒ /api/organizer/campaigns
 ├ ƒ /api/organizer/campaigns/[id]
 ├ ƒ /api/organizer/campaigns/[id]/approve
@@ -64,6 +67,7 @@ Route (app)
 ├ ƒ /api/organizer/campaigns/[id]/stats
 ├ ƒ /api/organizer/events
 ├ ƒ /api/organizer/events/[eventId]/analytics
+├ ƒ /api/organizer/events/[eventId]/badge-links
 ├ ƒ /api/organizer/events/[eventId]/export
 ├ ƒ /api/organizer/events/[eventId]/registrations/[registrationId]/invite
 ├ ƒ /api/organizer/events/[eventId]/settings
@@ -92,6 +96,7 @@ Route (app)
 ├ ƒ /onboarding
 ├ ƒ /organizer
 ├ ƒ /organizer/events/[eventId]
+├ ƒ /organizer/events/[eventId]/badges
 ├ ƒ /organizer/events/[eventId]/campaigns
 └ ƒ /p/[slug]
 
