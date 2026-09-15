@@ -940,6 +940,41 @@ export const en = {
   'member.overrideFunction': 'Function (at this event)',
   'member.overrideIndustry': 'Industry (at this event)',
   'member.overrideKeywords': 'Keywords (at this event)',
+
+  // ── Integrations (provider registry, src/domain/providers.ts) ──
+  // `providers.<id>.stepN` are the "how to connect" steps the registry carries as
+  // i18n keys. Status and reason labels are shared by the public /api/providers
+  // projection and the /me/connections page.
+  'providers.status.live': 'Available',
+  'providers.status.disabled': 'Unavailable',
+  'providers.status.planned': 'Coming soon',
+  'providers.reason.not_configured': 'Not set up on this instance: {env} is missing.',
+  'providers.reason.needs_oauth_client': 'Needs our own OAuth client — planned for Phase 2.',
+  'providers.reason.not_implemented': 'Not built yet — this phase only lists it.',
+  'providers.reason.policy_restricted': 'Switched off on purpose: link only, no API and no scraping.',
+  'providers.reason.awaiting_access': 'Waiting for API access from the vendor.',
+  'providers.missingEnv': 'Missing: {env}',
+  'providers.telegram.step1': 'Create a bot with @BotFather and put its token in the TELEGRAM_BOT_TOKEN variable.',
+  'providers.telegram.step2': 'Bind your account from the Telegram page with a one-time code — opt-in, both directions.',
+  'providers.email.step1': 'Create a Resend key and put it in the RESEND_API_KEY variable.',
+  'providers.email.step2': 'Verify a sending domain — without it only the owner address can receive mail.',
+  'providers.vcard.step1': 'Open your card and press "Add to contacts" — the .vcf downloads, no key needed.',
+  'providers.csv.step1': 'Organizers export a participant list as CSV; every imported line is confirmed by hand.',
+  'providers.ics.step1': 'Planned: an .ics download and "add to calendar" links on the event page.',
+  'providers.share-deeplinks.step1': 'Planned: share a card to X, WhatsApp, Telegram or LinkedIn as a plain link.',
+  'providers.google-contacts.step1': 'Create an OAuth client in Google Cloud and set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET.',
+  'providers.google-contacts.step2': 'Add the People API scope, then press "Connect" here.',
+  'providers.google-calendar.step1': 'Reuse the same Google OAuth client (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET).',
+  'providers.google-calendar.step2': 'Add the Calendar scope to create a meeting after an introduction.',
+  'providers.microsoft-people.step1': 'Register an app in Entra ID and set MICROSOFT_OAUTH_CLIENT_ID and MICROSOFT_OAUTH_CLIENT_SECRET.',
+  'providers.microsoft-people.step2': 'Grant the People.Read scope, then press "Connect" here.',
+  'providers.github.step1': 'Create a GitHub OAuth app and set GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET.',
+  'providers.github.step2': 'Public GitHub data is already used for prefill; OAuth only adds "who of my contacts is here".',
+  'providers.linkedin.step1': 'Not offered: LinkedIn is OIDC-only (name, photo, email) plus a link — profiles are never scraped.',
+  'providers.whatsapp.step1': 'Planned: a wa.me link with a pre-filled message; the Business API is a separate phase.',
+  'providers.instagram.step1': 'Link sharing only — no API and no scraping.',
+  'providers.x.step1': 'Link sharing only — no API and no scraping.',
+  'providers.luma.step1': 'Waiting for Luma API access; then the LUMA_API_KEY variable enables event import.',
 } as const;
 
 export type Dictionary = Record<keyof typeof en, string>;
