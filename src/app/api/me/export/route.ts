@@ -23,6 +23,7 @@ async function postRoute(req: NextRequest) {
     const [profileRows, contactRows, consentRows, membershipRows, noteRows, blockRows, reportRows, introductionRows] = await Promise.all([
       sql`SELECT public_slug, display_name, headline, company, short_bio, languages, offer_tags, need_tags,
                  need_intents, offer_intents, interests, industry, job_function, keywords,
+                 hidden_fields, goals,
                  revision, created_at
           FROM profiles WHERE account_id = ${auth.accountId}`,
       sql<{ kind: string; encrypted_value: string; public_enabled: boolean; updated_at: Date }[]>`

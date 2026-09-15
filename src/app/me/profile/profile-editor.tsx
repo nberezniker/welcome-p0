@@ -9,6 +9,8 @@ import { FacetSelect, KeywordInput, TaxonomyPicker, type PickerStrings } from '.
 import { EnrichPanel, type EnrichDraft, type EnrichRow, type EnrichStrings } from '../../../components/enrich-panel';
 import { labelFor, type TaxonomyCatalog, type UiLocale } from '../../../domain/picker';
 import { PUBLIC_FIELD_IDS } from '../../../domain/profile';
+import { GoalsPicker } from '../../../components/goals-picker';
+import { MAX_GOALS, type GoalId } from '../../../domain/goals';
 
 export interface ProfileFormValues {
   display_name: string;
@@ -26,6 +28,8 @@ export interface ProfileFormValues {
   industry: string | null;
   /** Field ids withheld from the public card (empty = everything public). */
   hidden_fields: string[];
+  /** Private goals (matching v4 §B2), ≤3 in priority order. Never published. */
+  goals: string[];
 }
 
 type Strings = {
@@ -64,6 +68,13 @@ type Strings = {
   enrichTitle: string;
   enrichHint: string;
   enrich: EnrichStrings;
+  goals: {
+    title: string;
+    hint: string;
+    limit: string;
+    counter: string;
+    clear: string;
+  };
   picker: PickerStrings;
   pick: {
     needTitle: string;
@@ -104,6 +115,7 @@ const AXIS_ERROR_CODES = new Set([
   'invalid_industry',
   'invalid_job_function',
   'invalid_hidden_fields',
+  'invalid_goals',
 ]);
 
 /**
@@ -160,6 +172,7 @@ export function ProfileEditor({
         job_function: values.job_function,
         industry: values.industry,
         hidden_fields: values.hidden_fields,
+        goals: values.goals,
       };
       if (useRevision !== null) body['revision'] = toRevisionOrNull(useRevision);
       const res = await fetch('/api/me/profile', {
@@ -238,6 +251,7 @@ export function ProfileEditor({
           job_function: p.job_function ?? null,
           industry: p.industry ?? null,
           hidden_fields: p.hidden_fields ?? [],
+          goals: p.goals ?? [],
         });
         setRevision(toRevisionOrNull(p.revision));
       }
@@ -466,6 +480,23 @@ export function ProfileEditor({
           title={strings.pick.interestsTitle}
           hint={strings.pick.interestsHint.replace('{max}', String(catalog.limits.interests))}
           testId="pf-interests"
+        />
+        {/* Goals are private and shape only this user's recommendations — they
+            sit with the axes, but are never part of the public card. */}
+        <GoalsPicker
+          value={values.goals}
+          onChange={(next: GoalId[]) => set('goals', next)}
+          locale={locale}
+          strings={{
+            title: strings.goals.title,
+            hint: strings.goals.hint,
+            limit: strings.goals.limit,
+            counter: strings.goals.counter
+              .replace('{n}', String(values.goals.length))
+              .replace('{max}', String(MAX_GOALS)),
+            clear: strings.goals.clear,
+          }}
+          testId="pf-goals"
         />
         <KeywordInput
           id="pf-keywords"

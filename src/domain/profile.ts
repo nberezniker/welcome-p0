@@ -7,6 +7,7 @@ import {
   validateNeedIntents,
   validateOfferIntents,
 } from './taxonomy';
+import { validateGoals, type GoalId } from './goals';
 
 /** Pure profile input validation + optimistic-concurrency logic.
  * DB access stays in route handlers; this module is unit-testable. */
@@ -28,6 +29,11 @@ export interface ProfileInput {
   keywords: string[];
   /** Card fields withheld from the public mini-landing (empty = all public). */
   hiddenFields: string[];
+  /**
+   * Private goals (migration 011, matching v4 §B2): ≤3 catalogue ids in the
+   * user's priority order. Never published — see src/domain/goals.ts.
+   */
+  goals: GoalId[];
 }
 
 export type Validated<T> = { ok: true; value: T } | { ok: false; code: string; message: string };
@@ -105,6 +111,10 @@ export function validateProfileInput(body: unknown): Validated<ProfileInput> {
   const hiddenFields = validateHiddenFields(b.hidden_fields);
   if (!hiddenFields.ok) return { ok: false, code: hiddenFields.code, message: hiddenFields.message };
 
+  // Private goals (migration 011). Absent → empty; order is the user's priority.
+  const goals = validateGoals(b.goals);
+  if (!goals.ok) return { ok: false, code: goals.code, message: goals.message };
+
   return {
     ok: true,
     value: {
@@ -122,6 +132,7 @@ export function validateProfileInput(body: unknown): Validated<ProfileInput> {
       jobFunction: jobFunction.value,
       keywords: keywords.value,
       hiddenFields: hiddenFields.value,
+      goals: goals.value,
     },
   };
 }

@@ -21,6 +21,7 @@ interface ProfileRow {
   job_function: string | null;
   keywords: string[];
   hidden_fields: string[];
+  goals: string[];
   revision: number;
 }
 
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
     const rows = await sql<ProfileRow[]>`
       SELECT public_slug, display_name, headline, company, short_bio,
              languages, offer_tags, need_tags,
-             need_intents, offer_intents, interests, industry, job_function, keywords, hidden_fields,
+             need_intents, offer_intents, interests, industry, job_function, keywords, hidden_fields, goals,
              revision::int AS revision
       FROM profiles WHERE account_id = ${auth.accountId} LIMIT 1
     `;
@@ -94,12 +95,13 @@ async function postRoute(req: NextRequest) {
           job_function = ${input.value.jobFunction},
           keywords = ${input.value.keywords},
           hidden_fields = ${input.value.hiddenFields},
+          goals = ${input.value.goals},
           revision = revision + 1,
           updated_at = now()
         WHERE id = ${currentRow.id} AND revision = ${current}
         RETURNING public_slug, display_name, headline, company, short_bio,
                   languages, offer_tags, need_tags,
-                  need_intents, offer_intents, interests, industry, job_function, keywords, hidden_fields,
+                  need_intents, offer_intents, interests, industry, job_function, keywords, hidden_fields, goals,
                   revision::int AS revision
       `;
       const row = updated[0];
@@ -120,16 +122,16 @@ async function postRoute(req: NextRequest) {
       try {
         const created = await sql<ProfileRow[]>`
           INSERT INTO profiles (account_id, public_slug, display_name, headline, company, short_bio, languages,
-                                offer_tags, need_tags, need_intents, offer_intents, interests, industry, job_function, keywords, hidden_fields)
+                                offer_tags, need_tags, need_intents, offer_intents, interests, industry, job_function, keywords, hidden_fields, goals)
           VALUES (${auth.accountId}, ${generatePublicSlug()}, ${input.value.displayName}, ${input.value.headline},
                   ${input.value.company}, ${input.value.shortBio}, ${input.value.languages},
                   ${input.value.offerTags}, ${input.value.needTags},
                   ${input.value.needIntents}, ${input.value.offerIntents}, ${input.value.interests},
                   ${input.value.industry}, ${input.value.jobFunction}, ${input.value.keywords},
-                  ${input.value.hiddenFields})
+                  ${input.value.hiddenFields}, ${input.value.goals})
           RETURNING public_slug, display_name, headline, company, short_bio,
                   languages, offer_tags, need_tags,
-                  need_intents, offer_intents, interests, industry, job_function, keywords, hidden_fields,
+                  need_intents, offer_intents, interests, industry, job_function, keywords, hidden_fields, goals,
                   revision::int AS revision
         `;
         const row = created[0];

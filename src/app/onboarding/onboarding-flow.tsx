@@ -10,6 +10,8 @@ import { hiddenFromPublish, parseDraft, serializeDraft, ONBOARDING_DRAFT_KEY, ON
 import { labelFor, type TaxonomyCatalog, type UiLocale } from '../../domain/picker';
 import { MAX_ENRICHMENT_LINKS } from '../../domain/enrichment-limits';
 import { EnrichPanel, type EnrichDraft, type EnrichRow, type EnrichStrings } from '../../components/enrich-panel';
+import { GoalsPicker } from '../../components/goals-picker';
+import { isGoalId, MAX_GOALS, type GoalId } from '../../domain/goals';
 
 export interface OnboardingStrings {
   title: string;
@@ -59,6 +61,13 @@ export interface OnboardingStrings {
   /** Publish checkboxes: field id → label. */
   fieldLabels: Record<string, string>;
   kindLabels: Record<LinkKind, string>;
+  goals: {
+    title: string;
+    hint: string;
+    limit: string;
+    counter: string;
+    clear: string;
+  };
   errorNetwork: string;
   errorGeneric: string;
 }
@@ -110,6 +119,7 @@ export function OnboardingFlow({
     interests: [],
     keywords: [],
   });
+  const [goals, setGoals] = useState<GoalId[]>([]);
   const [links, setLinks] = useState<Partial<Record<LinkKind, string>>>({});
   const [linkErrors, setLinkErrors] = useState<Partial<Record<LinkKind, string>>>({});
   const [publish, setPublish] = useState<Record<string, boolean>>(() => defaultPublish());
@@ -132,6 +142,7 @@ export function OnboardingFlow({
         const draft = raw ? parseDraft(raw) : null;
         if (draft) {
           setValues(draft.values);
+          setGoals(draft.goals.filter(isGoalId));
           setLinks(draft.links);
           setStep(draft.step);
           // A restored draft carries the opt-outs the user already chose.
@@ -162,12 +173,12 @@ export function OnboardingFlow({
     try {
       window.localStorage.setItem(
         ONBOARDING_DRAFT_KEY,
-        serializeDraft({ step, values, links, hidden_fields: hiddenFromPublish(publish) }),
+        serializeDraft({ step, values, links, hidden_fields: hiddenFromPublish(publish), goals }),
       );
     } catch {
       // ignore quota/private-mode failures
     }
-  }, [step, values, links, publish]);
+  }, [step, values, links, publish, goals]);
 
   const set = <K extends keyof OnboardingDraftValues>(key: K, value: OnboardingDraftValues[K]) =>
     setValues((v) => ({ ...v, [key]: value }));
@@ -283,6 +294,8 @@ export function OnboardingFlow({
           job_function: values.job_function,
           keywords: values.keywords,
           hidden_fields: hiddenFromPublish(publish),
+          // Private goals (matching v4 §B2) — optional on this step.
+          goals,
         }),
       });
       const body = (await res.json().catch(() => null)) as { profile?: { public_slug?: string } } | null;
@@ -495,6 +508,23 @@ export function OnboardingFlow({
                 title={strings.pick.interestsTitle}
                 hint={strings.pick.interestsHint.replace('{max}', String(catalog.limits.interests))}
                 testId="ob-interests"
+              />
+              {/* Optional, and last on the step: goals shape the recommendations
+                  the user will see, so they are asked for after the axes are set. */}
+              <GoalsPicker
+                value={goals}
+                onChange={setGoals}
+                locale={locale}
+                strings={{
+                  title: strings.goals.title,
+                  hint: strings.goals.hint,
+                  limit: strings.goals.limit,
+                  counter: strings.goals.counter
+                    .replace('{n}', String(goals.length))
+                    .replace('{max}', String(MAX_GOALS)),
+                  clear: strings.goals.clear,
+                }}
+                testId="ob-goals"
               />
             </div>
           </section>

@@ -18,6 +18,8 @@
  * tag→v3 data migration can map old rows without losing data.
  */
 
+import { MAX_GOALS, goalsPayload } from './goals';
+
 export type Locale = 'ru' | 'en';
 
 export interface Labels {
@@ -869,7 +871,11 @@ export function isIndustryId(id: unknown): id is string {
 // ---------------------------------------------------------------------------
 
 /** Catalogue with RU+EN labels for both locales at once — the endpoint stays
- * `public, max-age=3600` cacheable because the payload never varies by locale. */
+ * `public, max-age=3600` cacheable because the payload never varies by locale.
+ *
+ * Additive since migration 011: `goals` (the private profile goals of §B2 in the
+ * social/matching design) ride along with the same v3 catalogue so a picker has
+ * one source. The `version` stays `v3` — nothing that existed changed shape. */
 export function taxonomyPayload(): Record<string, unknown> {
   return {
     version: 'v3',
@@ -879,7 +885,9 @@ export function taxonomyPayload(): Record<string, unknown> {
       interests: MAX_INTERESTS,
       keywords: MAX_KEYWORDS,
       keyword_length: MAX_KEYWORD_LENGTH,
+      goals: MAX_GOALS,
     },
+    goals: goalsPayload(),
     intents: INTENTS.map((pair) => ({
       id: pair.id,
       // `label` is the chip text ("Ищу со-фаундера"); `goal` is the sentence

@@ -112,6 +112,13 @@ export default async function OnboardingPage() {
               privacyNote: t('enrich.privacyNote'),
               errorNetwork: t('common.errorNetwork'),
             },
+            goals: {
+              title: t('goals.title'),
+              hint: t('goals.hint'),
+              limit: t('goals.limit'),
+              counter: t('goals.counter'),
+              clear: t('goals.clear'),
+            },
             picker: pickerStrings,
             pick: {
               needTitle: t('pick.needTitle'),

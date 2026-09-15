@@ -29,9 +29,10 @@ export default async function ProfileEditorPage() {
     industry: string | null;
     job_function: string | null;
     hidden_fields: string[];
+    goals: string[];
     revision: number;
   }[]>`SELECT public_slug, display_name, headline, company, short_bio, languages, offer_tags, need_tags,
-             need_intents, offer_intents, interests, keywords, industry, job_function, hidden_fields,
+             need_intents, offer_intents, interests, keywords, industry, job_function, hidden_fields, goals,
              revision::int AS revision
     FROM profiles WHERE account_id = ${accountId} LIMIT 1`;
   const profile = rows[0] ?? null;
@@ -66,6 +67,7 @@ export default async function ProfileEditorPage() {
             job_function: profile?.job_function ?? null,
             industry: profile?.industry ?? null,
             hidden_fields: profile?.hidden_fields ?? [],
+            goals: profile?.goals ?? [],
           }}
           strings={{
             title: t('profile.title'),
@@ -117,6 +119,13 @@ export default async function ProfileEditorPage() {
               retry: t('enrich.retry'),
               privacyNote: t('enrich.privacyNote'),
               errorNetwork: t('common.errorNetwork'),
+            },
+            goals: {
+              title: t('goals.title'),
+              hint: t('goals.hint'),
+              limit: t('goals.limit'),
+              counter: t('goals.counter'),
+              clear: t('goals.clear'),
             },
             picker: {
               searchPlaceholder: t('pick.searchPlaceholder'),

@@ -38,6 +38,15 @@ export interface OnboardingDraft {
   links: Partial<Record<LinkKind, string>>;
   /** Public field ids the user unticked (deny list, mirrors profiles.hidden_fields). */
   hidden_fields: string[];
+  /**
+   * Private goals (matching v4 §B2), up to 3, in priority order.
+   *
+   * Deliberately a TOP-LEVEL field rather than part of `values`: the versioned
+   * `values` contract is the three v3 axes the draft was designed around, and
+   * keeping it byte-identical means a draft written by an older build still
+   * parses — goals simply come back empty.
+   */
+  goals: string[];
   saved_at: string;
 }
 
@@ -82,6 +91,7 @@ export function emptyDraft(): OnboardingDraft {
     values: { ...EMPTY_DRAFT_VALUES },
     links: {},
     hidden_fields: [],
+    goals: [],
     saved_at: new Date(0).toISOString(),
   };
 }
@@ -133,6 +143,8 @@ export function parseDraft(raw: unknown): OnboardingDraft | null {
   }
 
   const hidden = asStringArray(d['hidden_fields'] ?? [], 20) ?? [];
+  // Absent in drafts written before goals existed → empty, never a parse failure.
+  const goals = asStringArray(d['goals'] ?? [], 3) ?? [];
 
   return {
     version: ONBOARDING_DRAFT_VERSION,
@@ -152,14 +164,25 @@ export function parseDraft(raw: unknown): OnboardingDraft | null {
     },
     links,
     hidden_fields: hidden,
+    goals,
     saved_at: typeof d['saved_at'] === 'string' ? d['saved_at'] : new Date(0).toISOString(),
   };
 }
 
+/**
+ * Serializer input: a draft without its stamps. `goals` stays OPTIONAL here so a
+ * caller that does not track them (or a test written before they existed) still
+ * writes a well-formed draft — the STORED value is always a complete array.
+ */
+export interface OnboardingDraftInput extends Omit<OnboardingDraft, 'version' | 'saved_at' | 'goals'> {
+  goals?: string[];
+}
+
 /** Stamps the draft and serializes it for localStorage. */
-export function serializeDraft(draft: Omit<OnboardingDraft, 'saved_at' | 'version'>): string {
+export function serializeDraft(draft: OnboardingDraftInput): string {
   return JSON.stringify({
     ...draft,
+    goals: draft.goals ?? [],
     version: ONBOARDING_DRAFT_VERSION,
     saved_at: new Date().toISOString(),
   });

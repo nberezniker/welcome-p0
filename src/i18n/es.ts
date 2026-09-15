@@ -969,6 +969,14 @@ export const es: Partial<Dictionary> = {
 
   // ── Página de integraciones (/me/connections) ──
   'me.nav.connections': 'Integraciones',
+  // ── Objetivos del perfil (privados, matching v4 §B2) ──
+  'goals.title': '¿Qué buscas aquí?',
+  'goals.hint':
+    'Elige hasta 3: el orden es tu prioridad. Los objetivos son privados: solo influyen en tus recomendaciones y no se muestran a nadie.',
+  'goals.limit': 'Tres objetivos es el límite. Quita uno primero.',
+  'goals.counter': '{n} de {max}',
+  'goals.clear': 'Borrar objetivos',
+
   'connections.title': 'Integraciones',
   'connections.subtitle':
     'Todas las redes y libretas de direcciones con las que WELCOME puede trabajar, cada una con un estado honesto y, si no está disponible, el motivo.',

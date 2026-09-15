@@ -989,6 +989,14 @@ export const en = {
 
   // ── Connections page (/me/connections) ──
   'me.nav.connections': 'Connections',
+  // ── Profile goals (private, matching v4 §B2) ──
+  'goals.title': 'What do you want here?',
+  'goals.hint':
+    'Pick up to 3 — the order is your priority. Goals are private: they shape your own recommendations and are never shown to anyone.',
+  'goals.limit': 'Three goals is the limit. Remove one first.',
+  'goals.counter': '{n} of {max}',
+  'goals.clear': 'Clear goals',
+
   'connections.title': 'Connections',
   'connections.subtitle':
     'Every network and address book WELCOME can work with — each with an honest status and, when it is unavailable, the reason.',
