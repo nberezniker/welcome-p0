@@ -975,6 +975,28 @@ export const ru: Partial<Dictionary> = {
   'goals.counter': '{n} из {max}',
   'goals.clear': 'Сбросить цели',
 
+  // ── Matching v4: двухстрочные причины и режимы (§B3/§B4) ──
+  'reason4.usefulLabel': 'Польза',
+  'reason4.growthLabel': 'Развитие',
+  'reason4.useful.goal_advanced': 'Закрывает вашу цель: {goal}',
+  'reason4.useful.need_covered': 'Закрывает ваш запрос: {need}',
+  'reason4.useful.mutual_needs': 'Полезны друг другу — им нужен {need}',
+  'reason4.useful.shared_interests': 'Вас обоих цепляет {interests}',
+  'reason4.useful.complementary_functions': 'Связка {mine} и {theirs}',
+  'reason4.useful.same_context': 'Общий контекст: {speciality}',
+  'reason4.useful.peer_context': 'Ваш ровесник по рынку',
+  'reason4.growth.can_teach': 'Можно научиться: {offer}',
+  'reason4.growth.wants_your_help': 'Ищут {need} — вы можете помочь',
+  'reason4.growth.outside_circle': 'Вне вашего круга — стоит посмотреть',
+  'reason4.growth.different_context': 'Другой контекст ({speciality}), но общая тема',
+  'directory.recModes.useful': 'Полезные сейчас',
+  'directory.recModes.grow': 'Расти',
+  'directory.recModes.similar': 'Похожие на меня',
+  'directory.recModes.explore': 'Шире круга',
+  'directory.recExcluded.no_candidates': 'Пока некого рекомендовать — каталог наполняется по мере присоединения.',
+  'directory.recExcluded.gate_not_met': 'Люди есть, но никто пока не закрывает ваш запрос. Попробуйте «Расти» или «Шире круга».',
+  'directory.recExcluded.no_shared_topic': 'Общей темы пока нет — расширьте интересы, чтобы увидеть новых людей.',
+
   'connections.title': 'Интеграции',
   'connections.subtitle':
     'Все соцсети и адресные книги, с которыми WELCOME умеет работать, — с честным статусом и причиной, если что-то недоступно.',

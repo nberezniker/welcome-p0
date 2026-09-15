@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { clientIp, consumeIpToken, type TokenVerdict } from './ratelimit';
+import { appEnv, type AppEnv } from './env';
 
 /** Unified JSON error model: {code, message, correlation_id, retryable}.
  * Never include SQL, stack traces or secrets in the payload. */
@@ -130,16 +131,39 @@ export function csrfGuard(req: NextRequest): NextResponse | null {
 // ADR 0005); DB-level per-subject throttles stay in place alongside.
 // ---------------------------------------------------------------------------
 
+/**
+ * Capacity may be a function when the limit is configurable. Exactly ONE rule is
+ * configurable today — the OTP bucket — and only to make it LARGER in a
+ * non-production environment (ADR-style knob for e2e/load runs, where dozens of
+ * sign-ins happen inside the same minute and the per-IP bucket, not the product,
+ * becomes the bottleneck). It can never be lowered, and it is ignored entirely
+ * when APP_ENV=production: a rate limit is a security control, so an env
+ * variable must not be able to weaken it in production.
+ */
 interface IpRateRule {
   key: string;
   pattern: RegExp;
-  capacity: number;
+  capacity: number | (() => number);
   windowMs: number;
 }
 
+/** Default OTP capacity, and the only value production can ever use. */
+export const OTP_RATE_CAPACITY = 10;
+
+/**
+ * OTP capacity for the current environment. `RATE_LIMIT_OTP_CAPACITY` raises it
+ * for e2e/load runs; values below the default (or unparsable ones) are ignored.
+ */
+export function otpRateCapacity(env: AppEnv = appEnv(), raw: string | undefined = process.env.RATE_LIMIT_OTP_CAPACITY): number {
+  if (env === 'production') return OTP_RATE_CAPACITY;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= OTP_RATE_CAPACITY) return OTP_RATE_CAPACITY;
+  return Math.min(Math.floor(parsed), 1000);
+}
+
 const IP_RATE_RULES: IpRateRule[] = [
-  { key: 'otp_request', pattern: /^\/api\/auth\/otp\/request$/, capacity: 10, windowMs: 60_000 },
-  { key: 'otp_verify', pattern: /^\/api\/auth\/otp\/verify$/, capacity: 10, windowMs: 60_000 },
+  { key: 'otp_request', pattern: /^\/api\/auth\/otp\/request$/, capacity: () => otpRateCapacity(), windowMs: 60_000 },
+  { key: 'otp_verify', pattern: /^\/api\/auth\/otp\/verify$/, capacity: () => otpRateCapacity(), windowMs: 60_000 },
   // F-02: join_code brute-force surface — 10 joins/min/IP on top of the DB-level
   // per-(event, ip) failed-attempt lock enforced inside the route itself.
   { key: 'event_join', pattern: /^\/api\/events\/[^/]+\/join$/, capacity: 10, windowMs: 60_000 },
@@ -186,11 +210,12 @@ export function withApi<P = Record<string, string>>(
     const rule = IP_RATE_RULES.find((r) => r.pattern.test(path));
     if (!rule) return handler(req, ctx as RouteContext<P>);
 
+    const capacity = typeof rule.capacity === 'function' ? rule.capacity() : rule.capacity;
     const verdict = consumeIpToken(clientIp(req), rule.key, {
-      capacity: rule.capacity,
+      capacity,
       windowMs: rule.windowMs,
     });
-    const headers = rateLimitHeaders(verdict, rule.capacity);
+    const headers = rateLimitHeaders(verdict, capacity);
     if (!verdict.allowed) {
       return jsonError(429, 'rate_limited', 'Too many requests. Slow down and try again later.', {
         retryable: true,

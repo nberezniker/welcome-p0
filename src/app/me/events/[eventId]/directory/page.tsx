@@ -7,6 +7,7 @@ import { getT } from '../../../../../i18n';
 import { DirectoryPanel } from './directory-panel';
 import { filtersFromQuery } from '../../../../../domain/directory-filters';
 import type { ReasonTemplates } from '../../../../../domain/reasons';
+import type { ReasonV4Templates } from '../../../../../domain/reasons-v4';
 
 export const metadata: Metadata = { title: 'Каталог', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -54,6 +55,25 @@ export default async function EventDirectoryPage({
       shared_tag: t('reason.them.shared_tag'),
     },
   };
+  // v4 two-line templates («Польза» / «Развитие») — same rule as the v3 pair:
+  // the API returns codes, the page builds the sentences.
+  const reasonTemplatesV4: ReasonV4Templates = {
+    useful: {
+      goal_advanced: t('reason4.useful.goal_advanced'),
+      need_covered: t('reason4.useful.need_covered'),
+      mutual_needs: t('reason4.useful.mutual_needs'),
+      shared_interests: t('reason4.useful.shared_interests'),
+      complementary_functions: t('reason4.useful.complementary_functions'),
+      same_context: t('reason4.useful.same_context'),
+      peer_context: t('reason4.useful.peer_context'),
+    },
+    growth: {
+      can_teach: t('reason4.growth.can_teach'),
+      wants_your_help: t('reason4.growth.wants_your_help'),
+      outside_circle: t('reason4.growth.outside_circle'),
+      different_context: t('reason4.growth.different_context'),
+    },
+  };
   const sql = getSql();
 
   // The event must exist; directory access itself is enforced by the API.
@@ -89,6 +109,7 @@ export default async function EventDirectoryPage({
           initialFilters={initialFilters}
           locale={locale}
           reasonTemplates={reasonTemplates}
+          reasonTemplatesV4={reasonTemplatesV4}
           kindLabels={{
             // Revealable contact kinds include phone (no card link for it).
             whatsapp: t('contacts.kind.whatsapp'),
@@ -113,6 +134,19 @@ export default async function EventDirectoryPage({
             sending: t('common.saving'),
             recommendationsTitle: t('directory.recommendationsTitle'),
             recommendationsEmpty: t('directory.recommendationsEmpty'),
+            recModes: {
+              useful: t('directory.recModes.useful'),
+              grow: t('directory.recModes.grow'),
+              similar: t('directory.recModes.similar'),
+              explore: t('directory.recModes.explore'),
+            },
+            recExcluded: {
+              no_candidates: t('directory.recExcluded.no_candidates'),
+              gate_not_met: t('directory.recExcluded.gate_not_met'),
+              no_shared_topic: t('directory.recExcluded.no_shared_topic'),
+            },
+            recUsefulLabel: t('reason4.usefulLabel'),
+            recGrowthLabel: t('reason4.growthLabel'),
             scoreTemplate: t('directory.score'),
             notVisibleNote: t('directory.notVisibleNote'),
             cancel: t('common.cancel'),

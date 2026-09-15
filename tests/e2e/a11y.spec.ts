@@ -103,5 +103,11 @@ test('a11y: no serious or critical violations on the gated pages', async ({ page
   await waitHydrated(page);
   await scan(page, '/me/security', findings);
 
+  // The integrations page (interop §A4) is a full card list with disclosures —
+  // exactly the shape axe is good at.
+  await page.goto('/me/connections');
+  await waitHydrated(page);
+  await scan(page, '/me/connections', findings);
+
   expect(findings, `serious/critical a11y violations:\n${describe(findings)}`).toEqual([]);
 });

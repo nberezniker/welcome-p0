@@ -35,6 +35,12 @@ export default defineConfig({
       // the REAL flag on the running server, so it is set here rather than
       // mocked. The "disabled" case mocks the discovery endpoint instead.
       AUTH_EXPOSE_DEMO_OTP: 'true',
+      // One suite, one IP, ~15 sign-ins inside a minute: the per-IP OTP bucket
+      // (10/min, src/lib/http.ts) is a product guard against abuse, not a test
+      // fixture, so it is raised for this server only. Ignored when
+      // APP_ENV=production, and the integration suite still pins the 10/min
+      // default (tests/integration/security-hardening.test.ts).
+      RATE_LIMIT_OTP_CAPACITY: '200',
       HASH_PEPPER: 'e2e-pepper-0123456789abcdef',
       ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
       APP_BASE_URL: baseURL,

@@ -132,7 +132,21 @@ test('recommendations: complementary pair returned with fact-based reasons only'
   assert.equal(raw.includes('email'), false);
   assert.equal(raw.includes('contact'), false);
   assert.equal(raw.includes('encrypted'), false);
-  const allowed = new Set(['profile_id', 'display_name', 'headline', 'company', 'score', 'reasons_for_me', 'reasons_for_them', 'algorithm']);
+  // `mode` is echoed on every item and the two v4 lines are always present (empty
+  // for the legacy tag path), so the allowlist names them explicitly.
+  const allowed = new Set([
+    'profile_id',
+    'display_name',
+    'headline',
+    'company',
+    'score',
+    'mode',
+    'reasons_for_me',
+    'reasons_for_them',
+    'reasons_useful',
+    'reasons_growth',
+    'algorithm',
+  ]);
   for (const key of Object.keys(item)) assert.ok(allowed.has(key), `unexpected field: ${key}`);
 });
 

@@ -977,6 +977,28 @@ export const es: Partial<Dictionary> = {
   'goals.counter': '{n} de {max}',
   'goals.clear': 'Borrar objetivos',
 
+  // ── Matching v4: razones en dos líneas y modos (§B3/§B4) ──
+  'reason4.usefulLabel': 'Útil',
+  'reason4.growthLabel': 'Desarrollo',
+  'reason4.useful.goal_advanced': 'Avanza tu objetivo: {goal}',
+  'reason4.useful.need_covered': 'Cubre lo que buscas: {need}',
+  'reason4.useful.mutual_needs': 'Útiles en ambos sentidos: buscan {need}',
+  'reason4.useful.shared_interests': 'A los dos os interesa {interests}',
+  'reason4.useful.complementary_functions': 'Una pareja de {mine} y {theirs} que encaja',
+  'reason4.useful.same_context': 'Mismo mundo: {speciality}',
+  'reason4.useful.peer_context': 'Un par tuyo',
+  'reason4.growth.can_teach': 'Puedes aprender de ellos: {offer}',
+  'reason4.growth.wants_your_help': 'Buscan {need} y tú puedes ayudar',
+  'reason4.growth.outside_circle': 'Fuera de tu círculo habitual: merece un vistazo',
+  'reason4.growth.different_context': 'Otro contexto ({speciality}) pero el mismo tema',
+  'directory.recModes.useful': 'Útiles ahora',
+  'directory.recModes.grow': 'Crecer',
+  'directory.recModes.similar': 'Como yo',
+  'directory.recModes.explore': 'Más allá',
+  'directory.recExcluded.no_candidates': 'Aún no hay con quién: el directorio se llena según se unen personas.',
+  'directory.recExcluded.gate_not_met': 'Hay gente, pero nadie cubre todavía tu petición. Prueba «Crecer» o «Más allá».',
+  'directory.recExcluded.no_shared_topic': 'Aún sin tema común: amplía tus intereses para ver a alguien nuevo.',
+
   'connections.title': 'Integraciones',
   'connections.subtitle':
     'Todas las redes y libretas de direcciones con las que WELCOME puede trabajar, cada una con un estado honesto y, si no está disponible, el motivo.',

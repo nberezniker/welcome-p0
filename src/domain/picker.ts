@@ -12,6 +12,8 @@
  */
 
 import type { Reason, ReasonLabelOf } from './reasons';
+import type { ReasonV4LabelOf } from './reasons-v4';
+import { goalLabel } from './goals';
 
 export type UiLocale = 'en' | 'ru' | 'es';
 
@@ -215,6 +217,35 @@ export function reasonLabelOf(catalog: TaxonomyCatalog, locale: UiLocale): Reaso
         return fn.get(id) ?? id;
       case 'industry':
         return industry.get(id) ?? id;
+    }
+  };
+}
+
+/**
+ * Resolves v4 reason params. Same contract as `reasonLabelOf`, plus the two
+ * kinds v4 needs: `offer` intents (the candidate's strong side) and `goal` ids
+ * (the catalogue of src/domain/goals.ts, whose labels already carry all three
+ * locales). Unknown ids pass through, so a moved catalogue id degrades to the id
+ * instead of an empty sentence.
+ */
+export function reasonLabelOfV4(catalog: TaxonomyCatalog, locale: UiLocale): ReasonV4LabelOf {
+  const interest = new Map(catalog.interests.map((i) => [i.id, labelFor(i.label, locale)]));
+  const fn = new Map(catalog.functions.map((f) => [f.id, labelFor(f.label, locale)]));
+  const industry = new Map(catalog.industries.map((i) => [i.id, labelFor(i.label, locale)]));
+  return (kind, id) => {
+    switch (kind) {
+      case 'need':
+        return intentGoal(catalog, 'need', id, locale);
+      case 'offer':
+        return intentGoal(catalog, 'offer', id, locale);
+      case 'interest':
+        return interest.get(id) ?? id;
+      case 'function':
+        return fn.get(id) ?? id;
+      case 'industry':
+        return industry.get(id) ?? id;
+      case 'goal':
+        return goalLabel(id, locale) ?? id;
     }
   };
 }

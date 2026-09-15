@@ -25,6 +25,7 @@ const WARMUP_PATHS = [
   '/api/me/memberships/00000000-0000-0000-0000-000000000000',
   '/api/events/00000000-0000-0000-0000-000000000000',
   '/api/events/00000000-0000-0000-0000-000000000000/ics',
+  '/api/events/00000000-0000-0000-0000-000000000000/recommendations',
   '/api/events/00000000-0000-0000-0000-000000000000/join',
   '/api/introductions', '/api/blocks', '/api/reports', '/api/consents',
   '/api/organizer/events', '/api/organizer/campaigns',

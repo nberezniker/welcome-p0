@@ -190,7 +190,7 @@ async function handleMatches(sql: Sql, accountId: string, chatId: string, update
     await enqueueReply(sql, { chatId, text: copy.no_event, updateId });
     return 'matches_none';
   }
-  const recs = await recommendForEvent(sql, { accountId, profileId: membership.profile_id }, membership.event_id, 3);
+  const { items: recs } = await recommendForEvent(sql, { accountId, profileId: membership.profile_id }, membership.event_id, 3);
   await enqueueReply(sql, {
     chatId,
     text: `${copy.matches_prefix} ${recs.length}. Детали — в WELCOME${membership.event_name ? ` (событие «${membership.event_name}») ` : ''}:`,

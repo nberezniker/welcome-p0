@@ -1,17 +1,30 @@
 import type { Sql } from 'postgres';
 import { scorePair, type ScorePairResult } from './matching';
-import { NETWORKING_ALGORITHM, reasonCodesFor, scoreNetworking } from './networking-score';
+import {
+  DEFAULT_RECOMMENDATION_MODE,
+  NETWORKING_ALGORITHM,
+  NETWORKING_ALGORITHM_V4,
+  rankCandidates,
+  reasonCodesFor,
+  type RecommendationMode,
+  type V4ExclusionReason,
+} from './networking-score';
 import type { Reason } from './reasons';
+import type { ReasonV4 } from './reasons-v4';
 
 /** Server-side eligibility + recommendations for one event.
- * The pure scorePair decides the legacy tag score; ALL eligibility is verified
- * here against the live DB (spec: production eligibility MUST be server-side).
+ * The pure scorers decide the ranking; ALL eligibility is verified here against
+ * the live DB (spec: production eligibility MUST be server-side).
  *
- * Layer order (TAXONOMY_V3.md): candidates that match on the v3 axes
- * (intent / interest / function+industry) come first, then the legacy tag
- * matches. A candidate that qualifies in both layers appears once, with the v3
- * result. Profiles without intents and interests never enter the v3 layer, so
- * the pre-v3 behaviour is preserved exactly. */
+ * Layer order: candidates the v4 usefulness layer accepts come first (mode
+ * `useful` by default), then the v3/legacy tag matches. A candidate that
+ * qualifies in both layers appears once, with the v4 result. Profiles without
+ * intents and interests never enter the v4 layer, so the pre-v4 behaviour is
+ * preserved exactly.
+ *
+ * PRIVACY: only the VIEWER's goals are loaded. A candidate's goals are never
+ * selected — they are private and have no business influencing anyone else's
+ * ranking, not even as an accidental tie-breaker. */
 
 export interface RecommendationItem {
   profile_id: string;
@@ -19,11 +32,26 @@ export interface RecommendationItem {
   headline: string | null;
   company: string | null;
   score: number;
+  /** The mode this list was produced in (echoed per item for the client). */
+  mode: RecommendationMode;
   /** Structural reasons for the VIEWER: what this candidate means to me. */
   reasons_for_me: Reason[];
   /** Structural reasons for the CANDIDATE: what I mean to them (mirrored). */
   reasons_for_them: Reason[];
-  algorithm: 'welcome_mutual_tags_v1' | typeof NETWORKING_ALGORITHM;
+  /** v4 line 1 «Польза» (design §B3). Empty for legacy tag matches. */
+  reasons_useful: ReasonV4[];
+  /** v4 line 2 «Развитие» (design §B3). Empty for legacy tag matches. */
+  reasons_growth: ReasonV4[];
+  algorithm: 'welcome_mutual_tags_v1' | typeof NETWORKING_ALGORITHM | typeof NETWORKING_ALGORITHM_V4;
+}
+
+export interface RecommendationsResult {
+  items: RecommendationItem[];
+  mode: RecommendationMode;
+  /** Candidates the mode's gate rejected. */
+  excluded_count: number;
+  /** Why the list is empty; null when it is not. */
+  excluded_reason: V4ExclusionReason | null;
 }
 
 interface CandidateRow {
@@ -39,6 +67,7 @@ interface CandidateRow {
   interests: string[];
   industry: string | null;
   job_function: string | null;
+  last_signal_at: Date | null;
   pending: number;
 }
 
@@ -51,10 +80,11 @@ interface ViewerRow {
   interests: string[];
   industry: string | null;
   job_function: string | null;
+  goals: string[];
 }
 
 /**
- * Top-3 explainable recommendations for the viewer within one event.
+ * Top-`limit` explainable recommendations for the viewer within one event.
  * Eligibility: active membership + directory_visible + matching_enabled,
  * not self, no blocks either way, shared language (or either side unspecified),
  * no active pair in the event context and no pair of ANY state inside the
@@ -65,7 +95,8 @@ export async function recommendForEvent(
   viewer: { accountId: string; profileId: string },
   eventId: string,
   limit = 3,
-): Promise<RecommendationItem[]> {
+  mode: RecommendationMode = DEFAULT_RECOMMENDATION_MODE,
+): Promise<RecommendationsResult> {
   // Cooldown lives on the event; read it once (default 30 per migration default).
   const eventRows = await sql<{ intro_cooldown_days: number }[]>`
     SELECT intro_cooldown_days FROM events WHERE id = ${eventId} LIMIT 1
@@ -93,6 +124,12 @@ export async function recommendForEvent(
       COALESCE(NULLIF(m.interests, '{}'), pr.interests) AS interests,
       COALESCE(m.industry, pr.industry) AS industry,
       COALESCE(m.job_function, pr.job_function) AS job_function,
+      -- Recency: a TIE-BREAKER only (never part of the usefulness formula).
+      GREATEST(
+        COALESCE(pr.updated_at, to_timestamp(0)),
+        COALESCE(m.created_at, to_timestamp(0)),
+        COALESCE((SELECT max(s.last_seen_at) FROM sessions s WHERE s.account_id = a.id), to_timestamp(0))
+      ) AS last_signal_at,
       (
         SELECT count(*)::int FROM introductions pi
         WHERE pi.state = 'pending'
@@ -131,7 +168,8 @@ export async function recommendForEvent(
     ORDER BY pr.id ASC
   `;
 
-  // Viewer values: membership override wins over profile defaults.
+  // Viewer values: membership override wins over profile defaults. `goals` have
+  // no membership override by design (migration 011) and are the viewer's own.
   const viewerRows = await sql<ViewerRow[]>`
     SELECT COALESCE(NULLIF(m.need_tags, '{}'), pr.need_tags) AS need_tags,
            COALESCE(NULLIF(m.offer_tags, '{}'), pr.offer_tags) AS offer_tags,
@@ -140,14 +178,15 @@ export async function recommendForEvent(
            COALESCE(NULLIF(m.offer_intents, '{}'), pr.offer_intents) AS offer_intents,
            COALESCE(NULLIF(m.interests, '{}'), pr.interests) AS interests,
            COALESCE(m.industry, pr.industry) AS industry,
-           COALESCE(m.job_function, pr.job_function) AS job_function
+           COALESCE(m.job_function, pr.job_function) AS job_function,
+           pr.goals
     FROM profiles pr
     JOIN event_memberships m ON m.profile_id = pr.id
     WHERE pr.id = ${viewer.profileId} AND m.event_id = ${eventId}
     LIMIT 1
   `;
   const v = viewerRows[0];
-  if (!v) return [];
+  if (!v) return { items: [], mode, excluded_count: 0, excluded_reason: 'no_candidates' };
 
   const me = { id: viewer.profileId, eligible: true, needs: v.need_tags, offers: v.offer_tags };
   const meV3 = {
@@ -159,51 +198,74 @@ export async function recommendForEvent(
     industry: v.industry,
     jobFunction: v.job_function,
   };
+  const meV4 = { ...meV3, goals: v.goals, recency: null };
 
-  const v3Items: { item: RecommendationItem; pending: number }[] = [];
-  const legacyItems: { c: CandidateRow; match: ScorePairResult }[] = [];
-  const seen = new Set<string>();
-
-  for (const c of rows) {
-    const candidateV3 = {
+  // v4: one greedy pass over every server-eligible candidate.
+  const ranked = rankCandidates(
+    meV4,
+    rows.map((c) => ({
       id: c.profile_id,
-      eligible: true,
+      eligible: true as const,
       needIntents: c.need_intents,
       offerIntents: c.offer_intents,
       interests: c.interests,
       industry: c.industry,
       jobFunction: c.job_function,
-    };
-    const v3 = scoreNetworking(meV3, candidateV3);
-    if (v3 && v3.eligible) {
-      seen.add(c.profile_id);
-      v3Items.push({
-        pending: c.pending,
-        item: {
-          profile_id: c.profile_id,
-          display_name: c.display_name,
-          headline: c.headline,
-          company: c.company,
-          score: v3.score,
-          reasons_for_me: [...v3.reasons],
-          // Same vocabulary, opposite viewpoint: computed with the candidate as
-          // the viewer, so the list can never duplicate reasons_for_me.
-          reasons_for_them: reasonCodesFor(candidateV3, meV3),
-          algorithm: NETWORKING_ALGORITHM,
+      recency: c.last_signal_at ? new Date(c.last_signal_at).getTime() : null,
+    })),
+    mode,
+    limit,
+  );
+
+  const byId = new Map(rows.map((c) => [c.profile_id, c]));
+  const seen = new Set<string>();
+  const items: RecommendationItem[] = [];
+
+  for (const rankedItem of ranked.items) {
+    const c = byId.get(rankedItem.id);
+    if (!c) continue;
+    seen.add(c.profile_id);
+    items.push({
+      profile_id: c.profile_id,
+      display_name: c.display_name,
+      headline: c.headline,
+      company: c.company,
+      score: rankedItem.score,
+      mode,
+      // The v3 fact list stays alongside the v4 two-line explanation: one is
+      // "what we share", the other is "why it is worth your time".
+      reasons_for_me: [...(reasonCodesFor(meV3, {
+        id: c.profile_id,
+        needIntents: c.need_intents,
+        offerIntents: c.offer_intents,
+        interests: c.interests,
+        industry: c.industry,
+        jobFunction: c.job_function,
+      }) ?? [])],
+      reasons_for_them: reasonCodesFor(
+        {
+          id: c.profile_id,
+          needIntents: c.need_intents,
+          offerIntents: c.offer_intents,
+          interests: c.interests,
+          industry: c.industry,
+          jobFunction: c.job_function,
         },
-      });
-      continue;
-    }
+        meV3,
+      ),
+      reasons_useful: [...rankedItem.reasons_useful],
+      reasons_growth: [...rankedItem.reasons_growth],
+      algorithm: NETWORKING_ALGORITHM_V4,
+    });
+  }
+
+  // Legacy tag layer fills whatever is left of the list.
+  const legacyItems: { c: CandidateRow; match: ScorePairResult }[] = [];
+  for (const c of rows) {
+    if (seen.has(c.profile_id)) continue;
     const match = scorePair(me, { id: c.profile_id, eligible: true, needs: c.needs, offers: c.offers });
     if (match) legacyItems.push({ c, match });
   }
-
-  v3Items.sort(
-    (a, b) =>
-      b.item.score - a.item.score ||
-      a.pending - b.pending ||
-      (a.item.profile_id < b.item.profile_id ? -1 : a.item.profile_id > b.item.profile_id ? 1 : 0),
-  );
 
   legacyItems.sort(
     (a, b) =>
@@ -212,23 +274,31 @@ export async function recommendForEvent(
       (a.c.profile_id < b.c.profile_id ? -1 : a.c.profile_id > b.c.profile_id ? 1 : 0),
   );
 
-  const merged: RecommendationItem[] = v3Items.map((x) => x.item);
   for (const { c, match } of legacyItems) {
+    if (items.length >= limit) break;
     if (seen.has(c.profile_id)) continue;
     seen.add(c.profile_id);
-    merged.push({
+    items.push({
       profile_id: c.profile_id,
       display_name: c.display_name,
       headline: c.headline,
       company: c.company,
       score: match.score,
+      mode,
       // Legacy tag path: the frozen tag strings become the same structural
       // shape, so the UI has exactly one reason renderer.
       reasons_for_me: match.reasonsForA.map((tag) => ({ code: 'shared_tag' as const, params: { tag } })),
       reasons_for_them: match.reasonsForB.map((tag) => ({ code: 'shared_tag' as const, params: { tag } })),
+      reasons_useful: [],
+      reasons_growth: [],
       algorithm: match.algorithm,
     });
   }
 
-  return merged.slice(0, limit);
+  return {
+    items: items.slice(0, limit),
+    mode,
+    excluded_count: ranked.excluded_count,
+    excluded_reason: items.length > 0 ? null : ranked.excluded_reason,
+  };
 }

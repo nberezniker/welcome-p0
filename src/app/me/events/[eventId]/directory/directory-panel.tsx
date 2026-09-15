@@ -5,8 +5,11 @@ import { useRouter } from 'next/navigation';
 import { Modal, Toast, useToast } from '../../../../../components/modal';
 import { fill } from '../../../../../components/fill';
 import { ReasonList } from '../../../../../components/reason-list';
+import { UsefulnessLines } from '../../../../../components/usefulness-lines';
 import { useTaxonomyCatalog } from '../../../../../components/taxonomy-catalog';
 import type { Reason, ReasonTemplates } from '../../../../../domain/reasons';
+import type { ReasonV4, ReasonV4Templates } from '../../../../../domain/reasons-v4';
+import { DEFAULT_RECOMMENDATION_MODE, RECOMMENDATION_MODES, type RecommendationMode } from '../../../../../domain/networking-score';
 import {
   filtersToApiQuery,
   filtersToQuery,
@@ -35,9 +38,14 @@ export interface DirectoryMember {
 
 export interface RecommendationItem extends DirectoryMember {
   score: number;
+  /** The mode this list was produced in. */
+  mode?: RecommendationMode;
   /** Structural reasons — rendered by ReasonList, never shown raw. */
   reasons_for_me: Reason[];
   reasons_for_them: Reason[];
+  /** v4 two-line explanation (design §B3); empty for legacy tag matches. */
+  reasons_useful?: ReasonV4[];
+  reasons_growth?: ReasonV4[];
 }
 
 type Strings = {
@@ -55,6 +63,10 @@ type Strings = {
   sending: string;
   recommendationsTitle: string;
   recommendationsEmpty: string;
+  recModes: Record<RecommendationMode, string>;
+  recExcluded: Record<'no_candidates' | 'gate_not_met' | 'no_shared_topic', string>;
+  recUsefulLabel: string;
+  recGrowthLabel: string;
   scoreTemplate: string;
   notVisibleNote: string;
   cancel: string;
@@ -100,6 +112,7 @@ export function DirectoryPanel({
   kindLabels,
   locale,
   reasonTemplates,
+  reasonTemplatesV4,
   strings,
 }: {
   eventId: string;
@@ -107,12 +120,17 @@ export function DirectoryPanel({
   kindLabels: Record<ContactKind, string>;
   locale: UiLocale;
   reasonTemplates: ReasonTemplates;
+  reasonTemplatesV4: ReasonV4Templates;
   strings: Strings;
 }) {
   const router = useRouter();
   const [filters, setFilters] = useState<DirectoryFilters>(initialFilters);
   const [members, setMembers] = useState<DirectoryMember[] | null>(null);
   const [recommendations, setRecommendations] = useState<RecommendationItem[] | null>(null);
+  // Matching v4 (§B4): the mode is viewer state, kept out of the URL (the
+  // directory filters are shareable; a personal recommendation mode is not).
+  const [recMode, setRecMode] = useState<RecommendationMode>(DEFAULT_RECOMMENDATION_MODE);
+  const [recExcluded, setRecExcluded] = useState<string | null>(null);
   const [closed, setClosed] = useState(false);
   const [chooserMember, setChooserMember] = useState<DirectoryMember | null>(null);
   const [revealKinds, setRevealKinds] = useState<ContactKind[]>([]);
@@ -141,7 +159,7 @@ export function DirectoryPanel({
       try {
         const [dirRes, recRes] = await Promise.all([
           fetch(`/api/events/${eventId}/directory?${apiQuery}`),
-          fetch(`/api/events/${eventId}/recommendations`),
+          fetch(`/api/events/${eventId}/recommendations?mode=${recMode}`),
         ]);
         if (cancelled) return;
         if (dirRes.status === 403) {
@@ -155,22 +173,27 @@ export function DirectoryPanel({
           setMembers([]);
         }
         if (recRes.ok) {
-          const body = (await recRes.json().catch(() => null)) as { recommendations?: RecommendationItem[] } | null;
+          const body = (await recRes.json().catch(() => null)) as
+            | { recommendations?: RecommendationItem[]; excluded_reason?: string | null }
+            | null;
           setRecommendations(body?.recommendations ?? []);
+          setRecExcluded(body?.excluded_reason ?? null);
         } else {
           setRecommendations([]);
+          setRecExcluded(null);
         }
       } catch {
         if (!cancelled) {
           setMembers([]);
           setRecommendations([]);
+          setRecExcluded(null);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [eventId, mode, interest, jobFunction, industry, q]);
+  }, [eventId, mode, interest, jobFunction, industry, q, recMode]);
 
   const propose = async () => {
     if (!chooserMember) return;
@@ -212,11 +235,33 @@ export function DirectoryPanel({
         <h2 id="recs-heading" className="text-lg font-bold tracking-tight">
           {strings.recommendationsTitle}
         </h2>
+        {/* §B4 modes: useful (default) / grow / similar / explore. Changing one
+            refetches the strip; the rest of the panel is untouched. */}
+        <div className="mt-2 flex flex-wrap gap-1" role="tablist" aria-label={strings.recommendationsTitle}>
+          {RECOMMENDATION_MODES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="tab"
+              aria-selected={recMode === option}
+              onClick={() => setRecMode(option)}
+              className={
+                'rounded-lg px-2.5 py-1 text-xs font-semibold ' +
+                (recMode === option ? 'bg-ink text-white' : 'text-muted hover:bg-white hover:text-ink')
+              }
+              data-testid={`rec-mode-${option}`}
+            >
+              {strings.recModes[option]}
+            </button>
+          ))}
+        </div>
         {recommendations === null ? (
           <p className="mt-2 text-sm text-muted">{strings.loading}</p>
         ) : recommendations.length === 0 ? (
           <p className="mt-2 text-sm text-muted" data-testid="recommendations-empty">
-            {strings.recommendationsEmpty}
+            {recExcluded
+              ? strings.recExcluded[recExcluded as keyof typeof strings.recExcluded] ?? strings.recommendationsEmpty
+              : strings.recommendationsEmpty}
           </p>
         ) : (
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
@@ -227,26 +272,43 @@ export function DirectoryPanel({
                   <span className="chip">{fill(strings.scoreTemplate, { score: rec.score })}</span>
                 </div>
                 <p className="text-xs text-muted">{rec.headline ?? rec.company ?? ''}</p>
+                {/* v4: the two-line explanation («Польза» / «Развитие», §B3). It
+                    replaces the v3 pair for v4 matches; the tag path below keeps
+                    rendering its own structural reasons. */}
+                <UsefulnessLines
+                  useful={rec.reasons_useful ?? []}
+                  growth={rec.reasons_growth ?? []}
+                  templates={reasonTemplatesV4}
+                  catalog={catalog}
+                  locale={locale}
+                  labels={{ useful: strings.recUsefulLabel, growth: strings.recGrowthLabel }}
+                  className="mt-2 text-xs text-ink"
+                  testId={`rec-lines-${rec.profile_id}`}
+                />
                 {/* Two audiences, two templates: "what this means for me" vs
                     "what I mean to them" can never render the same sentence. */}
-                <ReasonList
-                  reasons={rec.reasons_for_me}
-                  audience="me"
-                  templates={reasonTemplates}
-                  catalog={catalog}
-                  locale={locale}
-                  className="mt-2 flex flex-col gap-0.5 text-xs text-pine"
-                  testId={`reasons-me-${rec.profile_id}`}
-                />
-                <ReasonList
-                  reasons={rec.reasons_for_them}
-                  audience="them"
-                  templates={reasonTemplates}
-                  catalog={catalog}
-                  locale={locale}
-                  className="mt-1 flex flex-col gap-0.5 text-xs text-muted"
-                  testId={`reasons-them-${rec.profile_id}`}
-                />
+                {(rec.reasons_useful?.length ?? 0) > 0 || (rec.reasons_growth?.length ?? 0) > 0 ? null : (
+                  <>
+                    <ReasonList
+                      reasons={rec.reasons_for_me}
+                      audience="me"
+                      templates={reasonTemplates}
+                      catalog={catalog}
+                      locale={locale}
+                      className="mt-2 flex flex-col gap-0.5 text-xs text-pine"
+                      testId={`reasons-me-${rec.profile_id}`}
+                    />
+                    <ReasonList
+                      reasons={rec.reasons_for_them}
+                      audience="them"
+                      templates={reasonTemplates}
+                      catalog={catalog}
+                      locale={locale}
+                      className="mt-1 flex flex-col gap-0.5 text-xs text-muted"
+                      testId={`reasons-them-${rec.profile_id}`}
+                    />
+                  </>
+                )}
                 <button
                   type="button"
                   className="btn-light btn-small mt-3 w-full"

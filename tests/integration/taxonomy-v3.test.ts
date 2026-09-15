@@ -389,7 +389,10 @@ test('recommendations: v3 intent match comes with a localized reason, legacy tag
     }[];
   };
   assert.equal(body.recommendations[0]!.profile_id, cofounder.profileId, 'v3 match ranks first');
-  assert.equal(body.recommendations[0]!.algorithm, 'welcome_intent_interest_v1');
+  // Matching v4 (packet 5): a pair with axes is now scored and explained by the
+  // usefulness layer. The v3 axis functions themselves are unchanged — the
+  // v3 unit suite still pins their exact scores.
+  assert.equal(body.recommendations[0]!.algorithm, 'welcome_usefulness_v4');
   assert.ok(
     body.recommendations[0]!.reasons_for_me.some(
       (r) => r.code === 'intent_need_covered' && r.params['need'] === 'seeking-cofounder',

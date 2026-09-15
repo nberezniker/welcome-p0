@@ -997,6 +997,28 @@ export const en = {
   'goals.counter': '{n} of {max}',
   'goals.clear': 'Clear goals',
 
+  // ── Matching v4: two-line reasons and modes (§B3/§B4) ──
+  'reason4.usefulLabel': 'Useful',
+  'reason4.growthLabel': 'Growth',
+  'reason4.useful.goal_advanced': 'Advances your goal: {goal}',
+  'reason4.useful.need_covered': 'Covers what you are looking for: {need}',
+  'reason4.useful.mutual_needs': 'Useful both ways — they are looking for {need}',
+  'reason4.useful.shared_interests': 'You are both into {interests}',
+  'reason4.useful.complementary_functions': 'A {mine} and {theirs} pair that fits together',
+  'reason4.useful.same_context': 'Same world: {speciality}',
+  'reason4.useful.peer_context': 'A peer of yours',
+  'reason4.growth.can_teach': 'You can learn from them: {offer}',
+  'reason4.growth.wants_your_help': 'They are looking for {need} — and you can help',
+  'reason4.growth.outside_circle': 'Outside your usual circle — worth a look',
+  'reason4.growth.different_context': 'A different {speciality} that still shares your topic',
+  'directory.recModes.useful': 'Useful now',
+  'directory.recModes.grow': 'Grow',
+  'directory.recModes.similar': 'Like me',
+  'directory.recModes.explore': 'Wider circle',
+  'directory.recExcluded.no_candidates': 'Nobody to match with yet — the directory fills up as people join.',
+  'directory.recExcluded.gate_not_met': 'People are here, but none of them closes a request of yours yet. Try "Grow" or "Wider circle".',
+  'directory.recExcluded.no_shared_topic': 'No shared topic yet — widen your interests to see someone new.',
+
   'connections.title': 'Connections',
   'connections.subtitle':
     'Every network and address book WELCOME can work with — each with an honest status and, when it is unavailable, the reason.',

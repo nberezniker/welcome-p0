@@ -82,3 +82,23 @@ test('consumeIpToken: same ip+route drains, other routes and ips are isolated', 
   resetIpBuckets();
   setRateLimitClock(() => Date.now());
 });
+
+// ---------------------------------------------------------------------------
+// OTP capacity knob (e2e/load only — never a production downgrade)
+// ---------------------------------------------------------------------------
+
+import { OTP_RATE_CAPACITY, otpRateCapacity } from '../../src/lib/http';
+
+test('otp capacity: default is 10 and production can never raise it', () => {
+  assert.equal(OTP_RATE_CAPACITY, 10);
+  assert.equal(otpRateCapacity('development', undefined), 10);
+  assert.equal(otpRateCapacity('development', ''), 10);
+  assert.equal(otpRateCapacity('development', 'not-a-number'), 10);
+  // Only a LARGER value is honoured, and only outside production.
+  assert.equal(otpRateCapacity('development', '200'), 200);
+  assert.equal(otpRateCapacity('test', '50'), 50);
+  assert.equal(otpRateCapacity('development', '5'), 10, 'the knob cannot lower a limit');
+  assert.equal(otpRateCapacity('development', '999999999'), 1000, 'and it stays sane');
+  assert.equal(otpRateCapacity('production', '200'), 10, 'production ignores the knob entirely');
+  assert.equal(otpRateCapacity('production', undefined), 10);
+});
