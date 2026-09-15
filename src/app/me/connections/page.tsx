@@ -9,6 +9,7 @@ import {
   type ProviderKind,
 } from '../../../domain/providers';
 import { resolveProviders, type PublicProvider } from '../../../lib/provider-status';
+import { ContactImportPanel, type ContactImportStrings } from './contact-import';
 
 export const metadata: Metadata = { title: 'Интеграции', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -97,6 +98,33 @@ export default async function ConnectionsPage() {
   const capabilityLabel = (capability: ProviderCapability): DictKey =>
     `connections.capability.${capability}` as DictKey;
 
+  // The import card serves BOTH contact providers (.vcf and .csv): a user has
+  // one address book, so there is one panel, right under the provider list.
+  const importStrings: ContactImportStrings = {
+    title: t('connections.import.title'),
+    subtitle: t('connections.import.subtitle'),
+    fileLabel: t('connections.import.fileLabel'),
+    fileHint: t('connections.import.fileHint'),
+    textLabel: t('connections.import.textLabel'),
+    submit: t('connections.import.submit'),
+    searching: t('connections.import.searching'),
+    resultSome: t('connections.import.resultSome'),
+    resultOne: t('connections.import.resultOne'),
+    resultNone: t('connections.import.resultNone'),
+    unmatched: t('connections.import.unmatched'),
+    skipped: t('connections.import.skipped'),
+    matchesTruncated: t('connections.import.matchesTruncated'),
+    openCard: t('connections.import.openCard'),
+    note: t('connections.import.note'),
+    errorNoContacts: t('connections.import.errorNoContacts'),
+    errorCsv: t('connections.import.errorCsv'),
+    errorTooLarge: t('connections.import.errorTooLarge'),
+    errorRateLimited: t('connections.import.errorRateLimited'),
+    errorGeneric: t('connections.import.errorGeneric'),
+    errorUnauthorized: t('common.errorUnauthorized'),
+    errorNetwork: t('common.errorNetwork'),
+  };
+
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-extrabold tracking-tight" data-testid="connections-title">
@@ -118,6 +146,10 @@ export default async function ConnectionsPage() {
           />
         ))}
       </ul>
+
+      {/* One card for both contact formats: "who of my contacts is already
+          here", answered without keeping a single address. */}
+      <ContactImportPanel strings={importStrings} />
 
       {/* Honesty block: what the product does with a connection — and what it
           refuses to do, which is the reason some cards above are switched off. */}
