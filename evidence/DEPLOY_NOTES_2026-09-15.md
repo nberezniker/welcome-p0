@@ -105,3 +105,30 @@ See `BACKUP_RESTORE_REHEARSAL.md`: restoring a dump is proven, a point-in-time r
 `NEON_API_KEY` or `neonctl` was available. To close that gap, supply a Neon API key (with the project in
 scope) and re-run `node scripts/backup-rehearsal.mjs`; it will exercise the branch path instead of recording
 the limitation.
+
+## Deploy command (2026-09-15, after the CLI session changed scope)
+
+`vercel deploy --prod --yes` started failing with `Error: Not authorized`
+mid-day: the local Vercel CLI session had been re-authenticated under a
+different account, so the project's team (`nikiti4`) was no longer the default
+scope. The project link is unchanged (`orgId team_bdRjG5cdvtGUqPAp6ma7I0JO`,
+`projectId prj_ym7Qv4wNLDwzEPrdG95c0b9VRnk6`).
+
+Working form — name the scope explicitly:
+
+```
+vercel deploy --prod --yes --scope nikiti4
+```
+
+Check the effective identity and available teams with `vercel whoami` and
+`vercel teams ls` before blaming the project.
+
+## Phase 4 deploy order
+
+Migration `012_followup_reminders_digest.sql` was applied to production
+**before** the code deploy (standing rule: migrations first, then code).
+Both Phase-4 mechanics are inert until an operator sets
+`FOLLOWUP_REMINDERS_ENABLED=true` / `DIGEST_ENABLED=true`; with the flags absent
+the worker never scans, no endpoint answers, and no toggle renders. Verified on
+the live deployment after the deploy: flags absent, `/api/me/followup` answers
+401 without a session, zero phase-4 jobs, zero opt-in rows.
