@@ -3118,7 +3118,7 @@ async function modeS(): Promise<void> {
   });
 
   // ── S2: statuses are honest and env-derived ───────────────────────────────
-  await check('S2', 'S', 'статусы провайдеров: live только при наличии ключа, иначе disabled+причина', 'telegram/email по факту env, planned/disabled из реестра, только ИМЕНА переменных', async () => {
+  await check('S2', 'S', 'статусы провайдеров честны: live ⇒ без reason/missing_env, disabled ⇒ not_configured + имя переменной', 'telegram/email по факту env, planned/disabled из реестра, только ИМЕНА переменных', async () => {
     const res = await anon.get('/api/providers');
     equals(res.status, 200, 'providers status');
     const list = (res.json as { providers: Record<string, unknown>[] }).providers;
@@ -3133,17 +3133,36 @@ async function modeS(): Promise<void> {
       ['telegram', 'TELEGRAM_BOT_TOKEN'],
       ['email', 'RESEND_API_KEY'],
     ];
+    // The expectation must come from the DEPLOYMENT's configuration, not from
+    // this runner's shell: an operator with RESEND_API_KEY unset locally was
+    // failing a deployment that legitimately reports `email: live`. So:
+    //   1. `--expect-<id>=live|disabled` pins the config when the operator knows it
+    //      (the strongest form — use it whenever the deployment config is known);
+    //   2. a variable visible to this runner (secrets file / env) pins it too;
+    //   3. otherwise only the state's HONESTY is asserted, which is what the
+    //      contract actually promises: `live` must carry no reason and no missing
+    //      variables, `disabled` must carry `not_configured` and name the variable.
+    const expectedFor = (id: string, envName: string): 'live' | 'disabled' | null => {
+      const pinned = argv.find((a) => a.startsWith(`--expect-${id}=`))?.slice(`--expect-${id}=`.length);
+      if (pinned === 'live' || pinned === 'disabled') return pinned;
+      return SECRETS[envName] || process.env[envName] ? 'live' : null;
+    };
     const observed: string[] = [];
     for (const [id, envName] of envGated) {
       const row = byId.get(id)!;
-      const configured = Boolean(SECRETS[envName] || process.env[envName]);
-      equals(row['status'], configured ? 'live' : 'disabled', `${id} status`);
-      if (!configured) {
+      const status = row['status'] as string;
+      const expected = expectedFor(id, envName);
+      if (expected) equals(status, expected, `${id} status`);
+      else must(status === 'live' || status === 'disabled', `${id} status must be live or disabled`);
+      if (status === 'live') {
+        equals(row['reason_code'], null, `${id}: live must not carry a reason`);
+        equals((row['missing_env'] as string[]).length, 0, `${id}: live must not list missing variables`);
+      } else {
         equals(row['reason_code'], 'not_configured', `${id} reason`);
         must((row['missing_env'] as string[]).includes(envName), `${id} must name the missing variable`);
       }
       must((row['env'] as string[]).includes(envName), `${id} must list ${envName} as a NAME`);
-      observed.push(`${id}=${row['status'] as string}`);
+      observed.push(`${id}=${status}${expected ? '' : '(honesty-only)'}`);
     }
     // Design states cannot be flipped by configuration.
     equals(byId.get('ics')!['status'], 'planned', 'ics status');
