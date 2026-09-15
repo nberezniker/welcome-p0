@@ -22,3 +22,7 @@ next-env.d.ts
 .vercel
 .env*
 .env.deploy.secrets
+
+# Google OAuth client downloads (default filename) — a secret by definition.
+client_secret_*.json
+.secrets/
