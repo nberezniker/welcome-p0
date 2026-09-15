@@ -7,10 +7,11 @@ import type { NextRequest } from 'next/server';
  *    request throttle (count rows created for a subject within a sliding
  *    window). No extra table: the business table itself is the counter.
  *
- * 2. In-memory per-IP token buckets (takeFromBucket/consumeIpToken) for the
- *    generic sensitive-route table. Single-process by design for P0
- *    (documented limitation, ADR 0005): state dies with the process and is
- *    not shared across instances.
+ * 2. In-memory token buckets for the generic sensitive-route table: per-IP
+ *    (takeFromBucket/consumeIpToken) and per-account (consumeSubjectToken, for
+ *    routes that must not count their calls in the DB). Single-process by design
+ *    for P0 (documented limitation, ADR 0005): state dies with the process and
+ *    is not shared across instances.
  */
 
 type SqlLike = Sql | TransactionSql;
@@ -136,18 +137,42 @@ export function clientIp(req: NextRequest): string {
 
 /** Consumes one token from the (route, ip) bucket. */
 export function consumeIpToken(ip: string, routeKey: string, opts: TokenBucketOptions): TokenVerdict {
+  return consumeToken(`${routeKey}:${ip}`, opts);
+}
+
+/**
+ * Consumes one token from the (route, subject) bucket — the per-ACCOUNT twin of
+ * `consumeIpToken`.
+ *
+ * It exists for endpoints whose quota must not be counted in the database.
+ * `checkRateLimit` above counts ROWS of a business table, which is the right
+ * shape when the row is the fact being limited (OTP, enrichment, MFA); but an
+ * address-book import promises that the address book leaves no trace at all, so
+ * its 5/hour budget lives in this process and nowhere else. Consequence, already
+ * documented for the per-IP buckets (ADR 0005): single-process, resets on
+ * restart, and not shared between instances.
+ */
+export function consumeSubjectToken(
+  subjectId: string,
+  routeKey: string,
+  opts: TokenBucketOptions,
+): TokenVerdict {
+  return consumeToken(`${routeKey}:subject:${subjectId}`, opts);
+}
+
+function consumeToken(bucketKey: string, opts: TokenBucketOptions): TokenVerdict {
   const nowMs = clock();
   if (buckets.size > MAX_BUCKETS) {
     for (const [key, state] of buckets) {
       if (nowMs - state.lastRefillMs > opts.windowMs) buckets.delete(key);
     }
   }
-  const verdict = takeFromBucket(buckets.get(`${routeKey}:${ip}`), nowMs, opts);
-  buckets.set(`${routeKey}:${ip}`, verdict.state);
+  const verdict = takeFromBucket(buckets.get(bucketKey), nowMs, opts);
+  buckets.set(bucketKey, verdict.state);
   return verdict;
 }
 
-/** Test hook: clears all buckets. */
+/** Test hook: clears every bucket (per-IP and per-subject alike). */
 export function resetIpBuckets(): void {
   buckets.clear();
 }
