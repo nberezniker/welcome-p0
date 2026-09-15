@@ -20,7 +20,7 @@ const WARMUP_PATHS = [
   '/organizer',
   // API route handlers also compile on demand — prove each family compiles.
   '/api/locale', '/api/auth/otp/request', '/api/auth/otp/verify', '/api/auth/logout', '/api/auth/demo-login-info',
-  '/api/me/profile', '/api/me/contacts', '/api/me/notes', '/api/me/export', '/api/me/sessions',
+  '/api/me/profile', '/api/me/contacts', '/api/me/contacts/import', '/api/me/notes', '/api/me/export', '/api/me/sessions',
   '/api/providers',
   '/api/me/memberships/00000000-0000-0000-0000-000000000000',
   '/api/events/00000000-0000-0000-0000-000000000000',

@@ -103,7 +103,11 @@ test('providers: documented shape of the two live channels and the disabled rows
 
   assert.deepEqual(byId.get('telegram')!.capabilities, ['send', 'receive', 'deeplink']);
   assert.deepEqual(byId.get('email')!.capabilities, ['send']);
-  assert.deepEqual(byId.get('vcard')!.capabilities, ['import', 'export']);
+  assert.deepEqual(byId.get('vcard')!.capabilities, ['import', 'export', 'match']);
+  // 'match' = "who of my contacts is already here" (address-book import, no OAuth
+  // client needed). It is not a data direction, so the row stays 'both'.
+  assert.deepEqual(byId.get('csv')!.capabilities, ['import', 'export', 'match']);
+  assert.equal(byId.get('csv')!.direction, 'both');
   assert.deepEqual(byId.get('ics')!.capabilities, ['export', 'deeplink']);
   assert.deepEqual(byId.get('ics')!.direction, 'out');
 

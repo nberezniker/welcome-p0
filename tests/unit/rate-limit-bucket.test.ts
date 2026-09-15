@@ -84,9 +84,44 @@ test('consumeIpToken: same ip+route drains, other routes and ips are isolated', 
 });
 
 // ---------------------------------------------------------------------------
+// Per-subject buckets — for quotas that must not be counted in the database
+// (the address-book import: 5/hour/account, and no row to prove it)
+// ---------------------------------------------------------------------------
+
+test('consumeSubjectToken: drains per account and stays isolated from ips and other routes', () => {
+  resetIpBuckets();
+  let now = 900_000;
+  setRateLimitClock(() => now);
+  // The address-book import's real budget: 5 per hour, per account.
+  const HOUR = { capacity: 5, windowMs: 3_600_000 };
+
+  const account = 'account-1';
+  const other = 'account-2';
+  for (let i = 0; i < 5; i++) {
+    assert.equal(consumeSubjectToken(account, 'contacts_import', HOUR).allowed, true, `take ${i + 1}`);
+  }
+  assert.equal(consumeSubjectToken(account, 'contacts_import', HOUR).allowed, false, 'the 6th take is denied');
+  // Another account, another route and an ip-keyed bucket are all untouched.
+  assert.equal(consumeSubjectToken(other, 'contacts_import', HOUR).allowed, true);
+  assert.equal(consumeSubjectToken(account, 'reports', HOUR).allowed, true);
+  assert.equal(consumeIpToken(account, 'contacts_import', HOUR).allowed, true);
+
+  // A subject key can never collide with an ip key of the same shape.
+  assert.equal(consumeSubjectToken('10.0.0.9', 'r', OPTS).allowed, true);
+  assert.equal(consumeIpToken('10.0.0.9', 'r', OPTS).allowed, true);
+
+  now += HOUR.windowMs * 10;
+  assert.equal(consumeSubjectToken(account, 'contacts_import', HOUR).allowed, true, 'refilled after the window');
+
+  resetIpBuckets();
+  setRateLimitClock(() => Date.now());
+});
+
+// ---------------------------------------------------------------------------
 // OTP capacity knob (e2e/load only — never a production downgrade)
 // ---------------------------------------------------------------------------
 
+import { consumeSubjectToken } from '../../src/lib/ratelimit';
 import { OTP_RATE_CAPACITY, otpRateCapacity } from '../../src/lib/http';
 
 test('otp capacity: default is 10 and production can never raise it', () => {
