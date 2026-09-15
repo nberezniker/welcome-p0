@@ -46,6 +46,15 @@ export default defineConfig({
       APP_BASE_URL: baseURL,
       TELEGRAM_WEBHOOK_SECRET: 'e2e-telegram-webhook-secret',
       TELEGRAM_BOT_USERNAME: 'WELCOME_e2e_bot',
+      // Phase 4 (tests/e2e/followup.spec.ts): the reminder mechanic is ON so its
+      // opt-in switch can be driven end-to-end, while the digest flag is
+      // deliberately LEFT UNSET so the same server also proves the other half of
+      // the rule — flag off ⇒ no switch rendered and the endpoint answers 404.
+      // "Both flags off ⇒ the whole card is absent" is asserted at the API level
+      // in tests/integration/followup-digest.test.ts: it needs a second server
+      // without both flags, and two `next dev` processes for one project
+      // directory would share a single `.next` build dir.
+      FOLLOWUP_REMINDERS_ENABLED: 'true',
     },
   },
 });

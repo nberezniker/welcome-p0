@@ -46,7 +46,21 @@ export type OutboxKind =
   | 'intro_declined_notice'
   | 'intro_withdrawn_notice'
   | 'campaign_message'
-  | 'telegram_reply';
+  | 'telegram_reply'
+  /** Phase 4: «next step» reminder (service message about the recipient's own
+   *  commitment, purpose `service_channel`). */
+  | 'followup_reminder'
+  /** Phase 4: weekly «who to meet» digest (purpose `digest_weekly`). */
+  | 'digest_weekly';
+
+/** Kinds that only exist while their Phase-4 flag is on. The worker re-checks the
+ * flag at SEND time too, so turning a flag off stops queued jobs as well — a kill
+ * switch that leaves yesterday's queue running is not a kill switch. */
+export const FLAGGED_KINDS: readonly OutboxKind[] = ['followup_reminder', 'digest_weekly'];
+
+export function isFlaggedKind(kind: string): kind is 'followup_reminder' | 'digest_weekly' {
+  return (FLAGGED_KINDS as readonly string[]).includes(kind);
+}
 
 export interface OutboxJobInput {
   dedupeKey: string;
@@ -333,6 +347,38 @@ export async function suppressJobsForAccountChannel(
     SET status = 'suppressed', lease_until = NULL
     WHERE status IN ('pending', 'leased')
       AND channel = ${channel}
+      AND payload->>'account_id' = ${accountId}
+    RETURNING id
+  `;
+  for (const r of rows) {
+    await recordAttempt(sqlLike, r.id, 'suppressed', code, null);
+  }
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Phase 4 opt-out: cancels this account's not-yet-sent jobs of SPECIFIC KINDS.
+ *
+ * Narrower than suppressJobsForAccountPurpose on purpose. A reminder opt-out
+ * cannot use the purpose hook: reminders share `service_channel` with the
+ * introduction notices, so revoking that purpose would silently also kill
+ * "someone asked to connect with you" — a message the user never asked to stop.
+ * This is the same mechanism as the two hooks above (same terminal status, same
+ * delivery_attempts row, same "only pending/leased" scope), scoped by the one
+ * field that actually identifies the mechanic.
+ */
+export async function suppressJobsForAccountKinds(
+  sqlLike: SqlLike,
+  accountId: string,
+  kinds: readonly OutboxKind[],
+  code: string,
+): Promise<string[]> {
+  if (kinds.length === 0) return [];
+  const rows = await sqlLike<{ id: string }[]>`
+    UPDATE outbox_jobs
+    SET status = 'suppressed', lease_until = NULL
+    WHERE status IN ('pending', 'leased')
+      AND kind IN ${sqlLike(kinds)}
       AND payload->>'account_id' = ${accountId}
     RETURNING id
   `;

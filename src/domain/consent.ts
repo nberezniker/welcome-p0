@@ -14,6 +14,14 @@ export const CONSENT_PURPOSES = [
   'service_channel',
   'organizer_marketing',
   'product_marketing',
+  /** Phase 4: the weekly «who to meet» digest (SOCIAL_INTEROP_AND_MATCHING §B5).
+   *  A purpose of its own rather than a reuse of `organizer_marketing`, so the
+   *  digest's one-click unsubscribe can revoke exactly this consent — and the
+   *  withdrawal then suppresses an already queued digest through the existing
+   *  suppressJobsForAccountPurpose path, without touching anything else. The
+   *  «next step» reminder deliberately stays on `service_channel`: it is a
+   *  service message about the recipient's own commitment, not marketing. */
+  'digest_weekly',
 ] as const;
 
 export type ConsentPurpose = (typeof CONSENT_PURPOSES)[number];

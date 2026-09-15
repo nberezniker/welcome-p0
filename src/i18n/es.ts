@@ -360,6 +360,31 @@ export const es: Partial<Dictionary> = {
   'notes.stepTooLong': 'El siguiente paso no puede superar 500 caracteres.',
   'notes.updated': 'Actualizado {date}',
 
+  // ── Fase 4: recordatorios y resumen semanal ───────────────────────────────
+  'followup.title': 'Mensajes de seguimiento',
+  'followup.subtitle': 'Dos mensajes opcionales sobre tu propio networking. Ambos están desactivados por defecto y puedes pararlos aquí o desde el propio mensaje.',
+  'followup.remindersLabel': 'Recordarme mis próximos pasos',
+  'followup.remindersHint': 'Un mensaje {days} días después de que guardaras un próximo paso con alguien a quien conociste. Muestra tu propio paso: nada sobre la otra persona.',
+  'followup.digestLabel': 'Resumen semanal de personas a conocer',
+  'followup.digestHint': 'Hasta 3 personas elegidas a partir de tus propios objetivos y tu perfil, una vez por semana. Cada una lleva su motivo.',
+  'followup.stateOn': 'Activado',
+  'followup.stateOff': 'Desactivado',
+  'followup.savedToast': 'Ajuste guardado.',
+  'followup.stopHint': 'Cómo pararlo: desactívalo aquí o usa el enlace al final de cualquier mensaje. Al desactivarlo también se cancela lo que ya esperaba para enviarse.',
+  'followup.remindersNeedsConsent': 'Para esto primero hay que permitir los mensajes de servicio. Tu próximo paso se guarda igualmente.',
+  'followup.openPrivacy': 'Abrir privacidad',
+  // Página de baja por el enlace del mensaje (sin sesión).
+  'followup.unsubscribe.title': 'WELCOME',
+  'followup.unsubscribe.doneTitle': 'Detenido',
+  'followup.unsubscribe.doneDigest': 'El resumen semanal está detenido y se ha cancelado lo que ya esperaba para enviarse.',
+  'followup.unsubscribe.doneReminders': 'Los recordatorios de próximos pasos están detenidos y se ha cancelado lo que ya esperaba para enviarse.',
+  'followup.unsubscribe.keptHint': 'Los avisos de presentaciones y otros mensajes de servicio no se ven afectados.',
+  'followup.unsubscribe.linkInvalid': 'Este enlace no es válido',
+  'followup.unsubscribe.linkInvalidHint': 'Puede que tu cliente de correo lo haya partido o que pertenezca a un mensaje que nunca se envió.',
+  'followup.unsubscribe.noAccountHint': 'Puedes gestionar el mismo ajuste después de iniciar sesión.',
+  'followup.unsubscribe.failed': 'Algo ha ido mal',
+  'followup.unsubscribe.failedHint': 'No se ha cambiado nada. Prueba el enlace otra vez o ajusta la opción después de iniciar sesión.',
+
   // ── /me/privacy ───────────────────────────────────────────────────────────
   'privacy.title': 'Privacidad',
   'privacy.subtitle': 'Consentimientos, bloqueos, tus datos y eliminación de la cuenta: todo en un mismo lugar.',

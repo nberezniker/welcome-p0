@@ -50,6 +50,10 @@ async function tickRoute(req: NextRequest) {
     processed: report.claimed,
     requeued_leases: report.requeuedLeases,
     results: report.results,
+    // Phase 4 visibility: both mechanics report enabled=false while their flag is
+    // off, so an operator can tell "the flag is not set" from "the flag is set
+    // and found nothing". Counts only — never a recipient or a reason.
+    followup: report.followup,
   });
 }
 

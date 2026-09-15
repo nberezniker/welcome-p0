@@ -6,7 +6,11 @@ import { CONSENT_PURPOSES, validateConsentInput, isConsentPurpose, isConsentScop
 // Purpose registry — one source of truth for consent purposes
 // ---------------------------------------------------------------------------
 
-test('consent purposes: exactly the six spec purposes', () => {
+test('consent purposes: exactly the seven registered purposes', () => {
+  // The registry only grows together with a migration that widens the DB CHECK
+  // (`consent_events_purpose_check`). Migration 012 added `digest_weekly` for the
+  // Phase-4 weekly digest, which needs a purpose of its own so that its one-click
+  // unsubscribe revokes exactly the digest and nothing else.
   assert.deepEqual(CONSENT_PURPOSES, [
     'public_card',
     'event_directory',
@@ -14,6 +18,7 @@ test('consent purposes: exactly the six spec purposes', () => {
     'service_channel',
     'organizer_marketing',
     'product_marketing',
+    'digest_weekly',
   ]);
 });
 

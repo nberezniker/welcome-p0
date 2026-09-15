@@ -114,6 +114,48 @@ export function createOtpExposureWarner(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Phase 4 — post-event follow-up mechanics (docs-internal/product/
+// SOCIAL_INTEROP_AND_MATCHING.md §B5). Two features that SEND messages, so each
+// is a separate kill switch and both default to OFF:
+//
+//   FOLLOWUP_REMINDERS_ENABLED=true → the «next step» reminder scanner runs;
+//   DIGEST_ENABLED=true             → the weekly «who to meet» digest runs.
+//
+// Absent/unset/any other value means "the feature does not exist": no scan in
+// the worker, no job enqueued, no toggle rendered, no endpoint answering. These
+// are read lazily at every call site (never captured at module load) so a
+// deployment can turn a mechanic off and have the very next tick honour it — and
+// so a process that boots without them cannot be talked into sending by a later
+// env mutation of another feature.
+// ---------------------------------------------------------------------------
+
+/** Master switch for the «next step» reminder. Off unless exactly 'true'. */
+export function followupRemindersEnabled(): boolean {
+  return process.env.FOLLOWUP_REMINDERS_ENABLED === 'true';
+}
+
+/** Master switch for the weekly digest. Off unless exactly 'true'. */
+export function digestEnabled(): boolean {
+  return process.env.DIGEST_ENABLED === 'true';
+}
+
+/** Default «what you wanted to do» delay (design §B5 «через N дней»). */
+export const FOLLOWUP_REMINDER_DAYS_DEFAULT = 7;
+
+/**
+ * Days after a next_step was written before its reminder becomes due.
+ * `FOLLOWUP_REMINDER_DAYS` overrides it; an unparsable, fractional, negative or
+ * zero value falls back to the default instead of clamping to something that
+ * would fire instantly — a bad number must not turn a week into "right now".
+ * The upper bound keeps the due-date arithmetic inside a sane range.
+ */
+export function followupReminderDays(raw: string | undefined = process.env.FOLLOWUP_REMINDER_DAYS): number {
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 365) return FOLLOWUP_REMINDER_DAYS_DEFAULT;
+  return parsed;
+}
+
 const defaultExposureWarner = createOtpExposureWarner();
 
 /**

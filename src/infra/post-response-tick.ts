@@ -44,6 +44,10 @@ export async function runPostResponseTick(deps: { transport?: ChannelTransport }
         // Retention/minimization housekeeping stays on the cron backstop: an
         // interactive webhook reply must not wait behind a cleanup pass.
         cleanup: false,
+        // Same for the Phase-4 follow-up scan: it is bounded, but it is not part
+        // of answering the user who just wrote to the bot. The scheduled tick
+        // owns it, and until then the scan's own flags keep it inert anyway.
+        followupScan: false,
       });
       if (report.claimed === 0) break;
     }

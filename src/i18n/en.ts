@@ -377,6 +377,33 @@ export const en = {
   'notes.stepTooLong': 'Next step must be at most 500 characters.',
   'notes.updated': 'Updated {date}',
 
+  // ── Phase 4: follow-up (reminders + weekly digest) ─────────────────────────
+  // Both mechanics are off by default and both are opt-in: the copy has to say
+  // what each one contains, that it is off until asked for, and how to stop it.
+  'followup.title': 'Follow-up messages',
+  'followup.subtitle': 'Two optional messages about your own networking. Both are off by default, and both can be stopped here or from the message itself.',
+  'followup.remindersLabel': 'Remind me about my next steps',
+  'followup.remindersHint': 'One message {days} days after you saved a next step for someone you actually met. It shows your own step — nothing about the other person.',
+  'followup.digestLabel': 'Weekly digest of people to meet',
+  'followup.digestHint': 'Up to 3 people chosen from your own goals and your own profile, once a week. Each line says why they were picked.',
+  'followup.stateOn': 'On',
+  'followup.stateOff': 'Off',
+  'followup.savedToast': 'Follow-up setting saved.',
+  'followup.stopHint': 'How to stop: switch it off here, or use the stop link at the end of any message. Switching off also cancels anything already waiting to be sent.',
+  'followup.remindersNeedsConsent': 'This needs service messages to be allowed first. Your next step is saved either way.',
+  'followup.openPrivacy': 'Open privacy',
+  // One-click unsubscribe page (no session — the recipient clicked a link in a mailbox).
+  'followup.unsubscribe.title': 'WELCOME',
+  'followup.unsubscribe.doneTitle': 'Stopped',
+  'followup.unsubscribe.doneDigest': 'The weekly digest is stopped, and anything already waiting to be sent has been cancelled.',
+  'followup.unsubscribe.doneReminders': 'Next-step reminders are stopped, and anything already waiting to be sent has been cancelled.',
+  'followup.unsubscribe.keptHint': 'Introduction notices and other service messages are not affected.',
+  'followup.unsubscribe.linkInvalid': 'This link is not valid',
+  'followup.unsubscribe.linkInvalidHint': 'It may have been split by your mail client, or it belongs to a message that was never sent.',
+  'followup.unsubscribe.noAccountHint': 'You can manage the same setting after signing in.',
+  'followup.unsubscribe.failed': 'Something went wrong',
+  'followup.unsubscribe.failedHint': 'Nothing was changed. Try the link again, or manage the setting after signing in.',
+
   // ── /me/privacy ───────────────────────────────────────────────────────────
   'privacy.title': 'Privacy',
   'privacy.subtitle': 'Consents, blocks, your data and account deletion — all in one place.',

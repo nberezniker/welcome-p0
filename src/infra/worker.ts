@@ -7,6 +7,7 @@ import {
   applyUpdateProcessed,
   claimJobs,
   computeBackoffMs,
+  isFlaggedKind,
   MAX_UNKNOWN_ATTEMPTS,
   requeueExpiredLeases,
   type OutboxJobRow,
@@ -28,6 +29,11 @@ import {
   serviceNoticeEmail,
 } from '../domain/service-notices';
 import { decideRecipientChannel, loadTelegramBindingState, resolveAccountEmail } from './recipient-channel';
+import { runFollowupScan, type FollowupScanReport } from './followup-scan';
+import { loadOptInState } from './followup-preferences';
+import { reminderSubject } from '../domain/followup';
+import { digestSubject } from '../domain/digest';
+import { digestEnabled, followupRemindersEnabled } from '../lib/env';
 
 /**
  * Outbox worker (spec 04 §7). tickOnce() is exported for tests — no
@@ -57,6 +63,11 @@ export interface WorkerDeps {
    * short — the webhook post-response fast path — pass a small cap instead of
    * getting their own copy of the claim/process logic. */
   batchLimit?: number;
+  /** Set false to skip the Phase-4 follow-up scan. The webhook fast path does:
+   * it exists to answer one user in seconds, and a scan belongs on the scheduled
+   * tick, not in front of an interactive reply. Omitted → the scan runs (and
+   * returns immediately while its flags are off). */
+  followupScan?: boolean;
 }
 
 export interface TickReport {
@@ -66,9 +77,22 @@ export interface TickReport {
   results: { job_id: string; kind: string; outcome: string }[];
   /** F-06: retention pass result — null when not due this tick. */
   cleanup: CleanupReport | null;
+  /** Phase 4: what the follow-up scan did this tick. Both mechanics report
+   *  `enabled: false` (and nothing is queried) while their flag is off. */
+  followup: FollowupScanReport;
 }
 
 const BATCH_LIMIT = 10;
+
+/** Report shape for a tick that deliberately skipped the follow-up scan (the
+ * webhook fast path). `enabled: false` is the honest reading: that tick did not
+ * look, so it cannot claim the mechanics are off. */
+const SKIPPED_FOLLOWUP_SCAN: FollowupScanReport = {
+  enabled: { reminders: false, digest: false },
+  reminders: { scanned: 0, enqueued: 0 },
+  digest: { scanned: 0, enqueued: 0 },
+  error: null,
+};
 
 /** Transports resolved for one tick: telegram (injected or default) + email. */
 interface TickTransports {
@@ -76,10 +100,15 @@ interface TickTransports {
   email: EmailTransport | null;
 }
 
-/** One worker tick: heartbeat → requeue expired leases → claim → process →
- * cleanup pass when due (F-06). The claim batch is overridable via
- * deps.batchLimit — the webhook post-response path (infra/post-response-tick)
- * reuses this exact tick with a small cap instead of duplicating the pipeline. */
+/** One worker tick: heartbeat → requeue expired leases → follow-up scan →
+ * claim → process → cleanup pass when due (F-06). The claim batch is
+ * overridable via deps.batchLimit — the webhook post-response path
+ * (infra/post-response-tick) reuses this exact tick with a small cap instead of
+ * duplicating the pipeline.
+ *
+ * The Phase-4 follow-up scan runs BEFORE the claim so the jobs it enqueues with
+ * `due_at = now()` are picked up by this very tick. It returns immediately —
+ * without a single query — while both flags are off (phase 4 §1). */
 export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   const sql = deps.sql ?? getSql();
   const transports: TickTransports = {
@@ -96,6 +125,11 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   `;
   const requeuedLeases = await requeueExpiredLeases(sql);
 
+  // Phase 4: called unconditionally unless the caller opts out; the flags are
+  // checked INSIDE (and only there) so the "off means no scan" rule has exactly
+  // one implementation.
+  const followup = deps.followupScan === false ? SKIPPED_FOLLOWUP_SCAN : await runFollowupScan(sql);
+
   const jobs = await claimJobs(sql, deps.batchLimit ?? BATCH_LIMIT);
   const results: TickReport['results'] = [];
   for (const job of jobs) {
@@ -107,7 +141,7 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   // job batch so a busy tick is never delayed by housekeeping.
   const cleanup = deps.cleanup === false ? null : await runCleanupIfDue({ sql });
 
-  return { heartbeat: true, requeuedLeases, claimed: jobs.length, results, cleanup };
+  return { heartbeat: true, requeuedLeases, claimed: jobs.length, results, cleanup, followup };
 }
 
 async function processJob(sql: Sql, transports: TickTransports, job: OutboxJobRow): Promise<string> {
@@ -158,6 +192,19 @@ async function processOutbound(sql: Sql, transports: TickTransports, job: Outbox
   if (!accountId) {
     if (!explicitChatId) return await suppress(sql, job, 'no_channel');
     return await sendTelegram(sql, transports.telegram, job, explicitChatId, text);
+  }
+
+  // Phase 4 kill switches, re-checked at SEND time. A flag that only stops NEW
+  // enqueues would leave yesterday's queue delivering, and an opt-in that only
+  // gates the scan would send a digest the recipient has already stopped — both
+  // reasons are recorded as their own suppression codes so the delivery_attempts
+  // trail says which gate closed.
+  if (isFlaggedKind(job.kind)) {
+    const enabled = job.kind === 'followup_reminder' ? followupRemindersEnabled() : digestEnabled();
+    if (!enabled) return await suppress(sql, job, 'feature_disabled');
+    if (!(await mechanicOptedIn(sql, accountId, job.kind))) {
+      return await suppress(sql, job, 'opt_in_withdrawn');
+    }
   }
 
   const enforceConsent = payload['enforce_consent'] === true && isConsentPurpose(job.purpose);
@@ -260,6 +307,15 @@ async function sendEmailWithJobText(
   if (job.kind === 'campaign_message') {
     subject = campaignEmailSubject(DEFAULT_LOCALE);
     body = typeof job.payload['text'] === 'string' ? (job.payload['text'] as string) : '';
+  } else if (isFlaggedKind(job.kind)) {
+    // Phase 4: the body of a reminder/digest is rendered at enqueue time by a
+    // PURE renderer whose input type is the whitelist (the recipient's own step
+    // text / goal, directory-visible names, the frozen v4 reasons) — there is no
+    // field through which a contact value or another person's private data could
+    // reach it, which is what lets the email channel carry the same body the
+    // Telegram channel sends instead of a second, thinner copy.
+    subject = job.kind === 'followup_reminder' ? reminderSubject(DEFAULT_LOCALE) : digestSubject(DEFAULT_LOCALE);
+    body = typeof job.payload['text'] === 'string' ? (job.payload['text'] as string) : '';
   } else if (isServiceNoticeKind(job.kind)) {
     // EN: WELCOME stores no per-account locale (cookie only) — see the module doc.
     const rendered = serviceNoticeEmail(job.kind, appBaseUrl(), DEFAULT_LOCALE);
@@ -294,6 +350,17 @@ function readConsentScope(payload: Record<string, unknown>): { scopeType: 'globa
     return { scopeType: 'event', scopeId: (scope as Record<string, unknown>)['id'] as string };
   }
   return { scopeType: 'global', scopeId: null };
+}
+
+/**
+ * Send-time opt-in check for the two Phase-4 kinds. The scan already gated on it,
+ * but an opt-out that lands between enqueue and send must stop the message — and
+ * the opt-out endpoint suppresses queued jobs too, so this is the second of the
+ * two independent guarantees (defence in depth, same as consent at send time).
+ */
+async function mechanicOptedIn(sql: Sql, accountId: string, kind: 'followup_reminder' | 'digest_weekly'): Promise<boolean> {
+  const state = await loadOptInState(sql, accountId);
+  return kind === 'followup_reminder' ? state.reminders : state.digest;
 }
 
 async function suppress(sql: Sql, job: OutboxJobRow, code: string): Promise<string> {
