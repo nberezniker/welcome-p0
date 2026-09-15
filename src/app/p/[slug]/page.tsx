@@ -12,7 +12,7 @@ import { linkHref, type LinkKind } from '../../../domain/links';
 import { labelsForIds, parseCatalog, type TaxonomyCatalog, type UiLocale } from '../../../domain/picker';
 import { taxonomyPayload } from '../../../domain/taxonomy';
 import { appBaseUrl } from '../../../lib/env';
-import { ShareButton } from './share-button';
+import { ShareLinks } from '../../../components/share-links';
 import { IntroCta, SignInCta } from './intro-cta';
 
 export const dynamic = 'force-dynamic';
@@ -29,12 +29,16 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const description = profile.headline
     ? t('pubcard.metaDescription', { headline: profile.headline })
     : (profile.short_bio ?? t('pubcard.title'));
+  // Canonical URL of the card: what a chat client shows under the preview and
+  // the URL the share deeplinks (src/domain/share.ts) carry.
+  const url = `${appBaseUrl().replace(/\/+$/, '')}/p/${profile.slug}`;
 
   return {
     title,
     description,
     robots: { index: false, follow: false },
-    openGraph: { title, description, type: 'profile' },
+    alternates: { canonical: url },
+    openGraph: { title, description, type: 'profile', url },
   };
 }
 
@@ -256,19 +260,28 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
         )}
 
         {/* QR + share + vCard */}
-        <div className="mt-6 flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center">
-          <ShareButton
+        <div className="mt-6 flex flex-col gap-3 border-t border-line pt-5">
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href={vcardUrl} prefetch={false} className="btn-light" data-testid="pubcard-vcard">
+              {t('pubcard.vcard')}
+            </Link>
+            <Link href={qrUrl} prefetch={false} className="btn-light">
+              {t('pubcard.qr')}
+            </Link>
+          </div>
+          <ShareLinks
             url={pageUrl}
             title={profile.display_name}
-            shareLabel={t('pubcard.share')}
-            copiedLabel={t('pubcard.linkCopied')}
+            testId="pubcard-share"
+            labels={{
+              linkedin: t('share.linkedin'),
+              whatsapp: t('share.whatsapp'),
+              telegram: t('share.telegram'),
+              x: t('share.x'),
+            }}
+            shareLabel={t('share.native')}
+            copiedLabel={t('share.copied')}
           />
-          <Link href={vcardUrl} prefetch={false} className="btn-light">
-            {t('pubcard.vcard')}
-          </Link>
-          <Link href={qrUrl} prefetch={false} className="btn-light">
-            {t('pubcard.qr')}
-          </Link>
         </div>
         {/* eslint-disable-next-line @next/next/no-img-element -- SVG endpoint, no optimizer pass-through needed */}
         <img src={qrUrl} alt={t('pubcard.qr')} width={160} height={160} className="mt-4 rounded-xl border border-line bg-white p-2" />

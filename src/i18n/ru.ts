@@ -873,8 +873,6 @@ export const ru: Partial<Dictionary> = {
   'pubcard.helpTitle': 'Чем могу помочь',
   'pubcard.interestsTitle': 'Интересы',
   'pubcard.expertise': 'Экспертиза',
-  'pubcard.share': 'Поделиться',
-  'pubcard.linkCopied': 'Ссылка скопирована',
   'pubcard.ctaIntro': 'Предложить знакомство',
   'pubcard.ctaIntroSent': 'Запрос отправлен',
   'pubcard.ctaIntroAlready': 'Запрос этому человеку уже отправлен',
@@ -955,4 +953,16 @@ export const ru: Partial<Dictionary> = {
   'providers.instagram.step1': 'Только диплинк-шэринг — без API и без парсинга.',
   'providers.x.step1': 'Только диплинк-шэринг — без API и без парсинга.',
   'providers.luma.step1': 'Ждём доступ к API Luma; после этого переменная LUMA_API_KEY включит импорт событий.',
+
+  // ── Шэринг и календарь ──
+  'share.label': 'Поделиться',
+  'share.native': 'Поделиться…',
+  'share.copied': 'Ссылка скопирована',
+  'share.linkedin': 'LinkedIn',
+  'share.whatsapp': 'WhatsApp',
+  'share.telegram': 'Telegram',
+  'share.x': 'X',
+  'event.addToCalendar': 'Добавить в календарь',
+  'event.addToGoogleCalendar': 'Google Calendar',
+  'event.calendarNoSchedule': 'Дата пока не задана — файл календаря появится, когда организатор её добавит.',
 };

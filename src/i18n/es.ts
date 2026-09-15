@@ -875,8 +875,6 @@ export const es: Partial<Dictionary> = {
   'pubcard.helpTitle': 'En qué puedo ayudar',
   'pubcard.interestsTitle': 'Intereses',
   'pubcard.expertise': 'Experiencia',
-  'pubcard.share': 'Compartir',
-  'pubcard.linkCopied': 'Enlace copiado',
   'pubcard.ctaIntro': 'Proponer un contacto',
   'pubcard.ctaIntroSent': 'Solicitud enviada',
   'pubcard.ctaIntroAlready': 'Ya tienes una solicitud con esta persona',
@@ -957,4 +955,16 @@ export const es: Partial<Dictionary> = {
   'providers.instagram.step1': 'Solo compartir enlace: sin API y sin scraping.',
   'providers.x.step1': 'Solo compartir enlace: sin API y sin scraping.',
   'providers.luma.step1': 'Esperando acceso a la API de Luma; entonces la variable LUMA_API_KEY activa la importación de eventos.',
+
+  // ── Compartir y calendario ──
+  'share.label': 'Compartir',
+  'share.native': 'Compartir…',
+  'share.copied': 'Enlace copiado',
+  'share.linkedin': 'LinkedIn',
+  'share.whatsapp': 'WhatsApp',
+  'share.telegram': 'Telegram',
+  'share.x': 'X',
+  'event.addToCalendar': 'Añadir al calendario',
+  'event.addToGoogleCalendar': 'Google Calendar',
+  'event.calendarNoSchedule': 'Aún no hay fecha: el archivo de calendario aparece cuando el organizador la añada.',
 };

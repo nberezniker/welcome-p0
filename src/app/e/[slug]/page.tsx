@@ -4,6 +4,9 @@ import { getSql } from '../../../lib/db';
 import { getT, type Locale } from '../../../i18n';
 import { loadEventView } from '../../../lib/event-view';
 import { getOptionalAccountId } from '../../../lib/session-page';
+import { appBaseUrl } from '../../../lib/env';
+import { googleCalendarUrl } from '../../../domain/ics';
+import { ShareLinks } from '../../../components/share-links';
 import JoinEventButton from './join-button';
 import EventMemberPanel from './member-panel';
 
@@ -100,6 +103,57 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
             </div>
           )}
         </dl>
+
+        {/* Calendar affordances: the .ics download is the file half of the
+            interop layer, the Google link the no-download half. Both exist only
+            when there is a schedule — a calendar entry without a time is a
+            lie. The room link is never part of either (src/domain/ics.ts). */}
+        {event.starts_at ? (
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <a
+              href={`/api/events/${encodeURIComponent(event.slug)}/ics`}
+              className="btn-light btn-small"
+              data-testid="event-ics"
+            >
+              {t('event.addToCalendar')}
+            </a>
+            <a
+              href={googleCalendarUrl({
+                name: event.name,
+                description: event.description,
+                locationLabel: event.location_label,
+                startsAt: new Date(event.starts_at),
+                endsAt: event.ends_at ? new Date(event.ends_at) : null,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-light btn-small"
+              data-testid="event-gcal"
+            >
+              {t('event.addToGoogleCalendar')}
+            </a>
+          </div>
+        ) : (
+          <p className="mt-3 text-xs text-muted" data-testid="event-no-schedule">
+            {t('event.calendarNoSchedule')}
+          </p>
+        )}
+
+        <div className="mt-3">
+          <ShareLinks
+            url={`${appBaseUrl().replace(/\/+$/, '')}/e/${event.slug}`}
+            title={event.name}
+            testId="event-share"
+            labels={{
+              linkedin: t('share.linkedin'),
+              whatsapp: t('share.whatsapp'),
+              telegram: t('share.telegram'),
+              x: t('share.x'),
+            }}
+            shareLabel={t('share.native')}
+            copiedLabel={t('share.copied')}
+          />
+        </div>
 
         {event.description && <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-ink">{event.description}</p>}
 

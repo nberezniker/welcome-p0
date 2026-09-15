@@ -890,8 +890,6 @@ export const en = {
   'pubcard.helpTitle': 'How I can help',
   'pubcard.interestsTitle': 'Interests',
   'pubcard.expertise': 'Expertise',
-  'pubcard.share': 'Share',
-  'pubcard.linkCopied': 'Link copied',
   'pubcard.ctaIntro': 'Propose an introduction',
   'pubcard.ctaIntroSent': 'Request sent',
   'pubcard.ctaIntroAlready': 'You already have a request with this person',
@@ -975,6 +973,20 @@ export const en = {
   'providers.instagram.step1': 'Link sharing only — no API and no scraping.',
   'providers.x.step1': 'Link sharing only — no API and no scraping.',
   'providers.luma.step1': 'Waiting for Luma API access; then the LUMA_API_KEY variable enables event import.',
+
+  // ── Sharing & calendar ──
+  // Deeplink labels for src/components/share-links.tsx; the calendar strings
+  // belong to the event page (src/app/e/[slug]).
+  'share.label': 'Share',
+  'share.native': 'Share…',
+  'share.copied': 'Link copied',
+  'share.linkedin': 'LinkedIn',
+  'share.whatsapp': 'WhatsApp',
+  'share.telegram': 'Telegram',
+  'share.x': 'X',
+  'event.addToCalendar': 'Add to calendar',
+  'event.addToGoogleCalendar': 'Google Calendar',
+  'event.calendarNoSchedule': 'No date set yet — the calendar file appears once the organizer adds one.',
 } as const;
 
 export type Dictionary = Record<keyof typeof en, string>;
