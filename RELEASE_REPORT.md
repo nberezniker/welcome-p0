@@ -215,3 +215,12 @@ Verified live (real API calls against prod, sessions via demo accounts):
 
 **Verification:** gates green (unit 366, integration 293, e2e 18 incl. axe, build, scan, drill); usage matrix 112 PASS / 0 FAIL / 1 SKIP live.
 **Deploy note:** migration 010 must be applied before this code (already applied to prod).
+
+## Phase 1 deployed: social interop + matching v4 — 2026-09-15
+
+- **Provider registry** (`/api/providers`, 15 providers; runtime statuses: telegram/email/vcard/csv live, 7 planned, 4 disabled) + **`/me/connections`** page with honest per-provider statuses, setup steps and "what we never do" notes.
+- **Interop affordances**: `.ics` calendar feed for events (text/calendar, no `online_link` leak), "Add to calendar" + Google Calendar template link, `.vcf` "Add to contacts" on the mini-landing, share deeplinks (X/WhatsApp/Telegram/LinkedIn) + `og:url`.
+- **Profile goals** (16-goal catalogue, ≤3, private) + **matching v4** (`welcome_usefulness_v4`): intentFit, interestOverlap, complementarity, goalAlignment, novelty, recency tie-breaker; 4 modes (`useful|grow|similar|explore`) and two-line reasons (`reasons_useful` / `reasons_growth`).
+- **Live verification**: `/api/providers` 200; ICS 200 with `Content-Type: text/calendar` and no leak; taxonomy v3 + 16 goals; `grow` mode returned a real recommendation with growth reasons (`can_teach`, `different_context`).
+- **Notes (honest)**: empty recommendations for the demo viewer are correct — every pair in the demo event already has an introduction (saturation), and one member has a membership-level interest override that removes the shared topic with the other. No defect.
+- Gates: unit 438, integration 322, e2e 24, build, scan — all green; usage matrix 123 checks / 0 FAIL / 1 SKIP.
