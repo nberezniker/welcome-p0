@@ -6,7 +6,9 @@ import {
   OG_IMAGE_SIZE,
   eventCardMarkup,
   hostFromBaseUrl,
+  landingCardMarkup,
   personCardMarkup,
+  type OgLandingCard,
   type OgPersonCard,
 } from '../../src/lib/og-card';
 
@@ -69,6 +71,73 @@ test('event card: an undated event renders its title alone', () => {
   const out = html(eventCardMarkup({ title: 'Undated Meetup', when: null, place: null }));
   assert.match(out, /Undated Meetup/);
   assert.doesNotMatch(out, /18:00/);
+});
+
+test('landing card: renders the headline, the qualifying line and the site host', () => {
+  const out = html(
+    landingCardMarkup({
+      headline: 'One QR for the people you meet',
+      body: 'A permanent profile with a reusable QR. Contacts open only when both sides agree.',
+      host: HOST,
+    }),
+  );
+  assert.match(out, /One QR for the people you meet/);
+  assert.match(out, /Contacts open only when both sides agree/);
+  assert.match(out, /welcome\.colmogravity\.net/);
+  assert.match(out, /WELCOME/);
+});
+
+test('landing card: a headline without a body renders alone', () => {
+  const out = html(landingCardMarkup({ headline: 'One QR', body: null }));
+  assert.match(out, /One QR/);
+  // Nothing invented for the absent line, and no empty footer either.
+  assert.doesNotMatch(out, /welcome\.colmogravity\.net/);
+});
+
+test('landing card: the copy is escaped and elided like every other card', () => {
+  const long = 'О'.repeat(120);
+  const out = html(landingCardMarkup({ headline: '<b>One QR</b>', body: long, host: HOST }));
+  assert.match(out, /&lt;b&gt;One QR&lt;\/b&gt;/);
+  assert.doesNotMatch(out, new RegExp(long));
+  assert.match(out, /…/);
+  assert.match(out, /welcome\.colmogravity\.net/, 'the footer survives over-long copy');
+});
+
+test('honesty: the landing card type has no slot for a claim it cannot support', () => {
+  // The landing is the one preview with no user data in it; the narrow type is
+  // what keeps it honest (spec §7): a traffic number, a logo wall or a
+  // customer quote cannot be passed in without changing this interface first.
+  void (
+    // @ts-expect-error — no slot for a traction number
+    landingCardMarkup({ headline: 'One QR', users: '10,000 members' })
+  );
+  void (
+    // @ts-expect-error — no slot for a logo wall
+    landingCardMarkup({ headline: 'One QR', logos: ['Acme', 'Globex'] })
+  );
+  void (
+    // @ts-expect-error — no slot for a testimonial
+    landingCardMarkup({ headline: 'One QR', quote: '"Changed my life" — someone' })
+  );
+});
+
+test('honesty: extra keys on a wider object never reach the landing markup', () => {
+  const wide = {
+    headline: 'One QR for the people you meet',
+    body: 'A permanent profile with a reusable QR.',
+    host: HOST,
+    // None of this may appear in a public marketing image.
+    benchmark: '40% more meetings',
+    goal: 'Raise a Series A round',
+    email: 'olga@example.org',
+    online_link: 'https://meet.example/room-secret',
+  } as unknown as OgLandingCard;
+
+  const out = html(landingCardMarkup(wide));
+  assert.match(out, /One QR for the people you meet/);
+  for (const leak of ['40% more meetings', 'Series A', 'olga@example.org', 'room-secret']) {
+    assert.doesNotMatch(out, new RegExp(leak.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `${leak} leaked`);
+  }
 });
 
 test('cards: long values are elided, so the footer cannot be pushed off', () => {

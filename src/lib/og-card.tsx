@@ -1,12 +1,12 @@
 import type { ReactElement } from 'react';
 
 /**
- * Markup for the public preview cards behind /p/[slug]/opengraph-image and
- * /e/[slug]/opengraph-image.
+ * Markup for the public preview cards behind /opengraph-image,
+ * /p/[slug]/opengraph-image and /e/[slug]/opengraph-image.
  *
  * Two rules shape this module:
  *
- * 1. PRIVACY BY TYPE. Both builders take a narrow input — the exact list of
+ * 1. PRIVACY BY TYPE. Each builder takes a narrow input — the exact list of
  *    values a public preview is allowed to render. A private field (a goal, a
  *    contact value, the event `online_link`, attendance or consent state) has no
  *    slot, so passing one in is a compile error at the call site; and because
@@ -14,8 +14,8 @@ import type { ReactElement } from 'react';
  *    walk its keys), a value arriving through a wider object at runtime cannot
  *    reach the markup either. The OG routes feed these builders from the same
  *    public projections the pages use (src/lib/public-profile.ts,
- *    src/lib/event-view.ts), so "what the page shows" and "what the preview
- *    shows" cannot drift apart.
+ *    src/lib/event-view.ts, the landing dictionary), so "what the page shows"
+ *    and "what the preview shows" cannot drift apart.
  *
  * 2. NO BROWSER, NO CASCADE. next/og renders through satori: flexbox only, no
  *    CSS cascade, no variables. Hence literal colours (mirroring the @theme
@@ -24,7 +24,7 @@ import type { ReactElement } from 'react';
  *    over-long value would push the footer off a fixed 1200×630 canvas.
  */
 
-/** Fixed canvas of both preview routes (re-exported as their `size`). */
+/** Fixed canvas of every preview route (re-exported as their `size`). */
 export const OG_IMAGE_SIZE = { width: 1200, height: 630 } as const;
 
 const INK = '#18241f';
@@ -61,6 +61,20 @@ export interface OgEventCard {
   readonly title: string;
   readonly when?: string | null;
   readonly place?: string | null;
+  readonly host?: string | null;
+}
+
+/**
+ * The landing card. It carries no user data at all, so the narrow type is not
+ * about privacy here but about honesty (spec §7): the route feeds it the two
+ * strings the page's own share metadata advertises — the same dictionary keys —
+ * so the image can never make a claim the unfurled link does not. There is no
+ * slot for a metric, a logo or a testimonial, which means someone has to change
+ * this interface on purpose before the product can overstate itself in a chat.
+ */
+export interface OgLandingCard {
+  readonly headline: string;
+  readonly body?: string | null;
   readonly host?: string | null;
 }
 
@@ -169,6 +183,28 @@ export function eventCardMarkup(card: OgEventCard): ReactElement {
       {place ? (
         <div style={{ display: 'flex', fontSize: 28, fontWeight: 600, marginTop: 10 }}>
           {elide(place, MAX_LINE_CHARS)}
+        </div>
+      ) : null}
+    </div>,
+    filled(card.host),
+  );
+}
+
+/**
+ * Body of a landing preview: the promise, then the sentence that qualifies it.
+ * The largest type of the three cards — this is the one image a visitor sees
+ * before knowing what the product is.
+ */
+export function landingCardMarkup(card: OgLandingCard): ReactElement {
+  const body = filled(card.body);
+  return cardFrame(
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', fontSize: 76, fontWeight: 800, lineHeight: 1.15 }}>
+        {elide(card.headline, MAX_TITLE_CHARS)}
+      </div>
+      {body ? (
+        <div style={{ display: 'flex', fontSize: 34, color: MUTED, marginTop: 18 }}>
+          {elide(body, MAX_LINE_CHARS)}
         </div>
       ) : null}
     </div>,

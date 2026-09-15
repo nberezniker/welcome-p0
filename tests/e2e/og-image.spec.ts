@@ -18,6 +18,10 @@ const ONLINE_LINK = 'https://meet.example/og-room-secret';
 const MIN_IMAGE_BYTES = 10_000;
 const PNG_MAGIC = '89504e470d0a1a0a';
 
+function countOf(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
 async function waitHydrated(page: Page) {
   await expect(page.locator('html[data-hydrated="true"]')).toBeAttached({ timeout: 30_000 });
 }
@@ -68,6 +72,84 @@ async function ogImageUrl(page: Page): Promise<string> {
   return content ?? '';
 }
 
+test('og: the marketing landing declares a full share card anyone can fetch', async ({ page }) => {
+  // Before this change / emitted a title and a meta description and nothing
+  // else, so pasting the product link into a chat produced an empty preview on
+  // the page the product is actually shared with people.
+  const res = await page.goto('/?lang=en');
+  expect(res?.status()).toBe(200);
+  await waitHydrated(page);
+
+  const origin = new URL(page.url()).origin;
+
+  // The advertised URL is this origin — the canonical one — for both the link
+  // and the tag, not the deployment host.
+  const canonical = await page.locator('link[rel="canonical"]').getAttribute('href');
+  const ogUrl = await page.locator('meta[property="og:url"]').getAttribute('content');
+  expect(canonical).toBeTruthy();
+  expect(ogUrl).toBeTruthy();
+  expect(new URL(canonical ?? '').origin).toBe(origin);
+  expect(new URL(ogUrl ?? '').origin).toBe(origin);
+  await expect(page.locator('meta[property="og:site_name"]')).toHaveAttribute('content', 'WELCOME');
+  await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'website');
+  await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute('content', 'summary_large_image');
+
+  const ogTitle = (await page.locator('meta[property="og:title"]').getAttribute('content')) ?? '';
+  const ogDescription = (await page.locator('meta[property="og:description"]').getAttribute('content')) ?? '';
+  const twitterTitle = (await page.locator('meta[name="twitter:title"]').getAttribute('content')) ?? '';
+  expect(ogTitle.trim().length).toBeGreaterThan(0);
+  expect(ogDescription.trim().length).toBeGreaterThan(0);
+  expect(twitterTitle).toBe(ogTitle);
+  await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute('content', ogDescription);
+  expect(await page.title()).toBe(`${ogTitle} · WELCOME`);
+
+  // The share copy is the product promise, not a claim (spec §7): no traction
+  // number, no benchmark, no percentage can pass this line.
+  for (const claim of [ogTitle, ogDescription]) {
+    expect(claim, claim).not.toMatch(/\d|%/);
+  }
+
+  const imageUrl = await ogImageUrl(page);
+  expect(new URL(imageUrl).pathname).toBe('/opengraph-image');
+  await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
+  await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute('content', '630');
+  const alt = await page.locator('meta[property="og:image:alt"]').getAttribute('content');
+  expect(alt?.trim().length ?? 0).toBeGreaterThan(0);
+
+  await expectPublicImage(imageUrl);
+});
+
+test('og: the landing preview follows the locale the page resolved', async ({ page }) => {
+  // The page renders in `?lang=ru`; the unfurl beside it must not stay English.
+  await page.goto('/?lang=ru');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'ru');
+  const ruTitle = (await page.locator('meta[property="og:title"]').getAttribute('content')) ?? '';
+  expect(ruTitle).toMatch(/\p{Script=Cyrillic}/u);
+
+  await page.goto('/?lang=en');
+  const enTitle = (await page.locator('meta[property="og:title"]').getAttribute('content')) ?? '';
+  expect(enTitle.length).toBeGreaterThan(0);
+  expect(enTitle).not.toBe(ruTitle);
+
+  // The image is the third surface of the same copy. It is opaque PNG bytes, so
+  // what is asserted is that the card really is rendered per locale: the ru card
+  // and the en card are different images. The cookie is the one `?lang=` set, so
+  // this is also the path a crawler with a stored preference takes.
+  const imagePath = new URL(await ogImageUrl(page)).pathname;
+  const enCard = await page.request.get(imagePath);
+  expect(enCard.status()).toBe(200);
+  const enBytes = await enCard.body();
+
+  await page.goto('/?lang=ru');
+  const ruCard = await page.request.get(imagePath);
+  expect(ruCard.status()).toBe(200);
+  const ruBytes = await ruCard.body();
+
+  expect(enBytes.byteLength).toBeGreaterThan(MIN_IMAGE_BYTES);
+  expect(ruBytes.byteLength).toBeGreaterThan(MIN_IMAGE_BYTES);
+  expect(ruBytes.equals(enBytes), 'the ru preview must not be the en card').toBe(false);
+});
+
 test('og: the public card ships a share image anyone can fetch', async ({ page }) => {
   await loginViaOtp(page, EMAIL);
   await page.goto('/me/profile');
@@ -114,6 +196,15 @@ test('og: the event page carries a title, a canonical url and its own share imag
 
   await page.goto(`/e/${EVENT_SLUG}`);
   await waitHydrated(page);
+
+  // This event starts and ends on one Madrid day, so the schedule prints the
+  // date once (Issue: the date printed twice — most visibly in the one-line
+  // preview image). Same formatter, same string, as the page asserts here.
+  const when = ((await page.getByTestId('event-when').textContent()) ?? '').trim();
+  expect(countOf(when, 'Jun 2031'), `date repeated in: ${when}`).toBe(1);
+  expect(countOf(when, '–'), `not a compact range: ${when}`).toBe(1);
+  expect(when, `full form still used: ${when}`).not.toContain(' — ');
+  expect(when.match(/\d{1,2}:\d{2}/g) ?? [], `two times expected in: ${when}`).toHaveLength(2);
 
   // Before this change the event page had no OG metadata at all (a shared link
   // unfurled as a bare "Event"); now it mirrors the card.

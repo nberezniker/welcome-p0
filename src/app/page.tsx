@@ -1,12 +1,26 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getT } from '../i18n';
+import { appBaseUrl } from '../lib/env';
+import { landingShareMetadata } from '../lib/share-meta';
 import { getOptionalAccountId } from '../lib/session-page';
 import { SiteHeader, SiteFooter } from '../components/site-chrome';
 import { FooterLocaleLinks } from '../components/footer-locale-links';
 
-export const metadata = {
-  robots: { index: true, follow: true },
-};
+/**
+ * Share metadata for the marketing page. The copy is read per request so the
+ * unfurl speaks the locale this render resolved (`?lang=` → cookie → English),
+ * the same resolution the page above uses; the title and description are the
+ * very strings the preview image renders (src/app/opengraph-image.tsx), so a
+ * pasted link and the picture beside it cannot promise different things.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getT();
+  return landingShareMetadata(
+    { title: t('landing.metaTitle'), description: t('landing.metaDescription') },
+    appBaseUrl(),
+  );
+}
 
 /** Pilot contact address: a human inbox, not a form (content guardrail §7). */
 const PILOT_MAILTO = 'mailto:nberezniker@gmail.com?subject=WELCOME%20pilot';

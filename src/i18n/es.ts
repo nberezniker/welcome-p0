@@ -55,6 +55,9 @@ export const es: Partial<Dictionary> = {
   'locale.es': 'ES',
 
   // ── Landing ───────────────────────────────────────────────────────────────
+  'landing.metaTitle': 'Un QR para las personas que conoces',
+  'landing.metaDescription':
+    'Un perfil permanente con un QR reutilizable. Los contactos se abren con acuerdo mutuo.',
   'landing.eyebrow': 'La reunión es solo el principio',
   'landing.titleLine1': 'Un QR.',
   'landing.titleLine2': 'Nuevos contactos.',

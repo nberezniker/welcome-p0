@@ -99,7 +99,9 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           {event.starts_at && (
             <div>
               <dt className="inline font-semibold text-ink">{t('event.timeTitle')}: </dt>
-              <dd className="inline">
+              {/* The very string the preview image renders (src/lib/event-time.ts);
+                  the testid is how the e2e reads the schedule it formats. */}
+              <dd className="inline" data-testid="event-when">
                 {formatEventWhen(
                   new Date(event.starts_at),
                   event.ends_at ? new Date(event.ends_at) : null,

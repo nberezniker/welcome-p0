@@ -36,6 +36,9 @@ const WARMUP_PATHS = [
   '/organizer/events/00000000-0000-0000-0000-000000000000/badges',
   // Preview images (og-image.spec.ts). A missing slug 404s, which still proves
   // the route compiled — and image generation is the slowest path in the suite.
+  // The landing card is the slowest of the three to compile and the one the
+  // chat-preview spec fetches first.
+  '/opengraph-image',
   '/p/00000000-0000-0000-0000-000000000000/opengraph-image',
   '/e/00000000-0000-0000-0000-000000000000/opengraph-image',
 ];

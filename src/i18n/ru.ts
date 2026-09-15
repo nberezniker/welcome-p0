@@ -55,6 +55,9 @@ export const ru: Partial<Dictionary> = {
   'locale.es': 'ES',
 
   // ── Landing ───────────────────────────────────────────────────────────────
+  'landing.metaTitle': 'Один QR для тех, с кем вы познакомились',
+  'landing.metaDescription':
+    'Постоянный профиль с многоразовым QR. Контакты открываются только по взаимному согласию.',
   'landing.eyebrow': 'Встреча — только начало',
   'landing.titleLine1': 'Один QR.',
   'landing.titleLine2': 'Новые знакомства.',

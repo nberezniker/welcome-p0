@@ -67,6 +67,13 @@ export const en = {
   'locale.es': 'ES',
 
   // ── Landing ───────────────────────────────────────────────────────────────
+  // The two share strings below are read twice: once as the page's metadata and
+  // once as the text of its preview image (src/app/opengraph-image.tsx). Keep
+  // them a statement the page itself supports — no traction, no logos, no
+  // benchmarks (spec §7) — and keep them short: the image is one line.
+  'landing.metaTitle': 'One QR for the people you meet',
+  'landing.metaDescription':
+    'A permanent profile with a reusable QR. Contacts open only when both sides agree.',
   'landing.eyebrow': 'The meeting is only the beginning',
   'landing.titleLine1': 'One QR.',
   'landing.titleLine2': 'New acquaintances.',

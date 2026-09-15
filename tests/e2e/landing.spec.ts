@@ -86,9 +86,17 @@ test('landing (EN): all sections, heading order, honest CTAs and status', async 
   await expect(page.getByRole('status')).toContainText('P0 build');
   await expect(page.locator('footer')).toContainText('staging pending');
 
-  // No external images or fonts — the page ships only its own assets.
+  // No external images or fonts — the page ships only its own assets. Absolute
+  // links are allowed as long as they are the page's OWN origin: the canonical
+  // URL of the share metadata is absolute by definition, while a CDN stylesheet,
+  // font or preconnect from a third party still fails here.
   await expect(page.locator('img[src^="http"]')).toHaveCount(0);
-  await expect(page.locator('link[href^="http"]')).toHaveCount(0);
+  const foreignLinks = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('link[href^="http"]'))
+      .map((el) => (el as HTMLLinkElement).href)
+      .filter((href) => new URL(href).origin !== location.origin),
+  );
+  expect(foreignLinks).toEqual([]);
 
   // Semantic structure: one h1, then no skipped heading levels.
   const levels = await headingLevels(page);
