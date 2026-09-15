@@ -20,8 +20,8 @@ import { es } from '../../src/i18n/es';
 const EXPECTED_ROWS = [
   { id: 'telegram', kind: 'channel', auth: 'bot', capabilities: ['send', 'receive', 'deeplink'], direction: 'both', status: 'live', reason_code: null, env: ['TELEGRAM_BOT_TOKEN'] },
   { id: 'email', kind: 'channel', auth: 'api-key', capabilities: ['send'], direction: 'out', status: 'live', reason_code: null, env: ['RESEND_API_KEY'] },
-  { id: 'vcard', kind: 'contacts', auth: 'none', capabilities: ['import', 'export'], direction: 'both', status: 'live', reason_code: null, env: [] },
-  { id: 'csv', kind: 'contacts', auth: 'none', capabilities: ['import', 'export'], direction: 'both', status: 'live', reason_code: null, env: [] },
+  { id: 'vcard', kind: 'contacts', auth: 'none', capabilities: ['import', 'export', 'match'], direction: 'both', status: 'live', reason_code: null, env: [] },
+  { id: 'csv', kind: 'contacts', auth: 'none', capabilities: ['import', 'export', 'match'], direction: 'both', status: 'live', reason_code: null, env: [] },
   { id: 'ics', kind: 'calendar', auth: 'none', capabilities: ['export', 'deeplink'], direction: 'out', status: 'planned', reason_code: 'not_implemented', env: [] },
   { id: 'share-deeplinks', kind: 'publish', auth: 'none', capabilities: ['publish'], direction: 'out', status: 'planned', reason_code: 'not_implemented', env: [] },
   { id: 'google-contacts', kind: 'contacts', auth: 'oauth', capabilities: ['import', 'export'], direction: 'both', status: 'planned', reason_code: 'needs_oauth_client', env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'] },

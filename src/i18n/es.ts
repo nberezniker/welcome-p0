@@ -937,8 +937,10 @@ export const es: Partial<Dictionary> = {
   'providers.telegram.step2': 'Vincula tu cuenta desde la página de Telegram con un código de un solo uso: opcional, en ambos sentidos.',
   'providers.email.step1': 'Crea una clave de Resend y ponla en la variable RESEND_API_KEY.',
   'providers.email.step2': 'Verifica un dominio de envío: sin él solo recibe correo la dirección del propietario.',
-  'providers.vcard.step1': 'Abre tu tarjeta y pulsa «Añadir a contactos»: se descarga el .vcf, sin clave.',
-  'providers.csv.step1': 'El organizador exporta la lista de participantes en CSV; cada línea importada se confirma a mano.',
+  'providers.vcard.step1':
+    'Abre tu tarjeta y pulsa «Añadir a contactos»: se descarga el .vcf, sin clave. La dirección inversa tampoco necesita clave: «Importar tus contactos» acepta una libreta (.vcf).',
+  'providers.csv.step1':
+    'El organizador exporta la lista de participantes en CSV; cada línea importada se confirma a mano. Tu propia libreta se puede importar como CSV en «Importar tus contactos».',
   'providers.ics.step1': 'Previsto: descarga .ics y enlaces «añadir al calendario» en la página del evento.',
   'providers.share-deeplinks.step1': 'Previsto: compartir una tarjeta en X, WhatsApp, Telegram o LinkedIn como enlace.',
   'providers.google-contacts.step1': 'Crea un cliente OAuth en Google Cloud y define GOOGLE_OAUTH_CLIENT_ID y GOOGLE_OAUTH_CLIENT_SECRET.',
@@ -1072,9 +1074,11 @@ export const es: Partial<Dictionary> = {
   'providers.email.title': 'Correo',
   'providers.email.description': 'Códigos de acceso y avisos de servicio a través de Resend.',
   'providers.vcard.title': 'vCard (.vcf)',
-  'providers.vcard.description': 'Descarga tu tarjeta como .vcf y añádela a cualquier libreta de direcciones.',
+  'providers.vcard.description':
+    'Descarga tu tarjeta como .vcf y añádela a cualquier libreta — o importa una libreta y mira quién de ella ya está aquí.',
   'providers.csv.title': 'CSV',
-  'providers.csv.description': 'El organizador importa una lista de participantes y exporta la suya.',
+  'providers.csv.description':
+    'El organizador importa una lista de participantes y exporta la suya; tu propia libreta (CSV) se puede comparar con WELCOME.',
   'providers.ics.title': 'Archivo de calendario (.ics)',
   'providers.ics.description': 'Abre un evento en cualquier calendario o añádelo a Google Calendar con un enlace.',
   'providers.share-deeplinks.title': 'Enlaces para compartir',

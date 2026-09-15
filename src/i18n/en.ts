@@ -955,8 +955,10 @@ export const en = {
   'providers.telegram.step2': 'Bind your account from the Telegram page with a one-time code — opt-in, both directions.',
   'providers.email.step1': 'Create a Resend key and put it in the RESEND_API_KEY variable.',
   'providers.email.step2': 'Verify a sending domain — without it only the owner address can receive mail.',
-  'providers.vcard.step1': 'Open your card and press "Add to contacts" — the .vcf downloads, no key needed.',
-  'providers.csv.step1': 'Organizers export a participant list as CSV; every imported line is confirmed by hand.',
+  'providers.vcard.step1':
+    'Open your card and press "Add to contacts" — the .vcf downloads, no key needed. The other direction works without a key too: "Import your contacts" below an address book (.vcf).',
+  'providers.csv.step1':
+    'Organizers export a participant list as CSV; every imported line is confirmed by hand. Your own address book can be imported as CSV under "Import your contacts".',
   'providers.ics.step1': 'Planned: an .ics download and "add to calendar" links on the event page.',
   'providers.share-deeplinks.step1': 'Planned: share a card to X, WhatsApp, Telegram or LinkedIn as a plain link.',
   'providers.google-contacts.step1': 'Create an OAuth client in Google Cloud and set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET.',
@@ -1092,9 +1094,11 @@ export const en = {
   'providers.email.title': 'Email',
   'providers.email.description': 'Sign-in codes and service notices through Resend.',
   'providers.vcard.title': 'vCard (.vcf)',
-  'providers.vcard.description': 'Download your card as a .vcf and add it to any address book.',
+  'providers.vcard.description':
+    'Download your card as a .vcf and add it to any address book — or import an address book and see who of it is already here.',
   'providers.csv.title': 'CSV',
-  'providers.csv.description': 'Organizers import a participant list and export their own.',
+  'providers.csv.description':
+    'Organizers import a participant list and export their own; your own address book (CSV) can be matched against WELCOME.',
   'providers.ics.title': 'Calendar file (.ics)',
   'providers.ics.description': 'Open an event in any calendar app, or add it to Google Calendar with one link.',
   'providers.share-deeplinks.title': 'Share links',

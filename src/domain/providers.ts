@@ -37,6 +37,10 @@
  *   4. The §A3 "Microsoft People/Calendar" row covers two kinds; the contract's
  *      `kind` is single-valued, so the row is registered as `contacts`
  *      (People API) with the calendar half documented as Phase 2 work.
+ *   5. `ProviderCapability` gains `'match'` — "find who of my contacts is
+ *      already here", the one thing an address book can do without any OAuth
+ *      client (POST /api/me/contacts/import). It is neither inbound nor
+ *      outbound data flow, so it does not enter the `direction` reading below.
  */
 
 import type { DictKey } from '../i18n/en';
@@ -64,7 +68,7 @@ export type ProviderKind = 'channel' | 'contacts' | 'calendar' | 'directory' | '
 /** `deeplink` = no API, the user's own click carries the action (see header). */
 export type ProviderAuth = 'oauth' | 'bot' | 'api-key' | 'none' | 'deeplink';
 
-export type ProviderCapability = 'send' | 'receive' | 'import' | 'export' | 'publish' | 'deeplink';
+export type ProviderCapability = 'send' | 'receive' | 'import' | 'export' | 'publish' | 'deeplink' | 'match';
 
 export type ProviderDirection = 'out' | 'in' | 'both';
 
@@ -107,7 +111,9 @@ export interface Provider {
 
 /**
  * §A3 rows, in table order. `direction` is the table's capability set read as a
- * data flow (send/publish/export/deeplink → out, receive/import → in).
+ * data flow (send/publish/export/deeplink → out, receive/import → in); `match`
+ * moves no data either way — it answers a question about the address book the
+ * user already owns — so it never decides a direction.
  */
 export const PROVIDERS: readonly Provider[] = Object.freeze([
   {
@@ -134,7 +140,7 @@ export const PROVIDERS: readonly Provider[] = Object.freeze([
     id: 'vcard',
     kind: 'contacts',
     auth: 'none',
-    capabilities: ['import', 'export'],
+    capabilities: ['import', 'export', 'match'],
     direction: 'both',
     status: 'live',
     reason_code: null,
@@ -144,7 +150,7 @@ export const PROVIDERS: readonly Provider[] = Object.freeze([
     id: 'csv',
     kind: 'contacts',
     auth: 'none',
-    capabilities: ['import', 'export'],
+    capabilities: ['import', 'export', 'match'],
     direction: 'both',
     status: 'live',
     reason_code: null,

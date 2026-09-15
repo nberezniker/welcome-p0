@@ -140,6 +140,11 @@ type Provider = {
 5. Google Contacts (People API): импорт «кто уже здесь» и экспорт выбранных контактов.
 6. Google Calendar / Microsoft Graph: встреча по итогам знакомства.
 
+Пошаговая инструкция для владельца (consent screen, scopes, redirect URIs, имена переменных):
+[GOOGLE_OAUTH_SETUP.md](GOOGLE_OAUTH_SETUP.md). До этих креденшелов «кто уже здесь» уже
+отвечает импорт адресной книги (.vcf/CSV) без OAuth — см. §A3 строки vcard/csv, capability
+`match`.
+
 **Фаза 3 — по решению владельца**
 7. WhatsApp Business API (если нужен реальный канал), LinkedIn OIDC (базовый), Luma API.
 

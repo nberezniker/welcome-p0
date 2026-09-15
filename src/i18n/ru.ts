@@ -935,8 +935,10 @@ export const ru: Partial<Dictionary> = {
   'providers.telegram.step2': 'Привяжите аккаунт на странице Telegram одноразовым кодом — по согласию, в обе стороны.',
   'providers.email.step1': 'Создайте ключ Resend и положите его в переменную RESEND_API_KEY.',
   'providers.email.step2': 'Подтвердите домен отправки — без него письма дойдут только на адрес владельца.',
-  'providers.vcard.step1': 'Откройте свою карточку и нажмите «Добавить в контакты» — .vcf скачается, ключ не нужен.',
-  'providers.csv.step1': 'Организатор выгружает список участников в CSV; каждая импортированная строка подтверждается вручную.',
+  'providers.vcard.step1':
+    'Откройте свою карточку и нажмите «Добавить в контакты» — .vcf скачается, ключ не нужен. Обратное направление тоже без ключа: «Импорт контактов» ниже принимает адресную книгу (.vcf).',
+  'providers.csv.step1':
+    'Организатор выгружает список участников в CSV; каждая импортированная строка подтверждается вручную. Свою адресную книгу можно загрузить как CSV — в «Импорте контактов».',
   'providers.ics.step1': 'В планах: скачивание .ics и ссылки «добавить в календарь» на странице события.',
   'providers.share-deeplinks.step1': 'В планах: поделиться карточкой в X, WhatsApp, Telegram или LinkedIn обычной ссылкой.',
   'providers.google-contacts.step1': 'Создайте OAuth-клиент в Google Cloud и задайте GOOGLE_OAUTH_CLIENT_ID и GOOGLE_OAUTH_CLIENT_SECRET.',
@@ -1070,9 +1072,11 @@ export const ru: Partial<Dictionary> = {
   'providers.email.title': 'Почта',
   'providers.email.description': 'Коды входа и сервисные уведомления через Resend.',
   'providers.vcard.title': 'vCard (.vcf)',
-  'providers.vcard.description': 'Скачать карточку файлом .vcf и добавить в любую адресную книгу.',
+  'providers.vcard.description':
+    'Скачать карточку файлом .vcf и добавить в любую адресную книгу — или импортировать книгу и увидеть, кто из неё уже здесь.',
   'providers.csv.title': 'CSV',
-  'providers.csv.description': 'Организатор импортирует список участников и выгружает свой.',
+  'providers.csv.description':
+    'Организатор импортирует список участников и выгружает свой; свою адресную книгу (CSV) можно сверить с WELCOME.',
   'providers.ics.title': 'Файл календаря (.ics)',
   'providers.ics.description': 'Открыть событие в любом календаре или добавить в Google Calendar одной ссылкой.',
   'providers.share-deeplinks.title': 'Ссылки «поделиться»',
