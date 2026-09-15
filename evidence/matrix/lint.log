@@ -1,5 +1,6 @@
-$ pnpm lint
-
+== pnpm lint exit=0 duration=9s ==
 > welcome-p0@0.1.0 lint /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
 > eslint .
+
+
 

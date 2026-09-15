@@ -1,22 +1,21 @@
-$ pnpm build
-
+== pnpm build exit=0 duration=12s ==
 > welcome-p0@0.1.0 build /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
 > next build
 
 ▲ Next.js 16.3.4 (Turbopack)
 - Environments: .env.local
-✓ Running next.config.ts took 28ms
+✓ Running next.config.ts took 45ms
 
   Creating an optimized production build ...
-✓ Compiled successfully in 1971ms
+✓ Compiled successfully in 2.1s
   Running TypeScript ...
-  Finished TypeScript in 5.7s ...
+  Finished TypeScript in 6.5s ...
   Collecting page data using 9 workers ...
-  Generating static pages using 9 workers (0/33) ...
-  Generating static pages using 9 workers (8/33) 
-  Generating static pages using 9 workers (16/33) 
-  Generating static pages using 9 workers (24/33) 
-✓ Generating static pages using 9 workers (33/33) in 186ms
+  Generating static pages using 9 workers (0/34) ...
+  Generating static pages using 9 workers (8/34) 
+  Generating static pages using 9 workers (16/34) 
+  Generating static pages using 9 workers (25/34) 
+✓ Generating static pages using 9 workers (34/34) in 184ms
   Finalizing page optimization ...
 
 Route (app)
@@ -36,6 +35,7 @@ Route (app)
 ├ ƒ /api/consents/revoke
 ├ ƒ /api/events/[eventIdOrSlug]
 ├ ƒ /api/events/[eventIdOrSlug]/directory
+├ ƒ /api/events/[eventIdOrSlug]/ics
 ├ ƒ /api/events/[eventIdOrSlug]/imports
 ├ ƒ /api/events/[eventIdOrSlug]/join
 ├ ƒ /api/events/[eventIdOrSlug]/recommendations
@@ -47,6 +47,7 @@ Route (app)
 ├ ƒ /api/locale
 ├ ƒ /api/me
 ├ ƒ /api/me/contacts
+├ ƒ /api/me/contacts/import
 ├ ƒ /api/me/enrich
 ├ ƒ /api/me/export
 ├ ƒ /api/me/memberships/[membershipId]
@@ -71,6 +72,7 @@ Route (app)
 ├ ƒ /api/organizer/events/[eventId]/export
 ├ ƒ /api/organizer/events/[eventId]/registrations/[registrationId]/invite
 ├ ƒ /api/organizer/events/[eventId]/settings
+├ ƒ /api/providers
 ├ ƒ /api/public/profiles/[slug]
 ├ ƒ /api/public/profiles/[slug]/qr.svg
 ├ ƒ /api/public/profiles/[slug]/vcard
@@ -84,6 +86,7 @@ Route (app)
 ├ ƒ /legal/terms
 ├ ƒ /login
 ├ ƒ /me
+├ ƒ /me/connections
 ├ ƒ /me/contacts
 ├ ƒ /me/events
 ├ ƒ /me/events/[eventId]/directory
@@ -105,4 +108,6 @@ Route (app)
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
+
+
 

@@ -1,6 +1,6 @@
 {
-  "run_at": "2026-09-14T23:57:14.482Z",
-  "commit": "6acde68",
+  "run_at": "2026-09-15T11:51:39.435Z",
+  "commit": "14ac172",
   "command": "pnpm typecheck && pnpm lint && pnpm test:unit && pnpm test:integration && pnpm test:e2e && pnpm build && pnpm scan:secrets",
   "note": "All gates run fresh and sequentially on this tree; raw output per gate in evidence/matrix/*.log. Worktree was DIRTY at capture time (artifacts below may not match this commit).",
   "all_green": true,
@@ -21,25 +21,25 @@
       "id": "test:unit",
       "command": "pnpm test:unit",
       "exit": 0,
-      "summary": "366 pass / 0 fail (node --test + tsx, 366 tests)"
+      "summary": "459 pass / 0 fail (node --test + tsx, 459 tests)"
     },
     {
       "id": "test:integration",
       "command": "pnpm test:integration",
       "exit": 0,
-      "summary": "293 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–010)"
+      "summary": "330 pass / 0 fail / 1 skipped (сброс welcome_test + миграции 001–011)"
     },
     {
       "id": "test:e2e",
       "command": "pnpm test:e2e",
       "exit": 0,
-      "summary": "18 passed (55.3s) (Playwright chromium, next dev :3111, welcome_e2e + axe a11y)"
+      "summary": "26 passed (1.2m) (Playwright chromium, next dev :3111, welcome_e2e + axe a11y)"
     },
     {
       "id": "build",
       "command": "pnpm build",
       "exit": 0,
-      "summary": "Compiled successfully in 1971ms"
+      "summary": "Compiled successfully in 2.1s"
     },
     {
       "id": "scan:secrets",

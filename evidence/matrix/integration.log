@@ -1,5 +1,4 @@
-$ pnpm test:integration
-
+== pnpm test:integration exit=0 duration=21s ==
 > welcome-p0@0.1.0 test:integration /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
 > node scripts/run-integration.mjs
 
@@ -45,1603 +44,1815 @@ $ pnpm test:integration
   line: '1227',
   routine: 'reportDependentObjects'
 }
-applied 001 001_init.sql
-applied 002 002_phase2_events_matching.sql
-applied 003 003_link_challenges_claim.sql
-applied 004 004_outbox_campaigns.sql
-applied 005 005_security_hardening.sql
-applied 006 006_mfa_step_up.sql
-applied 007 007_taxonomy_v3.sql
-applied 008 008_profile_card_fields.sql
-applied 009 009_introduction_consent_source.sql
-applied 010 010_session_last_seen.sql
 TAP version 13
 # Subtest: OTP request: unknown and known emails produce an identical response shape
 ok 1 - OTP request: unknown and known emails produce an identical response shape
   ---
-  duration_ms: 51.027792
+  duration_ms: 45.371
   type: 'test'
   ...
 # Subtest: OTP verify: wrong code for unknown and known emails yields identical 401 bodies
 ok 2 - OTP verify: wrong code for unknown and known emails yields identical 401 bodies
   ---
-  duration_ms: 28.992542
+  duration_ms: 17.615208
   type: 'test'
   ...
 # Subtest: profile public API: unknown slug and deactivated account return the same generic 404
 ok 3 - profile public API: unknown slug and deactivated account return the same generic 404
   ---
-  duration_ms: 54.030125
+  duration_ms: 38.436834
   type: 'test'
   ...
 # Subtest: otp request: exposes devCode only when AUTH_DEV_EXPOSE_OTP=true; response always ok:true
 ok 4 - otp request: exposes devCode only when AUTH_DEV_EXPOSE_OTP=true; response always ok:true
   ---
-  duration_ms: 76.926333
+  duration_ms: 40.834792
   type: 'test'
   ...
 # Subtest: otp request: without the flag the code is NOT returned and lands in .runtime/otp.log
 ok 5 - otp request: without the flag the code is NOT returned and lands in .runtime/otp.log
   ---
-  duration_ms: 19.817292
+  duration_ms: 7.131917
   type: 'test'
   ...
 # Subtest: otp verify: wrong code 5 times invalidates the OTP, then even the right code fails
 ok 6 - otp verify: wrong code 5 times invalidates the OTP, then even the right code fails
   ---
-  duration_ms: 42.026542
+  duration_ms: 30.64275
   type: 'test'
   ...
 # Subtest: otp verify: success sets HttpOnly SameSite=Lax welcome_session cookie and creates a working session
 ok 7 - otp verify: success sets HttpOnly SameSite=Lax welcome_session cookie and creates a working session
   ---
-  duration_ms: 18.820292
+  duration_ms: 17.11475
   type: 'test'
   ...
 # Subtest: otp verify: cookie flags are HttpOnly, SameSite=Lax; secure only in production
 ok 8 - otp verify: cookie flags are HttpOnly, SameSite=Lax; secure only in production
   ---
-  duration_ms: 8.289125
+  duration_ms: 9.307333
   type: 'test'
   ...
 # Subtest: otp verify: unknown email and wrong code produce identical responses (enumeration-safe)
 ok 9 - otp verify: unknown email and wrong code produce identical responses (enumeration-safe)
   ---
-  duration_ms: 3.123625
+  duration_ms: 1.685167
   type: 'test'
   ...
 # Subtest: otp request: rate limited after 3 codes per 15 minutes per account
 ok 10 - otp request: rate limited after 3 codes per 15 minutes per account
   ---
-  duration_ms: 11.260834
+  duration_ms: 10.587375
   type: 'test'
   ...
 # Subtest: otp request: malformed email is rejected; verify with malformed code is rejected
 ok 11 - otp request: malformed email is rejected; verify with malformed code is rejected
   ---
-  duration_ms: 1.293292
+  duration_ms: 0.965958
   type: 'test'
   ...
 # Subtest: session: expired session is rejected
 ok 12 - session: expired session is rejected
   ---
-  duration_ms: 9.912833
+  duration_ms: 12.252209
   type: 'test'
   ...
 # Subtest: logout: destroys the session server-side and clears the cookie
 ok 13 - logout: destroys the session server-side and clears the cookie
   ---
-  duration_ms: 10.460042
+  duration_ms: 13.218917
   type: 'test'
   ...
 # Subtest: otp request: account row under a different auth_subject does not 500 (unique-violation regression)
 ok 14 - otp request: account row under a different auth_subject does not 500 (unique-violation regression)
   ---
-  duration_ms: 5.294667
+  duration_ms: 6.651583
   type: 'test'
   ...
 # Subtest: authz: profile write targets are session-scoped — profile_id in body of another cannot be hijacked
 ok 15 - authz: profile write targets are session-scoped — profile_id in body of another cannot be hijacked
   ---
-  duration_ms: 196.555208
+  duration_ms: 182.629417
   type: 'test'
   ...
 # Subtest: authz: contacts PUT is session-scoped — cannot write another account contacts (no status change, victim untouched)
 ok 16 - authz: contacts PUT is session-scoped — cannot write another account contacts (no status change, victim untouched)
   ---
-  duration_ms: 9.830125
+  duration_ms: 11.614791
   type: 'test'
   ...
 # Subtest: authz: note about a non-connected profile → 403 not_connected
 ok 17 - authz: note about a non-connected profile → 403 not_connected
   ---
-  duration_ms: 4.618625
+  duration_ms: 5.02425
   type: 'test'
   ...
 # Subtest: authz: intro respond by a third party → 404 (ANTI-ENUMERATION: existence of the intro is hidden)
 ok 18 - authz: intro respond by a third party → 404 (ANTI-ENUMERATION: existence of the intro is hidden)
   ---
-  duration_ms: 28.2895
+  duration_ms: 25.198
   type: 'test'
   ...
 # Subtest: authz: membership PATCH of another → 403 forbidden
 ok 19 - authz: membership PATCH of another → 403 forbidden
   ---
-  duration_ms: 2.593
+  duration_ms: 2.554583
   type: 'test'
   ...
 # Subtest: authz: attendance toggle on a foreign membership → 403 forbidden
 ok 20 - authz: attendance toggle on a foreign membership → 403 forbidden
   ---
-  duration_ms: 4.641666
+  duration_ms: 6.005541
   type: 'test'
   ...
 # Subtest: authz: directory of an event not joined → 403 forbidden
 ok 21 - authz: directory of an event not joined → 403 forbidden
   ---
-  duration_ms: 4.826958
+  duration_ms: 5.942333
   type: 'test'
   ...
 # Subtest: authz: recommendations of an event not joined → 403 forbidden
 ok 22 - authz: recommendations of an event not joined → 403 forbidden
   ---
-  duration_ms: 3.84025
+  duration_ms: 3.62025
   type: 'test'
   ...
 # Subtest: authz: organizer settings of a foreign event → 403 forbidden
 ok 23 - authz: organizer settings of a foreign event → 403 forbidden
   ---
-  duration_ms: 3.118791
+  duration_ms: 2.88025
   type: 'test'
   ...
 # Subtest: authz: registration invite of a foreign event → 403 forbidden
 ok 24 - authz: registration invite of a foreign event → 403 forbidden
   ---
-  duration_ms: 5.222208
+  duration_ms: 4.521458
   type: 'test'
   ...
 # Subtest: authz: campaign create on a foreign event → 403 forbidden
 ok 25 - authz: campaign create on a foreign event → 403 forbidden
   ---
-  duration_ms: 2.617125
+  duration_ms: 1.961167
   type: 'test'
   ...
 # Subtest: authz: campaign edit/approve/send/audience/stats cross-tenant → 404 (ANTI-ENUMERATION: campaign existence hidden); staff → 403
 ok 26 - authz: campaign edit/approve/send/audience/stats cross-tenant → 404 (ANTI-ENUMERATION: campaign existence hidden); staff → 403
   ---
-  duration_ms: 22.913459
+  duration_ms: 18.381375
   type: 'test'
   ...
 # Subtest: authz: claim link proven against ANOTHER email → 403 email_mismatch
 ok 27 - authz: claim link proven against ANOTHER email → 403 email_mismatch
   ---
-  duration_ms: 13.917167
+  duration_ms: 13.122417
   type: 'test'
   ...
 # Subtest: authz: telegram channel confirm with ANOTHER session → 404 (ANTI-ENUMERATION: challenge bound to its creator)
 ok 28 - authz: telegram channel confirm with ANOTHER session → 404 (ANTI-ENUMERATION: challenge bound to its creator)
   ---
-  duration_ms: 5.625166
+  duration_ms: 7.95825
   type: 'test'
   ...
 # Subtest: authz: export is session-scoped — attacker export never contains victim data
 ok 29 - authz: export is session-scoped — attacker export never contains victim data
   ---
-  duration_ms: 41.212916
+  duration_ms: 32.918375
   type: 'test'
   ...
 # Subtest: authz: DELETE /api/blocks only removes the CALLER block — the victim block survives
 ok 30 - authz: DELETE /api/blocks only removes the CALLER block — the victim block survives
   ---
-  duration_ms: 6.906208
+  duration_ms: 6.835792
   type: 'test'
   ...
 # Subtest: authz: contacts DELETE is session-scoped and reports 200/404 honestly
 ok 31 - authz: contacts DELETE is session-scoped and reports 200/404 honestly
   ---
-  duration_ms: 66.720458
+  duration_ms: 57.576458
   type: 'test'
   ...
 # Subtest: authz: GET /api/me is owner-only, minimal and secretless
 ok 32 - authz: GET /api/me is owner-only, minimal and secretless
   ---
-  duration_ms: 3.893875
+  duration_ms: 4.820125
   type: 'test'
   ...
 # Subtest: badges: the sheet carries names and QR targets, never emails or phones
 ok 33 - badges: the sheet carries names and QR targets, never emails or phones
   ---
-  duration_ms: 153.014458
+  duration_ms: 130.240958
   type: 'test'
   ...
 # Subtest: badges: a claimed guest's badge points at their card
 ok 34 - badges: a claimed guest's badge points at their card
   ---
-  duration_ms: 60.233917
+  duration_ms: 43.826834
   type: 'test'
   ...
 # Subtest: badges: claim links are issued for unclaimed guests, quarantined ones excluded
 ok 35 - badges: claim links are issued for unclaimed guests, quarantined ones excluded
   ---
-  duration_ms: 40.30875
+  duration_ms: 46.181542
   type: 'test'
   ...
 # Subtest: badges: re-issuing refreshes the links (each batch is a fresh token)
 ok 36 - badges: re-issuing refreshes the links (each batch is a fresh token)
   ---
-  duration_ms: 31.088625
+  duration_ms: 29.550709
   type: 'test'
   ...
 # Subtest: badges: a stranger cannot see the sheet or issue links
 ok 37 - badges: a stranger cannot see the sheet or issue links
   ---
-  duration_ms: 36.09925
+  duration_ms: 28.559916
   type: 'test'
   ...
 # Subtest: badges: staff are not allowed — the sheet is owner/admin only
 ok 38 - badges: staff are not allowed — the sheet is owner/admin only
   ---
-  duration_ms: 39.891
+  duration_ms: 24.108916
   type: 'test'
   ...
 # Subtest: badges: an anonymous request is refused
 ok 39 - badges: an anonymous request is refused
   ---
-  duration_ms: 15.760167
+  duration_ms: 13.588208
   type: 'test'
   ...
 # Subtest: badges: an unknown event is a 404 for the organizer route
 ok 40 - badges: an unknown event is a 404 for the organizer route
   ---
-  duration_ms: 18.85675
+  duration_ms: 14.512542
   type: 'test'
   ...
 # Subtest: segments: a filter selects only matching members, and the preview count equals the queued jobs
 ok 41 - segments: a filter selects only matching members, and the preview count equals the queued jobs
   ---
-  duration_ms: 295.616417
+  duration_ms: 301.35075
   type: 'test'
   ...
 # Subtest: segments: revoking consent after approve excludes the member even inside the segment
 ok 42 - segments: revoking consent after approve excludes the member even inside the segment
   ---
-  duration_ms: 89.068708
+  duration_ms: 98.80975
   type: 'test'
   ...
 # Subtest: segments: an invalid segment on create or edit is rejected with 400
 ok 43 - segments: an invalid segment on create or edit is rejected with 400
   ---
-  duration_ms: 23.746042
+  duration_ms: 16.652333
   type: 'test'
   ...
 # Subtest: AC-23: staff cannot create, approve or send campaigns (403)
 ok 44 - AC-23: staff cannot create, approve or send campaigns (403)
   ---
-  duration_ms: 130.997333
+  duration_ms: 130.155125
   type: 'test'
   ...
 # Subtest: campaigns: cross-organizer access is 404 (no existence leak)
 ok 45 - campaigns: cross-organizer access is 404 (no existence leak)
   ---
-  duration_ms: 43.018042
+  duration_ms: 30.5115
   type: 'test'
   ...
 # Subtest: campaign flow: preview, approve snapshot, edit resets approval, send revalidates, worker delivers
 ok 46 - campaign flow: preview, approve snapshot, edit resets approval, send revalidates, worker delivers
   ---
-  duration_ms: 186.711959
+  duration_ms: 161.563125
   type: 'test'
   ...
 # Subtest: AC-25: consent withdrawn while job queued → suppressed without send; others sent
 ok 47 - AC-25: consent withdrawn while job queued → suppressed without send; others sent
   ---
-  duration_ms: 65.844375
+  duration_ms: 72.682125
   type: 'test'
   ...
 # Subtest: intro notices: requested notice enqueued transactionally; withdrawal suppresses it (AC-25)
 ok 48 - intro notices: requested notice enqueued transactionally; withdrawal suppresses it (AC-25)
   ---
-  duration_ms: 70.767666
+  duration_ms: 61.969709
   type: 'test'
   ...
 # Subtest: cleanup: expired sessions removed, fresh kept; stale OTP codes + challenges removed
 ok 49 - cleanup: expired sessions removed, fresh kept; stale OTP codes + challenges removed
   ---
-  duration_ms: 70.644209
+  duration_ms: 59.001209
   type: 'test'
   ...
 # Subtest: cleanup: terminal outbox older than 90d removed with delivery_attempts; pending/young kept
 ok 50 - cleanup: terminal outbox older than 90d removed with delivery_attempts; pending/young kept
   ---
-  duration_ms: 13.524208
+  duration_ms: 12.539208
   type: 'test'
   ...
 # Subtest: cleanup: inbox_events older than 90d removed; fresh kept
 ok 51 - cleanup: inbox_events older than 90d removed; fresh kept
   ---
-  duration_ms: 9.982125
+  duration_ms: 7.183167
   type: 'test'
   ...
 # Subtest: cleanup: unclaimed registrations of long-ended events removed; claimed/fresh kept
 ok 52 - cleanup: unclaimed registrations of long-ended events removed; claimed/fresh kept
   ---
-  duration_ms: 12.094125
+  duration_ms: 13.863333
   type: 'test'
   ...
 # Subtest: cleanup: deleting accounts past grace are purged — user rows gone, consent/audit kept pseudonymized
 ok 53 - cleanup: deleting accounts past grace are purged — user rows gone, consent/audit kept pseudonymized
   ---
-  duration_ms: 36.05625
+  duration_ms: 41.449834
   type: 'test'
   ...
 # Subtest: cleanup: a live claim challenge never breaks the registration batch (BUG-2 regression)
 ok 54 - cleanup: a live claim challenge never breaks the registration batch (BUG-2 regression)
   ---
-  duration_ms: 16.723375
+  duration_ms: 20.754292
   type: 'test'
   ...
 # Subtest: cleanup: runCleanupIfDue is gated to at least 6h between runs
 ok 55 - cleanup: runCleanupIfDue is gated to at least 6h between runs
   ---
-  duration_ms: 5.796833
+  duration_ms: 4.729209
   type: 'test'
   ...
 # Subtest: F-07: inbox minimal_payload is minimized after processing; sent outbox payload text dropped
 ok 56 - F-07: inbox minimal_payload is minimized after processing; sent outbox payload text dropped
   ---
-  duration_ms: 8.142542
+  duration_ms: 8.223791
+  type: 'test'
+  ...
+# Subtest: connections: every registered provider is rendered with its resolved status
+ok 57 - connections: every registered provider is rendered with its resolved status
+  ---
+  duration_ms: 15.294583
+  type: 'test'
+  ...
+# Subtest: connections: an unconfigured channel shows the reason and the variable NAME
+ok 58 - connections: an unconfigured channel shows the reason and the variable NAME
+  ---
+  duration_ms: 7.5265
+  type: 'test'
+  ...
+# Subtest: connections: the HTML lists variable NAMES and never their VALUES
+ok 59 - connections: the HTML lists variable NAMES and never their VALUES
+  ---
+  duration_ms: 7.797041
+  type: 'test'
+  ...
+# Subtest: connections: setup steps and the do/don't block are part of the markup
+ok 60 - connections: setup steps and the do/don't block are part of the markup
+  ---
+  duration_ms: 8.213167
+  type: 'test'
+  ...
+# Subtest: connections: the /me shell cannot render without a session
+ok 61 - connections: the /me shell cannot render without a session
+  ---
+  duration_ms: 0.669959
   type: 'test'
   ...
 # Subtest: consent: grant then withdraw flips hasGrant; latest record wins
-ok 57 - consent: grant then withdraw flips hasGrant; latest record wins
+ok 62 - consent: grant then withdraw flips hasGrant; latest record wins
   ---
-  duration_ms: 76.584042
+  duration_ms: 69.219542
   type: 'test'
   ...
 # Subtest: consent: revoke writes consent.suppress_requested audit (phase-3 outbox stub)
-ok 58 - consent: revoke writes consent.suppress_requested audit (phase-3 outbox stub)
+ok 63 - consent: revoke writes consent.suppress_requested audit (phase-3 outbox stub)
   ---
-  duration_ms: 14.957333
+  duration_ms: 16.211709
   type: 'test'
   ...
 # Subtest: consent: event-scoped grant does NOT imply global scope (interpretation ⑧)
-ok 59 - consent: event-scoped grant does NOT imply global scope (interpretation ⑧)
+ok 64 - consent: event-scoped grant does NOT imply global scope (interpretation ⑧)
   ---
-  duration_ms: 19.321667
+  duration_ms: 15.671042
   type: 'test'
   ...
 # Subtest: consent: actor is the session account — account_id in body is ignored
-ok 60 - consent: actor is the session account — account_id in body is ignored
+ok 65 - consent: actor is the session account — account_id in body is ignored
   ---
-  duration_ms: 10.297667
+  duration_ms: 11.717417
   type: 'test'
   ...
 # Subtest: consent: 401 without session; 400 for invalid purpose and global scope_id
-ok 61 - consent: 401 without session; 400 for invalid purpose and global scope_id
+ok 66 - consent: 401 without session; 400 for invalid purpose and global scope_id
   ---
-  duration_ms: 13.431209
+  duration_ms: 11.097792
+  type: 'test'
+  ...
+# Subtest: contacts import: an address already on WELCOME comes back as a name and a card link
+ok 67 - contacts import: an address already on WELCOME comes back as a name and a card link
+  ---
+  duration_ms: 83.208583
+  type: 'test'
+  ...
+# Subtest: contacts import: a CSV address book matches the same way
+ok 68 - contacts import: a CSV address book matches the same way
+  ---
+  duration_ms: 25.713166
+  type: 'test'
+  ...
+# Subtest: contacts import: the caller itself and inactive accounts are never matched
+ok 69 - contacts import: the caller itself and inactive accounts are never matched
+  ---
+  duration_ms: 26.381333
+  type: 'test'
+  ...
+# Subtest: contacts import: NOTHING is stored — only one audit fact row, with numbers
+ok 70 - contacts import: NOTHING is stored — only one audit fact row, with numbers
+  ---
+  duration_ms: 74.868291
+  type: 'test'
+  ...
+# Subtest: contacts import: without a session → 401 and no audit row
+ok 71 - contacts import: without a session → 401 and no audit row
+  ---
+  duration_ms: 1.887333
+  type: 'test'
+  ...
+# Subtest: contacts import: malformed bodies and address-less files are refused with 400
+ok 72 - contacts import: malformed bodies and address-less files are refused with 400
+  ---
+  duration_ms: 11.036708
+  type: 'test'
+  ...
+# Subtest: contacts import: over 5 MB → 413, over 5000 contacts → 413
+ok 73 - contacts import: over 5 MB → 413, over 5000 contacts → 413
+  ---
+  duration_ms: 42.401
+  type: 'test'
+  ...
+# Subtest: contacts import: the 6th request inside the hour is 429 with Retry-After
+ok 74 - contacts import: the 6th request inside the hour is 429 with Retry-After
+  ---
+  duration_ms: 29.6655
   type: 'test'
   ...
 # Subtest: directory: anonymous → 401; non-member → 403 (AC-20b)
-ok 62 - directory: anonymous → 401; non-member → 403 (AC-20b)
+ok 75 - directory: anonymous → 401; non-member → 403 (AC-20b)
   ---
-  duration_ms: 115.49425
+  duration_ms: 109.990209
   type: 'test'
   ...
 # Subtest: directory: member sees only visible active members; strict field allowlist
-ok 63 - directory: member sees only visible active members; strict field allowlist
+ok 76 - directory: member sees only visible active members; strict field allowlist
   ---
-  duration_ms: 112.820125
+  duration_ms: 103.058333
   type: 'test'
   ...
 # Subtest: directory: blocks suppress visibility in both directions
-ok 64 - directory: blocks suppress visibility in both directions
+ok 77 - directory: blocks suppress visibility in both directions
   ---
-  duration_ms: 67.93475
+  duration_ms: 53.367958
   type: 'test'
   ...
 # Subtest: directory: directory_close_at in the past → 403 directory_closed
-ok 65 - directory: directory_close_at in the past → 403 directory_closed
+ok 78 - directory: directory_close_at in the past → 403 directory_closed
   ---
-  duration_ms: 29.09625
+  duration_ms: 27.521875
   type: 'test'
   ...
 # Subtest: membership PATCH: foreign membership → 403; invalid body → 400; leave works
-ok 66 - membership PATCH: foreign membership → 403; invalid body → 400; leave works
+ok 79 - membership PATCH: foreign membership → 403; invalid body → 400; leave works
   ---
-  duration_ms: 72.296959
+  duration_ms: 32.548
   type: 'test'
   ...
 # Subtest: attendance: self-report sets attendance_source; foreign membership → 403
-ok 67 - attendance: self-report sets attendance_source; foreign membership → 403
+ok 80 - attendance: self-report sets attendance_source; foreign membership → 403
   ---
-  duration_ms: 58.777625
+  duration_ms: 35.287167
   type: 'test'
   ...
 # Subtest: directory: q searches name, headline, company and the member keywords — but never projects them
-ok 68 - directory: q searches name, headline, company and the member keywords — but never projects them
+ok 81 - directory: q searches name, headline, company and the member keywords — but never projects them
   ---
-  duration_ms: 70.456083
+  duration_ms: 59.349
   type: 'test'
   ...
 # Subtest: directory: `function` is an accepted alias of job_function, and contradictions are rejected
-ok 69 - directory: `function` is an accepted alias of job_function, and contradictions are rejected
+ok 82 - directory: `function` is an accepted alias of job_function, and contradictions are rejected
   ---
-  duration_ms: 55.881167
+  duration_ms: 49.672125
   type: 'test'
   ...
 # Subtest: directory: q composes with modes and facets
-ok 70 - directory: q composes with modes and facets
+ok 83 - directory: q composes with modes and facets
   ---
-  duration_ms: 57.329
+  duration_ms: 54.761375
   type: 'test'
   ...
 # Subtest: email channel: intro requested notice is delivered by email when there is no telegram binding
-ok 71 - email channel: intro requested notice is delivered by email when there is no telegram binding
+ok 84 - email channel: intro requested notice is delivered by email when there is no telegram binding
   ---
-  duration_ms: 196.900667
+  duration_ms: 188.776333
   type: 'test'
   ...
 # Subtest: email channel: without service_channel consent the notice is suppressed with consent_revoked, not emailed
-ok 72 - email channel: without service_channel consent the notice is suppressed with consent_revoked, not emailed
+ok 85 - email channel: without service_channel consent the notice is suppressed with consent_revoked, not emailed
   ---
-  duration_ms: 84.776541
+  duration_ms: 67.627542
   type: 'test'
   ...
 # Subtest: email channel: an active telegram binding keeps telegram as the channel (email untouched)
-ok 73 - email channel: an active telegram binding keeps telegram as the channel (email untouched)
+ok 86 - email channel: an active telegram binding keeps telegram as the channel (email untouched)
   ---
-  duration_ms: 65.154166
+  duration_ms: 54.072458
   type: 'test'
   ...
 # Subtest: email channel: a campaign with organizer_marketing consent reaches the member by email
-ok 74 - email channel: a campaign with organizer_marketing consent reaches the member by email
+ok 87 - email channel: a campaign with organizer_marketing consent reaches the member by email
   ---
-  duration_ms: 66.768167
+  duration_ms: 57.498709
   type: 'test'
   ...
 # Subtest: email channel: a campaign job whose purpose consent is missing is suppressed, never emailed
-ok 75 - email channel: a campaign job whose purpose consent is missing is suppressed, never emailed
+ok 88 - email channel: a campaign job whose purpose consent is missing is suppressed, never emailed
   ---
-  duration_ms: 36.893375
+  duration_ms: 33.459583
   type: 'test'
   ...
 # Subtest: email channel: without a configured provider the job is suppressed with channel_disabled
-ok 76 - email channel: without a configured provider the job is suppressed with channel_disabled
+ok 89 - email channel: without a configured provider the job is suppressed with channel_disabled
   ---
-  duration_ms: 87.520875
+  duration_ms: 51.025458
   type: 'test'
   ...
 # Subtest: enrich: mock provider returns a draft with sources and persists NO user content
-ok 77 - enrich: mock provider returns a draft with sources and persists NO user content
+ok 90 - enrich: mock provider returns a draft with sources and persists NO user content
   ---
-  duration_ms: 119.359292
+  duration_ms: 98.105583
   type: 'test'
   ...
 # Subtest: enrich: an undecryptable contact is skipped, the request still succeeds
-ok 78 - enrich: an undecryptable contact is skipped, the request still succeeds
+ok 91 - enrich: an undecryptable contact is skipped, the request still succeeds
   ---
-  duration_ms: 23.679459
+  duration_ms: 37.86475
   type: 'test'
   ...
 # Subtest: enrich: requires auth and an existing profile
-ok 79 - enrich: requires auth and an existing profile
+ok 92 - enrich: requires auth and an existing profile
   ---
-  duration_ms: 10.911833
+  duration_ms: 19.261125
   type: 'test'
   ...
 # [enrich] degraded fallback provider=vertex_gemini state=failed code=no_draft retryable=true
 # Subtest: enrich: provider answers without a draft twice → 200 + degraded draft from the profile (BUG-3)
-ok 80 - enrich: provider answers without a draft twice → 200 + degraded draft from the profile (BUG-3)
+ok 93 - enrich: provider answers without a draft twice → 200 + degraded draft from the profile (BUG-3)
   ---
-  duration_ms: 18.083458
+  duration_ms: 22.802958
   type: 'test'
   ...
 # Subtest: enrich: a real provider failure is still a 502 with a server-side trace (BUG-4)
-ok 81 - enrich: a real provider failure is still a 502 with a server-side trace (BUG-4)
+ok 94 - enrich: a real provider failure is still a 502 with a server-side trace (BUG-4)
   ---
-  duration_ms: 15.477417
+  duration_ms: 19.71325
   type: 'test'
   ...
 # Subtest: enrich: provider disabled → 503 enrichment_disabled, retryable:false, no quota spent
-ok 82 - enrich: provider disabled → 503 enrichment_disabled, retryable:false, no quota spent
+ok 95 - enrich: provider disabled → 503 enrichment_disabled, retryable:false, no quota spent
   ---
-  duration_ms: 15.026834
+  duration_ms: 19.487958
   type: 'test'
   ...
 # Subtest: enrich: 6th request within the hour → 429 rate_limited (5/hour/account)
-ok 83 - enrich: 6th request within the hour → 429 rate_limited (5/hour/account)
+ok 96 - enrich: 6th request within the hour → 429 rate_limited (5/hour/account)
   ---
-  duration_ms: 25.167708
+  duration_ms: 29.060167
   type: 'test'
   ...
 # Subtest: enrich: provider failure is reported as retryable enrichment_failed without leaking details
-ok 84 - enrich: provider failure is reported as retryable enrichment_failed without leaking details
+ok 97 - enrich: provider failure is reported as retryable enrichment_failed without leaking details
   ---
-  duration_ms: 9.987583
+  duration_ms: 10.195917
   type: 'test'
   ...
 # Subtest: enrich LIVE: one real Vertex AI call through the configured credentials
-ok 85 - enrich LIVE: one real Vertex AI call through the configured credentials # SKIP
+ok 98 - enrich LIVE: one real Vertex AI call through the configured credentials # SKIP
   ---
-  duration_ms: 0.40775
+  duration_ms: 0.509583
   type: 'test'
   ...
 # Subtest: analytics: aggregates are counted for the event and for that event only
-ok 86 - analytics: aggregates are counted for the event and for that event only
+ok 99 - analytics: aggregates are counted for the event and for that event only
   ---
-  duration_ms: 385.416125
+  duration_ms: 290.355667
   type: 'test'
   ...
 # Subtest: analytics: staff and strangers get 403, anonymous gets 401
-ok 87 - analytics: staff and strangers get 403, anonymous gets 401
+ok 100 - analytics: staff and strangers get 403, anonymous gets 401
   ---
-  duration_ms: 86.098
+  duration_ms: 83.263292
   type: 'test'
   ...
 # Subtest: events: organizer creates event → owner member row + audit
-ok 88 - events: organizer creates event → owner member row + audit
+ok 101 - events: organizer creates event → owner member row + audit
   ---
-  duration_ms: 99.939083
+  duration_ms: 88.707792
   type: 'test'
   ...
 # Subtest: events: timezone validation rejects non-IANA values with 400
-ok 89 - events: timezone validation rejects non-IANA values with 400
+ok 102 - events: timezone validation rejects non-IANA values with 400
   ---
-  duration_ms: 17.490958
+  duration_ms: 13.160959
   type: 'test'
   ...
 # Subtest: events: ends_at before starts_at → 400
-ok 90 - events: ends_at before starts_at → 400
+ok 103 - events: ends_at before starts_at → 400
   ---
-  duration_ms: 15.543875
+  duration_ms: 15.181458
   type: 'test'
   ...
 # Subtest: events: AC-14 — one profile joins two events (two memberships)
-ok 91 - events: AC-14 — one profile joins two events (two memberships)
+ok 104 - events: AC-14 — one profile joins two events (two memberships)
   ---
-  duration_ms: 46.937583
+  duration_ms: 44.974208
   type: 'test'
   ...
 # Subtest: events: AC-24 — join creates ZERO consent rows (no implicit marketing opt-in)
-ok 92 - events: AC-24 — join creates ZERO consent rows (no implicit marketing opt-in)
+ok 105 - events: AC-24 — join creates ZERO consent rows (no implicit marketing opt-in)
   ---
-  duration_ms: 26.444709
+  duration_ms: 26.847917
   type: 'test'
   ...
 # Subtest: events: re-join is idempotent (no duplicate membership)
-ok 93 - events: re-join is idempotent (no duplicate membership)
+ok 106 - events: re-join is idempotent (no duplicate membership)
   ---
-  duration_ms: 26.831708
+  duration_ms: 21.883417
   type: 'test'
   ...
 # Subtest: events: join without a profile → 409 profile_required
-ok 94 - events: join without a profile → 409 profile_required
+ok 107 - events: join without a profile → 409 profile_required
   ---
-  duration_ms: 21.401292
+  duration_ms: 21.736791
   type: 'test'
   ...
 # Subtest: events: public join works by slug; draft event → 403; registration mode without code → 403
-ok 95 - events: public join works by slug; draft event → 403; registration mode without code → 403
+ok 108 - events: public join works by slug; draft event → 403; registration mode without code → 403
   ---
-  duration_ms: 89.895125
+  duration_ms: 43.485666
   type: 'test'
   ...
 # Subtest: events: join_code path — closed event joins only with the correct code
-ok 96 - events: join_code path — closed event joins only with the correct code
+ok 109 - events: join_code path — closed event joins only with the correct code
   ---
-  duration_ms: 43.383292
+  duration_ms: 34.3725
   type: 'test'
   ...
 # Subtest: events: max_participants cap → event_full
-ok 97 - events: max_participants cap → event_full
+ok 110 - events: max_participants cap → event_full
   ---
-  duration_ms: 47.046125
+  duration_ms: 54.163667
   type: 'test'
   ...
 # Subtest: events: AC-20a — online_link visible ONLY to active member
-ok 98 - events: AC-20a — online_link visible ONLY to active member
+ok 111 - events: AC-20a — online_link visible ONLY to active member
   ---
-  duration_ms: 78.547208
+  duration_ms: 41.391584
   type: 'test'
   ...
 # Subtest: events: AC-22a — another organizer gets 403 on foreign event settings
-ok 99 - events: AC-22a — another organizer gets 403 on foreign event settings
+ok 112 - events: AC-22a — another organizer gets 403 on foreign event settings
   ---
-  duration_ms: 35.562625
+  duration_ms: 21.863542
   type: 'test'
   ...
 # Subtest: events: settings update — owner/admin only; directory_close_at + access_mode persist
-ok 100 - events: settings update — owner/admin only; directory_close_at + access_mode persist
+ok 113 - events: settings update — owner/admin only; directory_close_at + access_mode persist
   ---
-  duration_ms: 61.521
+  duration_ms: 16.177708
   type: 'test'
   ...
 # Subtest: events: requireEventRole — staff does not satisfy owner/admin (interpretation ⑦)
-ok 101 - events: requireEventRole — staff does not satisfy owner/admin (interpretation ⑦)
+ok 114 - events: requireEventRole — staff does not satisfy owner/admin (interpretation ⑦)
   ---
-  duration_ms: 37.855375
+  duration_ms: 18.164833
   type: 'test'
   ...
 # Subtest: events: consent grant path stays independent of join (grant works after join)
-ok 102 - events: consent grant path stays independent of join (grant works after join)
+ok 115 - events: consent grant path stays independent of join (grant works after join)
   ---
-  duration_ms: 21.715375
+  duration_ms: 20.920375
   type: 'test'
   ...
 # Subtest: F-05: export after mutual intro contains the intro with OWN consent fields only
-ok 103 - F-05: export after mutual intro contains the intro with OWN consent fields only
+ok 116 - F-05: export after mutual intro contains the intro with OWN consent fields only
   ---
-  duration_ms: 242.3715
+  duration_ms: 209.178375
+  type: 'test'
+  ...
+# Subtest: migrations 011: profiles.goals is a NOT NULL text[] defaulting to {} with a GIN index
+ok 117 - migrations 011: profiles.goals is a NOT NULL text[] defaulting to {} with a GIN index
+  ---
+  duration_ms: 51.458167
+  type: 'test'
+  ...
+# Subtest: goals: POST stores them in priority order and GET returns the same order
+ok 118 - goals: POST stores them in priority order and GET returns the same order
+  ---
+  duration_ms: 36.034625
+  type: 'test'
+  ...
+# Subtest: goals: a duplicate collapses to its first position (priority is the array order)
+ok 119 - goals: a duplicate collapses to its first position (priority is the array order)
+  ---
+  duration_ms: 14.5345
+  type: 'test'
+  ...
+# Subtest: goals: a fourth goal and an unknown id are rejected with 400
+ok 120 - goals: a fourth goal and an unknown id are rejected with 400
+  ---
+  duration_ms: 22.035375
+  type: 'test'
+  ...
+# Subtest: goals: omitting the field clears the stored list (absent = no goals)
+ok 121 - goals: omitting the field clears the stored list (absent = no goals)
+  ---
+  duration_ms: 15.918833
+  type: 'test'
+  ...
+# Subtest: goals are private: absent from the public JSON, the vCard and the card HTML
+ok 122 - goals are private: absent from the public JSON, the vCard and the card HTML
+  ---
+  duration_ms: 22.219375
+  type: 'test'
+  ...
+# Subtest: goals: the data-subject export carries them (private data is still the owner's)
+ok 123 - goals: the data-subject export carries them (private data is still the owner's)
+  ---
+  duration_ms: 44.460209
+  type: 'test'
+  ...
+# Subtest: goals: GET /api/taxonomy stays v3 and gains goals + limits.goals
+ok 124 - goals: GET /api/taxonomy stays v3 and gains goals + limits.goals
+  ---
+  duration_ms: 0.667875
   type: 'test'
   ...
 # Subtest: F-16: public health payload has no migration details
-ok 104 - F-16: public health payload has no migration details
+ok 125 - F-16: public health payload has no migration details
   ---
-  duration_ms: 33.920792
+  duration_ms: 30.300375
   type: 'test'
   ...
 # Subtest: F-16: x-health-details with the worker secret → full payload; wrong secret → public payload
-ok 105 - F-16: x-health-details with the worker secret → full payload; wrong secret → public payload
+ok 126 - F-16: x-health-details with the worker secret → full payload; wrong secret → public payload
   ---
-  duration_ms: 6.419625
+  duration_ms: 6.194959
+  type: 'test'
+  ...
+# Subtest: ics: public download with the right headers, UTC stamps and a stable UID
+ok 127 - ics: public download with the right headers, UTC stamps and a stable UID
+  ---
+  duration_ms: 91.739917
+  type: 'test'
+  ...
+# Subtest: ics: the room link never leaves in a downloadable file
+ok 128 - ics: the room link never leaves in a downloadable file
+  ---
+  duration_ms: 22.545458
+  type: 'test'
+  ...
+# Subtest: ics: an event without a schedule answers 409, not a broken file
+ok 129 - ics: an event without a schedule answers 409, not a broken file
+  ---
+  duration_ms: 17.401083
+  type: 'test'
+  ...
+# Subtest: ics: a missing event answers 404 for slug and id alike
+ok 130 - ics: a missing event answers 404 for slug and id alike
+  ---
+  duration_ms: 1.283708
+  type: 'test'
+  ...
+# Subtest: ics: user text is escaped, never able to open a second VEVENT
+ok 131 - ics: user text is escaped, never able to open a second VEVENT
+  ---
+  duration_ms: 14.711625
   type: 'test'
   ...
 # Subtest: import: preview creates NO registrations; commit creates rows
-ok 106 - import: preview creates NO registrations; commit creates rows
+ok 132 - import: preview creates NO registrations; commit creates rows
   ---
-  duration_ms: 123.541208
+  duration_ms: 112.63425
   type: 'test'
   ...
 # Subtest: import: import creates NO accounts and NO profiles (registrations only)
-ok 107 - import: import creates NO accounts and NO profiles (registrations only)
+ok 133 - import: import creates NO accounts and NO profiles (registrations only)
   ---
-  duration_ms: 35.735667
+  duration_ms: 27.251541
   type: 'test'
   ...
 # Subtest: import: AC-17 — re-import is idempotent (same rows, revision++)
-ok 108 - import: AC-17 — re-import is idempotent (same rows, revision++)
+ok 134 - import: AC-17 — re-import is idempotent (same rows, revision++)
   ---
-  duration_ms: 29.9145
+  duration_ms: 29.571542
   type: 'test'
   ...
 # Subtest: import: AC-19 — 6000 rows rejected with 413; formula cell stored as data
-ok 109 - import: AC-19 — 6000 rows rejected with 413; formula cell stored as data
+ok 135 - import: AC-19 — 6000 rows rejected with 413; formula cell stored as data
   ---
-  duration_ms: 27.12575
+  duration_ms: 31.341666
   type: 'test'
   ...
 # Subtest: import: non-organizer → 403
-ok 110 - import: non-organizer → 403
+ok 136 - import: non-organizer → 403
   ---
-  duration_ms: 23.932792
+  duration_ms: 24.73875
   type: 'test'
   ...
 # Subtest: invite: owner gets one-time unbound challenge; non-owner → 403; quarantined → 403
-ok 111 - invite: owner gets one-time unbound challenge; non-owner → 403; quarantined → 403
+ok 137 - invite: owner gets one-time unbound challenge; non-owner → 403; quarantined → 403
   ---
-  duration_ms: 40.19375
+  duration_ms: 36.110583
   type: 'test'
   ...
 # Subtest: claim: AC-07 — preview does not consume the challenge
-ok 112 - claim: AC-07 — preview does not consume the challenge
+ok 138 - claim: AC-07 — preview does not consume the challenge
   ---
-  duration_ms: 22.683167
+  duration_ms: 20.369084
   type: 'test'
   ...
 # Subtest: claim: AC-08 cross-email → 403; success path binds matching email; AC-09 replay → 409
-ok 113 - claim: AC-08 cross-email → 403; success path binds matching email; AC-09 replay → 409
+ok 139 - claim: AC-08 cross-email → 403; success path binds matching email; AC-09 replay → 409
   ---
-  duration_ms: 55.014583
+  duration_ms: 43.748625
   type: 'test'
   ...
 # Subtest: claim: AC-18 — existing profile is NOT overwritten by import data
-ok 114 - claim: AC-18 — existing profile is NOT overwritten by import data
+ok 140 - claim: AC-18 — existing profile is NOT overwritten by import data
   ---
-  duration_ms: 39.507041
+  duration_ms: 33.510583
   type: 'test'
   ...
 # Subtest: claim: unknown token → 404; expired token → 410; anonymous → 401
-ok 115 - claim: unknown token → 404; expired token → 410; anonymous → 401
+ok 141 - claim: unknown token → 404; expired token → 410; anonymous → 401
   ---
-  duration_ms: 36.817375
+  duration_ms: 24.889459
   type: 'test'
   ...
 # Subtest: import mapping: preview echoes the final mapping and the CSV columns
-ok 116 - import mapping: preview echoes the final mapping and the CSV columns
+ok 142 - import mapping: preview echoes the final mapping and the CSV columns
   ---
-  duration_ms: 162.483208
+  duration_ms: 117.463584
   type: 'test'
   ...
 # Subtest: import mapping: the mapping actually changes the result (auto-map would miss)
-ok 117 - import mapping: the mapping actually changes the result (auto-map would miss)
+ok 143 - import mapping: the mapping actually changes the result (auto-map would miss)
   ---
-  duration_ms: 33.611791
+  duration_ms: 33.030666
   type: 'test'
   ...
 # Subtest: import mapping: preview writes nothing
-ok 118 - import mapping: preview writes nothing
+ok 144 - import mapping: preview writes nothing
   ---
-  duration_ms: 21.549417
+  duration_ms: 26.146625
   type: 'test'
   ...
 # Subtest: import mapping: an unknown field is rejected with unknown_mapping_field
-ok 119 - import mapping: an unknown field is rejected with unknown_mapping_field
+ok 145 - import mapping: an unknown field is rejected with unknown_mapping_field
   ---
-  duration_ms: 16.437959
+  duration_ms: 17.870042
   type: 'test'
   ...
 # Subtest: import mapping: a column absent from the CSV is rejected with unknown_csv_column
-ok 120 - import mapping: a column absent from the CSV is rejected with unknown_csv_column
+ok 146 - import mapping: a column absent from the CSV is rejected with unknown_csv_column
   ---
-  duration_ms: 13.878625
+  duration_ms: 16.837542
   type: 'test'
   ...
 # Subtest: import mapping: two columns for one field is rejected with duplicate_mapping_field
-ok 121 - import mapping: two columns for one field is rejected with duplicate_mapping_field
+ok 147 - import mapping: two columns for one field is rejected with duplicate_mapping_field
   ---
-  duration_ms: 25.469958
+  duration_ms: 17.562375
   type: 'test'
   ...
 # Subtest: import mapping: re-preview after a commit reports would_update, not would_insert
-ok 122 - import mapping: re-preview after a commit reports would_update, not would_insert
+ok 148 - import mapping: re-preview after a commit reports would_update, not would_insert
   ---
-  duration_ms: 23.169791
+  duration_ms: 24.274458
   type: 'test'
   ...
 # Subtest: import mapping: would_update counts only rows that already exist
-ok 123 - import mapping: would_update counts only rows that already exist
+ok 149 - import mapping: would_update counts only rows that already exist
   ---
-  duration_ms: 25.49925
+  duration_ms: 26.539
   type: 'test'
   ...
 # Subtest: import mapping: repeated commit is idempotent (0 inserts, N updates, revision grows)
-ok 124 - import mapping: repeated commit is idempotent (0 inserts, N updates, revision grows)
+ok 150 - import mapping: repeated commit is idempotent (0 inserts, N updates, revision grows)
   ---
-  duration_ms: 30.751334
+  duration_ms: 27.105291
   type: 'test'
   ...
 # Subtest: import mapping: preview counts quarantined rows and caps the sample at 50
-ok 125 - import mapping: preview counts quarantined rows and caps the sample at 50
+ok 151 - import mapping: preview counts quarantined rows and caps the sample at 50
   ---
-  duration_ms: 16.242625
+  duration_ms: 15.989833
   type: 'test'
   ...
 # Subtest: import mapping: rows with no upsert key are reported as would_skip
-ok 126 - import mapping: rows with no upsert key are reported as would_skip
+ok 152 - import mapping: rows with no upsert key are reported as would_skip
   ---
-  duration_ms: 17.211584
+  duration_ms: 16.748958
   type: 'test'
   ...
 # Subtest: import mapping: a non-organizer cannot import even with a valid mapping
-ok 127 - import mapping: a non-organizer cannot import even with a valid mapping
+ok 153 - import mapping: a non-organizer cannot import even with a valid mapping
   ---
-  duration_ms: 38.246541
+  duration_ms: 20.630417
   type: 'test'
   ...
 # Subtest: import mapping: an anonymous request is rejected before any mapping work
-ok 128 - import mapping: an anonymous request is rejected before any mapping work
+ok 154 - import mapping: an anonymous request is rejected before any mapping work
   ---
-  duration_ms: 15.422958
+  duration_ms: 9.858542
   type: 'test'
   ...
 # Subtest: block after intro request: responder is rejected with 403 blocked, state stays pending
-ok 129 - block after intro request: responder is rejected with 403 blocked, state stays pending
+ok 155 - block after intro request: responder is rejected with 403 blocked, state stays pending
   ---
-  duration_ms: 237.556333
+  duration_ms: 189.082833
   type: 'test'
   ...
 # Subtest: block after intro request: the blocker is also frozen (symmetric)
-ok 130 - block after intro request: the blocker is also frozen (symmetric)
+ok 156 - block after intro request: the blocker is also frozen (symmetric)
   ---
-  duration_ms: 4.114625
+  duration_ms: 4.04025
   type: 'test'
   ...
 # Subtest: unblocking restores the ability to respond
-ok 131 - unblocking restores the ability to respond
+ok 157 - unblocking restores the ability to respond
   ---
-  duration_ms: 7.633416
+  duration_ms: 9.121541
   type: 'test'
   ...
 # Subtest: block after mutual: reveal is suppressed for BOTH parties while the block stands
-ok 132 - block after mutual: reveal is suppressed for BOTH parties while the block stands
+ok 158 - block after mutual: reveal is suppressed for BOTH parties while the block stands
   ---
-  duration_ms: 14.507209
+  duration_ms: 12.942708
   type: 'test'
   ...
 # Subtest: control: an unrelated third party still gets 404 on the intro view
-ok 133 - control: an unrelated third party still gets 404 on the intro view
+ok 159 - control: an unrelated third party still gets 404 on the intro view
   ---
-  duration_ms: 2.051125
+  duration_ms: 1.977708
   type: 'test'
   ...
 # Subtest: introductions: create is idempotent, canonical pair, initiator from session (AC-33)
-ok 134 - introductions: create is idempotent, canonical pair, initiator from session (AC-33)
+ok 160 - introductions: create is idempotent, canonical pair, initiator from session (AC-33)
   ---
-  duration_ms: 186.93575
+  duration_ms: 181.383375
   type: 'test'
   ...
 # Subtest: introductions: self-intro 400; unknown target 404; anonymous 401
-ok 135 - introductions: self-intro 400; unknown target 404; anonymous 401
+ok 161 - introductions: self-intro 400; unknown target 404; anonymous 401
   ---
-  duration_ms: 62.971625
+  duration_ms: 62.066834
   type: 'test'
   ...
 # Subtest: introductions: AC-31 — the initiator's implicit consent alone reveals NOTHING
-ok 136 - introductions: AC-31 — the initiator's implicit consent alone reveals NOTHING
+ok 162 - introductions: AC-31 — the initiator's implicit consent alone reveals NOTHING
   ---
-  duration_ms: 78.336583
+  duration_ms: 78.6
   type: 'test'
   ...
 # Subtest: introductions: AC-32 — concurrent double accept: both 200, one mutual transition, one audit
-ok 137 - introductions: AC-32 — concurrent double accept: both 200, one mutual transition, one audit
+ok 163 - introductions: AC-32 — concurrent double accept: both 200, one mutual transition, one audit
   ---
-  duration_ms: 89.369916
+  duration_ms: 71.578833
   type: 'test'
   ...
 # Subtest: introductions: AC-34 — empty reveal_fields intersection reveals nothing
-ok 138 - introductions: AC-34 — empty reveal_fields intersection reveals nothing
+ok 164 - introductions: AC-34 — empty reveal_fields intersection reveals nothing
   ---
-  duration_ms: 88.14075
+  duration_ms: 95.779917
   type: 'test'
   ...
 # Subtest: introductions: mutual reveal returns the OTHER side decrypted contact values
-ok 139 - introductions: mutual reveal returns the OTHER side decrypted contact values
+ok 165 - introductions: mutual reveal returns the OTHER side decrypted contact values
   ---
-  duration_ms: 69.068
+  duration_ms: 70.72525
   type: 'test'
   ...
 # Subtest: introductions: decline is visible to both sides, its reason is stored nowhere; pair excluded from recommendations
-ok 140 - introductions: decline is visible to both sides, its reason is stored nowhere; pair excluded from recommendations
+ok 166 - introductions: decline is visible to both sides, its reason is stored nowhere; pair excluded from recommendations
   ---
-  duration_ms: 68.916834
+  duration_ms: 70.334042
   type: 'test'
   ...
 # Subtest: introductions: the initiator may withdraw before the counterparty answers → revoked
-ok 141 - introductions: the initiator may withdraw before the counterparty answers → revoked
+ok 167 - introductions: the initiator may withdraw before the counterparty answers → revoked
   ---
-  duration_ms: 149.614291
+  duration_ms: 57.524583
   type: 'test'
   ...
 # Subtest: introductions: non-party respond → 404 without leaking existence
-ok 142 - introductions: non-party respond → 404 without leaking existence
+ok 168 - introductions: non-party respond → 404 without leaking existence
   ---
-  duration_ms: 56.831166
+  duration_ms: 57.173041
   type: 'test'
   ...
 # Subtest: introductions: personal context (no event) uses personal:<min> key and is idempotent
-ok 143 - introductions: personal context (no event) uses personal:<min> key and is idempotent
+ok 169 - introductions: personal context (no event) uses personal:<min> key and is idempotent
   ---
-  duration_ms: 23.411167
+  duration_ms: 24.202791
   type: 'test'
   ...
 # Subtest: introductions: decline notifies the counterparty neutrally, is idempotent and is suppressed with no channel
-ok 144 - introductions: decline notifies the counterparty neutrally, is idempotent and is suppressed with no channel
+ok 170 - introductions: decline notifies the counterparty neutrally, is idempotent and is suppressed with no channel
   ---
-  duration_ms: 271.616709
+  duration_ms: 114.760084
   type: 'test'
   ...
 # Subtest: introductions: withdraw notice is suppressed with consent_revoked when the recipient has a channel but no service_channel consent
-ok 145 - introductions: withdraw notice is suppressed with consent_revoked when the recipient has a channel but no service_channel consent
+ok 171 - introductions: withdraw notice is suppressed with consent_revoked when the recipient has a channel but no service_channel consent
   ---
-  duration_ms: 116.5725
+  duration_ms: 41.334666
   type: 'test'
   ...
 # Subtest: introductions: withdraw notice is DELIVERED when the recipient has a channel and service_channel consent
-ok 146 - introductions: withdraw notice is DELIVERED when the recipient has a channel and service_channel consent
+ok 172 - introductions: withdraw notice is DELIVERED when the recipient has a channel and service_channel consent
   ---
-  duration_ms: 171.154417
+  duration_ms: 39.871375
   type: 'test'
   ...
 # Subtest: F-02: 20 wrong codes → recorded; 21st attempt (even correct code) → 429 join_code_locked
-ok 147 - F-02: 20 wrong codes → recorded; 21st attempt (even correct code) → 429 join_code_locked
+ok 173 - F-02: 20 wrong codes → recorded; 21st attempt (even correct code) → 429 join_code_locked
   ---
-  duration_ms: 302.866083
+  duration_ms: 186.757625
   type: 'test'
   ...
 # Subtest: F-02: window expiry restores access and a successful join clears the (event, ip) history
-ok 148 - F-02: window expiry restores access and a successful join clears the (event, ip) history
+ok 174 - F-02: window expiry restores access and a successful join clears the (event, ip) history
   ---
-  duration_ms: 127.386208
+  duration_ms: 105.731292
   type: 'test'
   ...
 # Subtest: F-02: join_code shorter than 8 chars is rejected at settings (JOIN_CODE_MIN 4→8)
-ok 149 - F-02: join_code shorter than 8 chars is rejected at settings (JOIN_CODE_MIN 4→8)
+ok 175 - F-02: join_code shorter than 8 chars is rejected at settings (JOIN_CODE_MIN 4→8)
   ---
-  duration_ms: 19.471417
+  duration_ms: 16.008667
   type: 'test'
   ...
 # Subtest: mfa: enroll→confirm→login requires mfa→verify→approve passes; without verify 403
-ok 150 - mfa: enroll→confirm→login requires mfa→verify→approve passes; without verify 403
+ok 176 - mfa: enroll→confirm→login requires mfa→verify→approve passes; without verify 403
   ---
-  duration_ms: 239.267209
+  duration_ms: 186.564
   type: 'test'
   ...
 # Subtest: mfa: plain login of an account WITHOUT MFA carries no mfa_required flag
-ok 151 - mfa: plain login of an account WITHOUT MFA carries no mfa_required flag
+ok 177 - mfa: plain login of an account WITHOUT MFA carries no mfa_required flag
   ---
-  duration_ms: 35.400291
+  duration_ms: 20.376833
   type: 'test'
   ...
 # Subtest: mfa: recovery code single use at step-up (second use fails)
-ok 152 - mfa: recovery code single use at step-up (second use fails)
+ok 178 - mfa: recovery code single use at step-up (second use fails)
   ---
-  duration_ms: 120.754292
+  duration_ms: 46.878125
   type: 'test'
   ...
 # Subtest: mfa: confirm rejects wrong codes and locks after 5 failures per 15 min
-ok 153 - mfa: confirm rejects wrong codes and locks after 5 failures per 15 min
+ok 179 - mfa: confirm rejects wrong codes and locks after 5 failures per 15 min
   ---
-  duration_ms: 45.017375
+  duration_ms: 35.850209
   type: 'test'
   ...
 # Subtest: mfa: disable requires a valid TOTP and restores the legacy flow
-ok 154 - mfa: disable requires a valid TOTP and restores the legacy flow
+ok 180 - mfa: disable requires a valid TOTP and restores the legacy flow
   ---
-  duration_ms: 56.112416
+  duration_ms: 52.86675
   type: 'test'
   ...
 # Subtest: mfa: step-up freshness expires after 30 minutes (re-verify required)
-ok 155 - mfa: step-up freshness expires after 30 minutes (re-verify required)
+ok 181 - mfa: step-up freshness expires after 30 minutes (re-verify required)
   ---
-  duration_ms: 43.267209
+  duration_ms: 42.790875
   type: 'test'
   ...
 # Subtest: mfa: admin is exempt from the owner step-up (spec §9 owner-only)
-ok 156 - mfa: admin is exempt from the owner step-up (spec §9 owner-only)
+ok 182 - mfa: admin is exempt from the owner step-up (spec §9 owner-only)
   ---
-  duration_ms: 36.43225
+  duration_ms: 41.760791
   type: 'test'
   ...
 # Subtest: mfa: enrollment requires the account login email for the otpauth label
-ok 157 - mfa: enrollment requires the account login email for the otpauth label
+ok 183 - mfa: enrollment requires the account login email for the otpauth label
   ---
-  duration_ms: 9.852542
+  duration_ms: 10.569416
   type: 'test'
   ...
 # no pending migrations
 # no pending migrations
 # Subtest: migrations: applying again is a no-op (idempotent, exactly one row per version)
-ok 158 - migrations: applying again is a no-op (idempotent, exactly one row per version)
+ok 184 - migrations: applying again is a no-op (idempotent, exactly one row per version)
   ---
-  duration_ms: 66.653125
+  duration_ms: 69.074625
   type: 'test'
   ...
 # Subtest: migrations: adapted contract tables exist with required columns
-ok 159 - migrations: adapted contract tables exist with required columns
+ok 185 - migrations: adapted contract tables exist with required columns
   ---
-  duration_ms: 7.411917
+  duration_ms: 6.811334
   type: 'test'
   ...
 # Subtest: migrations: accounts has is_demo + email_lookup_hash; rate_limits is absent
-ok 160 - migrations: accounts has is_demo + email_lookup_hash; rate_limits is absent
+ok 186 - migrations: accounts has is_demo + email_lookup_hash; rate_limits is absent
   ---
-  duration_ms: 20.98575
+  duration_ms: 11.257917
   type: 'test'
   ...
 # Subtest: migrations: events has the Phase-1 extra columns
-ok 161 - migrations: events has the Phase-1 extra columns
+ok 187 - migrations: events has the Phase-1 extra columns
   ---
-  duration_ms: 10.682958
+  duration_ms: 4.479041
   type: 'test'
   ...
 # Subtest: migrations: sessions table shape matches the brief
-ok 162 - migrations: sessions table shape matches the brief
+ok 188 - migrations: sessions table shape matches the brief
   ---
-  duration_ms: 9.921458
+  duration_ms: 3.789083
   type: 'test'
   ...
 # Subtest: migrations: profiles CHECK enforces slug length >= 22 at the DB level
-ok 163 - migrations: profiles CHECK enforces slug length >= 22 at the DB level
+ok 189 - migrations: profiles CHECK enforces slug length >= 22 at the DB level
   ---
-  duration_ms: 9.110375
+  duration_ms: 6.359792
   type: 'test'
   ...
 # Subtest: migrations 002: events has join_code / directory_close_at / intro_cooldown_days default 30
-ok 164 - migrations 002: events has join_code / directory_close_at / intro_cooldown_days default 30
+ok 190 - migrations 002: events has join_code / directory_close_at / intro_cooldown_days default 30
   ---
-  duration_ms: 5.964959
+  duration_ms: 2.730625
   type: 'test'
   ...
 # Subtest: migrations 002: event_memberships has matching_enabled + attendance_source CHECK
-ok 165 - migrations 002: event_memberships has matching_enabled + attendance_source CHECK
+ok 191 - migrations 002: event_memberships has matching_enabled + attendance_source CHECK
   ---
-  duration_ms: 11.850958
+  duration_ms: 9.655792
   type: 'test'
   ...
 # Subtest: migrations 002: consent purpose CHECK rejects unknown purposes
-ok 166 - migrations 002: consent purpose CHECK rejects unknown purposes
+ok 192 - migrations 002: consent purpose CHECK rejects unknown purposes
   ---
-  duration_ms: 3.595083
+  duration_ms: 3.1915
   type: 'test'
   ...
 # Subtest: migrations 002: introductions accepts revoked state
-ok 167 - migrations 002: introductions accepts revoked state
+ok 193 - migrations 002: introductions accepts revoked state
   ---
-  duration_ms: 7.349834
+  duration_ms: 5.704958
   type: 'test'
   ...
 # Subtest: migrations 002: link_challenges.registration_id exists; blocks forbids self-block
-ok 168 - migrations 002: link_challenges.registration_id exists; blocks forbids self-block
+ok 194 - migrations 002: link_challenges.registration_id exists; blocks forbids self-block
   ---
-  duration_ms: 5.889667
+  duration_ms: 5.690041
   type: 'test'
   ...
 # Subtest: migrations 002: reports stores a row with default open status
-ok 169 - migrations 002: reports stores a row with default open status
+ok 195 - migrations 002: reports stores a row with default open status
   ---
-  duration_ms: 2.439041
+  duration_ms: 2.297958
   type: 'test'
   ...
 # Subtest: migrations 009: introduction_consents.source defaults to explicit and only accepts known sources
-ok 170 - migrations 009: introduction_consents.source defaults to explicit and only accepts known sources
+ok 196 - migrations 009: introduction_consents.source defaults to explicit and only accepts known sources
   ---
-  duration_ms: 11.536292
+  duration_ms: 14.67975
   type: 'test'
   ...
 # Subtest: notes: upsert own private note about a connected member; list is owner-only
-ok 171 - notes: upsert own private note about a connected member; list is owner-only
+ok 197 - notes: upsert own private note about a connected member; list is owner-only
   ---
-  duration_ms: 217.767458
+  duration_ms: 179.220125
   type: 'test'
   ...
 # Subtest: notes: AC-35 — organizer (not a participant) cannot attach or see participant notes
-ok 172 - notes: AC-35 — organizer (not a participant) cannot attach or see participant notes
+ok 198 - notes: AC-35 — organizer (not a participant) cannot attach or see participant notes
   ---
-  duration_ms: 43.950084
+  duration_ms: 36.794167
   type: 'test'
   ...
 # Subtest: blocks: suppress directory, recommendations and intro creation; unblock restores
-ok 173 - blocks: suppress directory, recommendations and intro creation; unblock restores
+ok 199 - blocks: suppress directory, recommendations and intro creation; unblock restores
   ---
-  duration_ms: 100.512375
+  duration_ms: 101.291209
   type: 'test'
   ...
 # Subtest: blocks: self-block 400; unknown target 404; anonymous 401
-ok 174 - blocks: self-block 400; unknown target 404; anonymous 401
+ok 200 - blocks: self-block 400; unknown target 404; anonymous 401
   ---
-  duration_ms: 10.953292
+  duration_ms: 11.288958
   type: 'test'
   ...
 # Subtest: reports: stored with open status; invalid reason 400
-ok 175 - reports: stored with open status; invalid reason 400
+ok 201 - reports: stored with open status; invalid reason 400
   ---
-  duration_ms: 19.656542
+  duration_ms: 24.8125
   type: 'test'
   ...
 # Subtest: onboarding path: the profile API accepts the whole wizard payload and reads it back
-ok 176 - onboarding path: the profile API accepts the whole wizard payload and reads it back
+ok 202 - onboarding path: the profile API accepts the whole wizard payload and reads it back
   ---
-  duration_ms: 67.1925
+  duration_ms: 73.616459
   type: 'test'
   ...
 # Subtest: onboarding path: hidden_fields keeps a field off the card in JSON and in HTML
-ok 177 - onboarding path: hidden_fields keeps a field off the card in JSON and in HTML
+ok 203 - onboarding path: hidden_fields keeps a field off the card in JSON and in HTML
   ---
-  duration_ms: 37.859
+  duration_ms: 37.098125
   type: 'test'
   ...
 # Subtest: onboarding path: an unknown hidden_fields id is rejected
-ok 178 - onboarding path: an unknown hidden_fields id is rejected
+ok 204 - onboarding path: an unknown hidden_fields id is rejected
   ---
-  duration_ms: 12.277
+  duration_ms: 8.296709
   type: 'test'
   ...
 # Subtest: onboarding path: a GitHub link is a first-class public contact (migration 008)
-ok 179 - onboarding path: a GitHub link is a first-class public contact (migration 008)
+ok 205 - onboarding path: a GitHub link is a first-class public contact (migration 008)
   ---
-  duration_ms: 26.855625
+  duration_ms: 18.704875
   type: 'test'
   ...
 # Subtest: onboarding path: the card renders the axes as labels, not raw ids
-ok 180 - onboarding path: the card renders the axes as labels, not raw ids
+ok 206 - onboarding path: the card renders the axes as labels, not raw ids
   ---
-  duration_ms: 21.85325
+  duration_ms: 14.287208
   type: 'test'
   ...
 # Subtest: onboarding path: the card carries shareable meta tags
-ok 181 - onboarding path: the card carries shareable meta tags
+ok 207 - onboarding path: the card carries shareable meta tags
   ---
-  duration_ms: 13.557584
+  duration_ms: 15.555917
   type: 'test'
   ...
 # Subtest: onboarding path: the profile API rejects an unknown intent for the wrong side
-ok 182 - onboarding path: the profile API rejects an unknown intent for the wrong side
+ok 208 - onboarding path: the profile API rejects an unknown intent for the wrong side
   ---
-  duration_ms: 8.396458
+  duration_ms: 7.738375
   type: 'test'
   ...
 # Subtest: export: owner gets CSV with event-scoped sections, comment header, event-slug filename
-ok 183 - export: owner gets CSV with event-scoped sections, comment header, event-slug filename
+ok 209 - export: owner gets CSV with event-scoped sections, comment header, event-slug filename
   ---
-  duration_ms: 172.936958
+  duration_ms: 146.568292
   type: 'test'
   ...
 # Subtest: export: CSV formula injection neutralized — "=HYPERLINK(...)" appears with leading apostrophe
-ok 184 - export: CSV formula injection neutralized — "=HYPERLINK(...)" appears with leading apostrophe
+ok 210 - export: CSV formula injection neutralized — "=HYPERLINK(...)" appears with leading apostrophe
   ---
-  duration_ms: 4.683209
+  duration_ms: 5.035875
   type: 'test'
   ...
 # Subtest: export: no emails, no lookup hashes, no private contact values in the payload
-ok 185 - export: no emails, no lookup hashes, no private contact values in the payload
+ok 211 - export: no emails, no lookup hashes, no private contact values in the payload
   ---
-  duration_ms: 11.450166
+  duration_ms: 7.333334
   type: 'test'
   ...
 # Subtest: export: intro counts are aggregates only (requested/mutual per member, no pair identities)
-ok 186 - export: intro counts are aggregates only (requested/mutual per member, no pair identities)
+ok 212 - export: intro counts are aggregates only (requested/mutual per member, no pair identities)
   ---
-  duration_ms: 33.207916
+  duration_ms: 40.790833
   type: 'test'
   ...
 # Subtest: export: staff of the same organizer is forbidden (owner/admin only)
-ok 187 - export: staff of the same organizer is forbidden (owner/admin only)
+ok 213 - export: staff of the same organizer is forbidden (owner/admin only)
   ---
-  duration_ms: 20.598917
+  duration_ms: 15.840625
   type: 'test'
   ...
 # Subtest: otp request: dev + dev expose flag → devCode (pre-existing mechanism intact)
-ok 188 - otp request: dev + dev expose flag → devCode (pre-existing mechanism intact)
+ok 214 - otp request: dev + dev expose flag → devCode (pre-existing mechanism intact)
   ---
-  duration_ms: 46.227542
+  duration_ms: 40.151542
   type: 'test'
   ...
 # Subtest: otp request: dev without flags → {ok:true}, code lands in .runtime/otp.log (old dev behaviour kept)
-ok 189 - otp request: dev without flags → {ok:true}, code lands in .runtime/otp.log (old dev behaviour kept)
+ok 215 - otp request: dev without flags → {ok:true}, code lands in .runtime/otp.log (old dev behaviour kept)
   ---
-  duration_ms: 7.864833
+  duration_ms: 8.258375
   type: 'test'
   ...
 # Subtest: otp request: demo fallback — is_demo account + AUTH_EXPOSE_DEMO_OTP=true → devCode without any provider
-ok 190 - otp request: demo fallback — is_demo account + AUTH_EXPOSE_DEMO_OTP=true → devCode without any provider
+ok 216 - otp request: demo fallback — is_demo account + AUTH_EXPOSE_DEMO_OTP=true → devCode without any provider
   ---
-  duration_ms: 15.346167
+  duration_ms: 12.541333
   type: 'test'
   ...
 # Subtest: otp request: AUTH_EXPOSE_DEMO_OTP=true + regular account → NO devCode
-ok 191 - otp request: AUTH_EXPOSE_DEMO_OTP=true + regular account → NO devCode
+ok 217 - otp request: AUTH_EXPOSE_DEMO_OTP=true + regular account → NO devCode
   ---
-  duration_ms: 8.346
+  duration_ms: 5.379625
   type: 'test'
   ...
 # Subtest: otp request: APP_ENV=production without provider → 503 email_channel_disabled (explicit, no devCode)
-ok 192 - otp request: APP_ENV=production without provider → 503 email_channel_disabled (explicit, no devCode)
+ok 218 - otp request: APP_ENV=production without provider → 503 email_channel_disabled (explicit, no devCode)
   ---
-  duration_ms: 3.996792
+  duration_ms: 5.088834
   type: 'test'
   ...
 # Subtest: otp request: production + is_demo + demo flag → devCode (demo login works without provider)
-ok 193 - otp request: production + is_demo + demo flag → devCode (demo login works without provider)
+ok 219 - otp request: production + is_demo + demo flag → devCode (demo login works without provider)
   ---
-  duration_ms: 6.888542
+  duration_ms: 8.970833
   type: 'test'
   ...
 # Subtest: otp request (ADR 0009): allowlisted address + switch → devCode in development
-ok 194 - otp request (ADR 0009): allowlisted address + switch → devCode in development
+ok 220 - otp request (ADR 0009): allowlisted address + switch → devCode in development
   ---
-  duration_ms: 4.05725
+  duration_ms: 4.546292
   type: 'test'
   ...
 # [otp-exposure] DEV OTP EXPOSURE ENABLED ON PRODUCTION — staging-test only (1 allowlisted address)
 # Subtest: otp request (ADR 0009): allowlisted address works on APP_ENV=production without a provider
-ok 195 - otp request (ADR 0009): allowlisted address works on APP_ENV=production without a provider
+ok 221 - otp request (ADR 0009): allowlisted address works on APP_ENV=production without a provider
   ---
-  duration_ms: 6.339625
+  duration_ms: 11.795708
   type: 'test'
   ...
 # Subtest: otp request (ADR 0009): production + switch on but address NOT on the list → 503, no devCode
-ok 196 - otp request (ADR 0009): production + switch on but address NOT on the list → 503, no devCode
+ok 222 - otp request (ADR 0009): production + switch on but address NOT on the list → 503, no devCode
   ---
-  duration_ms: 3.676333
+  duration_ms: 8.655875
   type: 'test'
   ...
 # Subtest: otp request (ADR 0009): list match with the switch OFF → no devCode (membership alone is inert)
-ok 197 - otp request (ADR 0009): list match with the switch OFF → no devCode (membership alone is inert)
+ok 223 - otp request (ADR 0009): list match with the switch OFF → no devCode (membership alone is inert)
   ---
-  duration_ms: 3.704792
+  duration_ms: 3.503375
   type: 'test'
   ...
 # Subtest: otp request (ADR 0009): operator formatting (case + spaces) still matches the allowlist
-ok 198 - otp request (ADR 0009): operator formatting (case + spaces) still matches the allowlist
+ok 224 - otp request (ADR 0009): operator formatting (case + spaces) still matches the allowlist
   ---
-  duration_ms: 4.162459
+  duration_ms: 4.381666
   type: 'test'
   ...
 # Subtest: otp request (ADR 0009): flag on for OTHER addresses does not disturb the is_demo path
-ok 199 - otp request (ADR 0009): flag on for OTHER addresses does not disturb the is_demo path
+ok 225 - otp request (ADR 0009): flag on for OTHER addresses does not disturb the is_demo path
   ---
-  duration_ms: 4.649375
+  duration_ms: 5.9855
   type: 'test'
   ...
 # Subtest: otp request (ADR 0009): enumeration shape unchanged — non-allowlisted prod response leaks nothing about the account
-ok 200 - otp request (ADR 0009): enumeration shape unchanged — non-allowlisted prod response leaks nothing about the account
+ok 226 - otp request (ADR 0009): enumeration shape unchanged — non-allowlisted prod response leaks nothing about the account
   ---
-  duration_ms: 7.658125
+  duration_ms: 7.82975
   type: 'test'
   ...
 # Subtest: F-13: 5 wrong verifies lock the account — correct code rejected until window slides
-ok 201 - F-13: 5 wrong verifies lock the account — correct code rejected until window slides
+ok 227 - F-13: 5 wrong verifies lock the account — correct code rejected until window slides
   ---
-  duration_ms: 92.8555
+  duration_ms: 94.124417
   type: 'test'
   ...
 # Subtest: F-13: another account is unaffected by one account being locked
-ok 202 - F-13: another account is unaffected by one account being locked
+ok 228 - F-13: another account is unaffected by one account being locked
   ---
-  duration_ms: 6.861375
+  duration_ms: 12.383791
   type: 'test'
   ...
 # Subtest: outbox enqueue: duplicate dedupe_key returns the existing id, one row total
-ok 203 - outbox enqueue: duplicate dedupe_key returns the existing id, one row total
+ok 229 - outbox enqueue: duplicate dedupe_key returns the existing id, one row total
   ---
-  duration_ms: 37.245708
+  duration_ms: 43.680334
   type: 'test'
   ...
 # Subtest: outbox enqueue: default due_at uses the DB clock (immediately claimable)
-ok 204 - outbox enqueue: default due_at uses the DB clock (immediately claimable)
+ok 230 - outbox enqueue: default due_at uses the DB clock (immediately claimable)
   ---
-  duration_ms: 5.846375
+  duration_ms: 6.877083
   type: 'test'
   ...
 # Subtest: outbox lifecycle: pending → sent, attempt row recorded, redacted (no payload)
-ok 205 - outbox lifecycle: pending → sent, attempt row recorded, redacted (no payload)
+ok 231 - outbox lifecycle: pending → sent, attempt row recorded, redacted (no payload)
   ---
-  duration_ms: 80.510583
+  duration_ms: 71.021584
   type: 'test'
   ...
 # Subtest: outbox: recipient without any channel → suppressed no_channel, never sent
-ok 206 - outbox: recipient without any channel → suppressed no_channel, never sent
+ok 232 - outbox: recipient without any channel → suppressed no_channel, never sent
   ---
-  duration_ms: 8.212542
+  duration_ms: 12.473792
   type: 'test'
   ...
 # Subtest: outbox: revoked binding → suppressed channel_revoked (AC-39 send-side)
-ok 207 - outbox: revoked binding → suppressed channel_revoked (AC-39 send-side)
+ok 233 - outbox: revoked binding → suppressed channel_revoked (AC-39 send-side)
   ---
-  duration_ms: 11.92925
+  duration_ms: 14.641375
   type: 'test'
   ...
 # Subtest: outbox: withdrawn consent → suppressed at send time even if the hook raced
-ok 208 - outbox: withdrawn consent → suppressed at send time even if the hook raced
+ok 234 - outbox: withdrawn consent → suppressed at send time even if the hook raced
   ---
-  duration_ms: 16.869458
+  duration_ms: 12.168541
   type: 'test'
   ...
 # Subtest: outbox: permanent 4xx → failed, no retry on subsequent ticks
-ok 209 - outbox: permanent 4xx → failed, no retry on subsequent ticks
+ok 235 - outbox: permanent 4xx → failed, no retry on subsequent ticks
   ---
-  duration_ms: 8.059
+  duration_ms: 10.360833
   type: 'test'
   ...
 # Subtest: AC-42: unknown outcomes capped at 3 attempts, then terminal, never infinite resend
-ok 210 - AC-42: unknown outcomes capped at 3 attempts, then terminal, never infinite resend
+ok 236 - AC-42: unknown outcomes capped at 3 attempts, then terminal, never infinite resend
   ---
-  duration_ms: 20.397917
+  duration_ms: 27.178459
   type: 'test'
   ...
 # Subtest: AC-43: 429 with Retry-After pushes due_at beyond the header window
-ok 211 - AC-43: 429 with Retry-After pushes due_at beyond the header window
+ok 237 - AC-43: 429 with Retry-After pushes due_at beyond the header window
   ---
-  duration_ms: 7.691333
+  duration_ms: 7.906375
   type: 'test'
   ...
 # Subtest: outbox: expired lease re-queues the job with attempt++
-ok 212 - outbox: expired lease re-queues the job with attempt++
+ok 238 - outbox: expired lease re-queues the job with attempt++
   ---
-  duration_ms: 8.28425
+  duration_ms: 10.02175
   type: 'test'
   ...
 # Subtest: applyOutcome: refuses to finalize a job that is no longer leased
-ok 213 - applyOutcome: refuses to finalize a job that is no longer leased
+ok 239 - applyOutcome: refuses to finalize a job that is no longer leased
   ---
-  duration_ms: 4.313583
+  duration_ms: 3.797083
   type: 'test'
   ...
 # Subtest: profile CRUD with optimistic concurrency and 409 on stale revision
-ok 214 - profile CRUD with optimistic concurrency and 409 on stale revision
+ok 240 - profile CRUD with optimistic concurrency and 409 on stale revision
   ---
-  duration_ms: 84.33825
+  duration_ms: 99.006917
   type: 'test'
   ...
 # Subtest: profile routes require a session
-ok 215 - profile routes require a session
+ok 241 - profile routes require a session
   ---
-  duration_ms: 0.762542
+  duration_ms: 0.628667
   type: 'test'
   ...
 # Subtest: contacts: encrypted at rest (DB holds no plaintext), whitelist enforced, values decrypt for owner
-ok 216 - contacts: encrypted at rest (DB holds no plaintext), whitelist enforced, values decrypt for owner
+ok 242 - contacts: encrypted at rest (DB holds no plaintext), whitelist enforced, values decrypt for owner
   ---
-  duration_ms: 36.246625
+  duration_ms: 17.76275
   type: 'test'
   ...
 # Subtest: public API returns ONLY the public projection (disabled contact and private data absent)
-ok 217 - public API returns ONLY the public projection (disabled contact and private data absent)
+ok 243 - public API returns ONLY the public projection (disabled contact and private data absent)
   ---
-  duration_ms: 22.464083
+  duration_ms: 19.142084
   type: 'test'
   ...
 # Subtest: public API: unknown slug → 404 not_found
-ok 218 - public API: unknown slug → 404 not_found
+ok 244 - public API: unknown slug → 404 not_found
   ---
-  duration_ms: 1.153209
+  duration_ms: 0.952083
   type: 'test'
   ...
 # Subtest: public page renders public data, hides disabled contacts, escapes user text
-ok 219 - public page renders public data, hides disabled contacts, escapes user text
+ok 245 - public page renders public data, hides disabled contacts, escapes user text
   ---
-  duration_ms: 28.943792
+  duration_ms: 26.808584
   type: 'test'
   ...
 # Subtest: vCard: text/vcard 3.0 with only public fields and CRLF endings
-ok 220 - vCard: text/vcard 3.0 with only public fields and CRLF endings
+ok 246 - vCard: text/vcard 3.0 with only public fields and CRLF endings
   ---
-  duration_ms: 22.930583
+  duration_ms: 14.810791
   type: 'test'
   ...
 # Subtest: QR: renders SVG of the absolute public URL
-ok 221 - QR: renders SVG of the absolute public URL
+ok 247 - QR: renders SVG of the absolute public URL
   ---
-  duration_ms: 20.320875
+  duration_ms: 21.996291
+  type: 'test'
+  ...
+# Subtest: providers: anonymous GET returns every registry row in table order, no session needed
+ok 248 - providers: anonymous GET returns every registry row in table order, no session needed
+  ---
+  duration_ms: 3.63775
+  type: 'test'
+  ...
+# Subtest: providers: payload is allowlisted — exactly the documented fields
+ok 249 - providers: payload is allowlisted — exactly the documented fields
+  ---
+  duration_ms: 0.625625
+  type: 'test'
+  ...
+# Subtest: providers: the payload carries env NAMES and never their values
+ok 250 - providers: the payload carries env NAMES and never their values
+  ---
+  duration_ms: 0.335833
+  type: 'test'
+  ...
+# Subtest: providers: an instance without the telegram/email keys reports disabled + the missing name
+ok 251 - providers: an instance without the telegram/email keys reports disabled + the missing name
+  ---
+  duration_ms: 0.356458
+  type: 'test'
+  ...
+# Subtest: providers: documented shape of the two live channels and the disabled rows
+ok 252 - providers: documented shape of the two live channels and the disabled rows
+  ---
+  duration_ms: 0.695583
+  type: 'test'
+  ...
+# Subtest: v4: the four modes answer four different questions about the same event
+ok 253 - v4: the four modes answer four different questions about the same event
+  ---
+  duration_ms: 197.35775
+  type: 'test'
+  ...
+# Subtest: v4: an unknown mode is a 400, not a silent fallback
+ok 254 - v4: an unknown mode is a 400, not a silent fallback
+  ---
+  duration_ms: 71.823292
+  type: 'test'
+  ...
+# Subtest: v4: the two lines are structural codes with the facts the sentence needs
+ok 255 - v4: the two lines are structural codes with the facts the sentence needs
+  ---
+  duration_ms: 70.9605
+  type: 'test'
+  ...
+# Subtest: v4: excluded_reason explains an empty list instead of leaving a blank strip
+ok 256 - v4: excluded_reason explains an empty list instead of leaving a blank strip
+  ---
+  duration_ms: 50.996084
+  type: 'test'
+  ...
+# Subtest: v4: every recommendation mode is reachable and stays inside the item allowlist
+ok 257 - v4: every recommendation mode is reachable and stays inside the item allowlist
+  ---
+  duration_ms: 58.466875
+  type: 'test'
+  ...
+# Subtest: v4: the viewer's own goals change the ranking; other people's goals are never read
+ok 258 - v4: the viewer's own goals change the ranking; other people's goals are never read
+  ---
+  duration_ms: 53.140167
   type: 'test'
   ...
 # Subtest: recommendations: empty list is a normal outcome (200, no error)
-ok 222 - recommendations: empty list is a normal outcome (200, no error)
+ok 259 - recommendations: empty list is a normal outcome (200, no error)
   ---
-  duration_ms: 161.461791
+  duration_ms: 142.558042
   type: 'test'
   ...
 # Subtest: recommendations: 401 anonymous; 403 non-member
-ok 223 - recommendations: 401 anonymous; 403 non-member
+ok 260 - recommendations: 401 anonymous; 403 non-member
   ---
-  duration_ms: 30.487459
+  duration_ms: 36.014666
   type: 'test'
   ...
 # Subtest: recommendations: complementary pair returned with fact-based reasons only
-ok 224 - recommendations: complementary pair returned with fact-based reasons only
+ok 261 - recommendations: complementary pair returned with fact-based reasons only
   ---
-  duration_ms: 74.254708
+  duration_ms: 60.847167
   type: 'test'
   ...
 # Subtest: recommendations: not-visible / non-opted-in / non-member candidates are excluded
-ok 225 - recommendations: not-visible / non-opted-in / non-member candidates are excluded
+ok 262 - recommendations: not-visible / non-opted-in / non-member candidates are excluded
   ---
-  duration_ms: 97.305125
+  duration_ms: 79.988708
   type: 'test'
   ...
 # Subtest: recommendations: blocks suppress candidates; matching_enabled=false excludes
-ok 226 - recommendations: blocks suppress candidates; matching_enabled=false excludes
+ok 263 - recommendations: blocks suppress candidates; matching_enabled=false excludes
   ---
-  duration_ms: 66.41525
+  duration_ms: 56.644875
   type: 'test'
   ...
 # Subtest: recommendations: viewer with matching_enabled=false gets an empty list
-ok 227 - recommendations: viewer with matching_enabled=false gets an empty list
+ok 264 - recommendations: viewer with matching_enabled=false gets an empty list
   ---
-  duration_ms: 58.210875
+  duration_ms: 46.681791
   type: 'test'
   ...
 # Subtest: recommendations: pending intro excludes the pair; declined excluded within cooldown, allowed after
-ok 228 - recommendations: pending intro excludes the pair; declined excluded within cooldown, allowed after
+ok 265 - recommendations: pending intro excludes the pair; declined excluded within cooldown, allowed after
   ---
-  duration_ms: 62.637208
+  duration_ms: 67.516875
   type: 'test'
   ...
 # Subtest: recommendations: tie-break is stable by profile id (score and pending equal)
-ok 229 - recommendations: tie-break is stable by profile id (score and pending equal)
+ok 266 - recommendations: tie-break is stable by profile id (score and pending equal)
   ---
-  duration_ms: 58.291417
+  duration_ms: 61.868292
   type: 'test'
   ...
 # Subtest: recommendations: per-event tag override is used for matching
-ok 230 - recommendations: per-event tag override is used for matching
+ok 267 - recommendations: per-event tag override is used for matching
   ---
-  duration_ms: 42.991458
+  duration_ms: 48.110458
   type: 'test'
   ...
 # Subtest: CSRF: cross-origin mutating POST with evil Origin → 403 csrf_origin
-ok 231 - CSRF: cross-origin mutating POST with evil Origin → 403 csrf_origin
+ok 268 - CSRF: cross-origin mutating POST with evil Origin → 403 csrf_origin
   ---
-  duration_ms: 4.735084
+  duration_ms: 3.612417
   type: 'test'
   ...
 # Subtest: CSRF: cross-site marker without Origin → 403
-ok 232 - CSRF: cross-site marker without Origin → 403
+ok 269 - CSRF: cross-site marker without Origin → 403
   ---
-  duration_ms: 0.731292
+  duration_ms: 0.6225
   type: 'test'
   ...
 # Subtest: CSRF: Origin "null" (sandboxed frame) → 403
-ok 233 - CSRF: Origin "null" (sandboxed frame) → 403
+ok 270 - CSRF: Origin "null" (sandboxed frame) → 403
   ---
-  duration_ms: 0.6535
+  duration_ms: 0.575
   type: 'test'
   ...
 # Subtest: CSRF: same-origin Origin passes (guard is not triggered)
-ok 234 - CSRF: same-origin Origin passes (guard is not triggered)
+ok 271 - CSRF: same-origin Origin passes (guard is not triggered)
   ---
-  duration_ms: 2.275709
+  duration_ms: 2.402916
   type: 'test'
   ...
 # Subtest: CSRF: X-Forwarded-Host proxy setup — matching Origin passes
-ok 235 - CSRF: X-Forwarded-Host proxy setup — matching Origin passes
+ok 272 - CSRF: X-Forwarded-Host proxy setup — matching Origin passes
   ---
-  duration_ms: 0.937042
+  duration_ms: 1.041792
   type: 'test'
   ...
 # Subtest: CSRF: no Origin at all (curl / server-to-server style) passes
-ok 236 - CSRF: no Origin at all (curl / server-to-server style) passes
+ok 273 - CSRF: no Origin at all (curl / server-to-server style) passes
   ---
-  duration_ms: 0.40575
+  duration_ms: 0.469625
   type: 'test'
   ...
 # Subtest: CSRF: GET requests are never origin-guarded
-ok 237 - CSRF: GET requests are never origin-guarded
+ok 274 - CSRF: GET requests are never origin-guarded
   ---
-  duration_ms: 35.932875
+  duration_ms: 35.318792
   type: 'test'
   ...
 # Subtest: rate limit: 11 OTP requests from one IP within the window → last is 429
-ok 238 - rate limit: 11 OTP requests from one IP within the window → last is 429
+ok 275 - rate limit: 11 OTP requests from one IP within the window → last is 429
   ---
-  duration_ms: 39.116583
+  duration_ms: 40.1
   type: 'test'
   ...
 # Subtest: rate limit: another IP is not affected by the exhausted bucket
-ok 239 - rate limit: another IP is not affected by the exhausted bucket
+ok 276 - rate limit: another IP is not affected by the exhausted bucket
   ---
-  duration_ms: 3.072959
+  duration_ms: 2.927125
   type: 'test'
   ...
 # Subtest: rate limit: success responses carry X-RateLimit headers on governed routes
-ok 240 - rate limit: success responses carry X-RateLimit headers on governed routes
+ok 277 - rate limit: success responses carry X-RateLimit headers on governed routes
   ---
-  duration_ms: 2.690375
+  duration_ms: 2.662417
   type: 'test'
   ...
 # Subtest: F-08: authed GETs return cache-control: no-store, private
-ok 241 - F-08: authed GETs return cache-control: no-store, private
+ok 278 - F-08: authed GETs return cache-control: no-store, private
   ---
-  duration_ms: 23.430333
+  duration_ms: 21.494
   type: 'test'
   ...
 # Subtest: sessions: the list marks the current session and carries no token material
-ok 242 - sessions: the list marks the current session and carries no token material
+ok 279 - sessions: the list marks the current session and carries no token material
   ---
-  duration_ms: 78.139833
+  duration_ms: 63.101166
   type: 'test'
   ...
 # Subtest: sessions: the current session comes first, then most recently seen
-ok 243 - sessions: the current session comes first, then most recently seen
+ok 280 - sessions: the current session comes first, then most recently seen
   ---
-  duration_ms: 24.935292
+  duration_ms: 25.28975
   type: 'test'
   ...
 # Subtest: sessions: an expired session is not listed
-ok 244 - sessions: an expired session is not listed
+ok 281 - sessions: an expired session is not listed
   ---
-  duration_ms: 21.473292
+  duration_ms: 21.895292
   type: 'test'
   ...
 # Subtest: sessions: revoking another session deletes the row and kills its cookie
-ok 245 - sessions: revoking another session deletes the row and kills its cookie
+ok 282 - sessions: revoking another session deletes the row and kills its cookie
   ---
-  duration_ms: 24.499125
+  duration_ms: 26.209875
   type: 'test'
   ...
 # Subtest: sessions: revoking the current session is allowed and ends it
-ok 246 - sessions: revoking the current session is allowed and ends it
+ok 283 - sessions: revoking the current session is allowed and ends it
   ---
-  duration_ms: 29.163625
+  duration_ms: 12.696833
   type: 'test'
   ...
 # Subtest: sessions: another account's session answers 404, never 403
-ok 247 - sessions: another account's session answers 404, never 403
+ok 284 - sessions: another account's session answers 404, never 403
   ---
-  duration_ms: 16.330209
+  duration_ms: 18.672709
   type: 'test'
   ...
 # Subtest: sessions: a malformed id is a 404, not a crash
-ok 248 - sessions: a malformed id is a 404, not a crash
+ok 285 - sessions: a malformed id is a 404, not a crash
   ---
-  duration_ms: 6.998125
+  duration_ms: 7.6385
   type: 'test'
   ...
 # Subtest: sessions: sign out everywhere revokes every session of the account
-ok 249 - sessions: sign out everywhere revokes every session of the account
+ok 286 - sessions: sign out everywhere revokes every session of the account
   ---
-  duration_ms: 17.885792
+  duration_ms: 19.535583
   type: 'test'
   ...
 # Subtest: sessions: anonymous callers cannot read or revoke
-ok 250 - sessions: anonymous callers cannot read or revoke
+ok 287 - sessions: anonymous callers cannot read or revoke
   ---
-  duration_ms: 0.764709
+  duration_ms: 0.7
   type: 'test'
   ...
 # Subtest: sessions: last_seen_at is refreshed by an authenticated request
-ok 251 - sessions: last_seen_at is refreshed by an authenticated request
+ok 288 - sessions: last_seen_at is refreshed by an authenticated request
   ---
-  duration_ms: 12.495708
+  duration_ms: 9.836916
   type: 'test'
   ...
 # Subtest: sessions: the throttled bump does not write on every request
-ok 252 - sessions: the throttled bump does not write on every request
+ok 289 - sessions: the throttled bump does not write on every request
   ---
-  duration_ms: 10.287584
+  duration_ms: 9.541083
   type: 'test'
   ...
 # no pending migrations
 # Subtest: migration 007: v3 columns, GIN indexes and the enrichment ledger exist; re-running is a no-op
-ok 253 - migration 007: v3 columns, GIN indexes and the enrichment ledger exist; re-running is a no-op
+ok 290 - migration 007: v3 columns, GIN indexes and the enrichment ledger exist; re-running is a no-op
   ---
-  duration_ms: 76.658084
+  duration_ms: 77.259958
   type: 'test'
   ...
 # Subtest: GET /api/taxonomy: public, cacheable, full catalogue with RU+EN labels
-ok 254 - GET /api/taxonomy: public, cacheable, full catalogue with RU+EN labels
+ok 291 - GET /api/taxonomy: public, cacheable, full catalogue with RU+EN labels
   ---
-  duration_ms: 2.80825
+  duration_ms: 2.8655
   type: 'test'
   ...
 # Subtest: profile: v3 axes round-trip, catalogue validation, revision semantics unchanged
-ok 255 - profile: v3 axes round-trip, catalogue validation, revision semantics unchanged
+ok 292 - profile: v3 axes round-trip, catalogue validation, revision semantics unchanged
   ---
-  duration_ms: 49.852917
+  duration_ms: 46.683791
   type: 'test'
   ...
 # Subtest: directory: intent / interest modes and facet filters narrow the visible members
-ok 256 - directory: intent / interest modes and facet filters narrow the visible members
+ok 293 - directory: intent / interest modes and facet filters narrow the visible members
   ---
-  duration_ms: 132.783208
+  duration_ms: 140.32175
   type: 'test'
   ...
 # Subtest: directory: profile-level intents surface when the membership has no override, and keywords never leak
-ok 257 - directory: profile-level intents surface when the membership has no override, and keywords never leak
+ok 294 - directory: profile-level intents surface when the membership has no override, and keywords never leak
   ---
-  duration_ms: 58.934708
+  duration_ms: 52.409041
   type: 'test'
   ...
 # Subtest: recommendations: v3 intent match comes with a localized reason, legacy tag matches follow
-ok 258 - recommendations: v3 intent match comes with a localized reason, legacy tag matches follow
+ok 295 - recommendations: v3 intent match comes with a localized reason, legacy tag matches follow
   ---
-  duration_ms: 80.590125
+  duration_ms: 64.340958
   type: 'test'
   ...
 # Subtest: recommendations: the payload is locale-neutral (codes, not sentences)
-ok 259 - recommendations: the payload is locale-neutral (codes, not sentences)
+ok 296 - recommendations: the payload is locale-neutral (codes, not sentences)
   ---
-  duration_ms: 52.805333
+  duration_ms: 43.81175
   type: 'test'
   ...
 # Subtest: recommendations: membership overrides win over profile values for the v3 axes
-ok 260 - recommendations: membership overrides win over profile values for the v3 axes
+ok 297 - recommendations: membership overrides win over profile values for the v3 axes
   ---
-  duration_ms: 44.346041
+  duration_ms: 42.555583
   type: 'test'
   ...
 # Subtest: after(): webhook 200 → deferred tick drives the update to a terminal state and sends its reply, no external tick
-ok 261 - after(): webhook 200 → deferred tick drives the update to a terminal state and sends its reply, no external tick
+ok 298 - after(): webhook 200 → deferred tick drives the update to a terminal state and sends its reply, no external tick
   ---
-  duration_ms: 69.890584
+  duration_ms: 77.041041
   type: 'test'
   ...
 # Subtest: after(): replayed update_id → 200, no deferred tick, no double action
-ok 262 - after(): replayed update_id → 200, no deferred tick, no double action
+ok 299 - after(): replayed update_id → 200, no deferred tick, no double action
   ---
-  duration_ms: 21.928167
+  duration_ms: 23.947792
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: after(): no request scope (after() throws) → webhook still 200 and the job stays pending for the backstop
-ok 263 - after(): no request scope (after() throws) → webhook still 200 and the job stays pending for the backstop
+ok 300 - after(): no request scope (after() throws) → webhook still 200 and the job stays pending for the backstop
   ---
-  duration_ms: 9.137709
+  duration_ms: 9.489875
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
-# [worker] job d6b62176-d2ce-4fcc-bcd8-d6f47f0d0a83 (telegram_reply) failed: Error: socket hang up
+# [worker] job 7d5fb8f1-e6a0-4e84-8eb6-467a595f34d5 (telegram_reply) failed: Error: socket hang up
 #     at Object.send (/Users/nikiti4/.openclaw-autoclaw/workspace/welcome/tests/integration/telegram-webhook-after.test.ts:236:13)
 #     at sendTelegram (/Users/nikiti4/.openclaw-autoclaw/workspace/welcome/src/infra/worker.ts:230:34)
 #     at processOutbound (/Users/nikiti4/.openclaw-autoclaw/workspace/welcome/src/infra/worker.ts:160:18)
@@ -1653,82 +1864,82 @@ ok 263 - after(): no request scope (after() throws) → webhook still 200 and th
 #     at async Test.run (node:internal/test_runner/test:1054:7)
 #     at async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
 # Subtest: after(): a transport error inside the drain is contained — the tick never throws and the job is requeued, not lost
-ok 264 - after(): a transport error inside the drain is contained — the tick never throws and the job is requeued, not lost
+ok 301 - after(): a transport error inside the drain is contained — the tick never throws and the job is requeued, not lost
   ---
-  duration_ms: 29.967667
+  duration_ms: 33.017
   type: 'test'
   ...
 # Subtest: AC-36: webhook with wrong secret → 401, zero rows written
-ok 265 - AC-36: webhook with wrong secret → 401, zero rows written
+ok 302 - AC-36: webhook with wrong secret → 401, zero rows written
   ---
-  duration_ms: 28.759208
+  duration_ms: 36.303666
   type: 'test'
   ...
 # Subtest: AC-36: missing secret header → 401 (fail closed, nothing processed)
-ok 266 - AC-36: missing secret header → 401 (fail closed, nothing processed)
+ok 303 - AC-36: missing secret header → 401 (fail closed, nothing processed)
   ---
-  duration_ms: 0.8645
+  duration_ms: 0.655
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: AC-37: duplicate update → 200 both times, ONE inbox row, ONE outbox job
-ok 267 - AC-37: duplicate update → 200 both times, ONE inbox row, ONE outbox job
+ok 304 - AC-37: duplicate update → 200 both times, ONE inbox row, ONE outbox job
   ---
-  duration_ms: 12.067833
+  duration_ms: 10.005708
   type: 'test'
   ...
 # Subtest: webhook: malformed update after valid secret → 400, no row
-ok 268 - webhook: malformed update after valid secret → 400, no row
+ok 305 - webhook: malformed update after valid secret → 400, no row
   ---
-  duration_ms: 1.904167
+  duration_ms: 1.956583
   type: 'test'
   ...
 # Subtest: binding: unauthenticated challenge/confirm → 401
-ok 269 - binding: unauthenticated challenge/confirm → 401
+ok 306 - binding: unauthenticated challenge/confirm → 401
   ---
-  duration_ms: 0.832917
+  duration_ms: 0.938666
   type: 'test'
   ...
 # Subtest: binding: challenge deep link points at the bot username with start=link_
-ok 270 - binding: challenge deep link points at the bot username with start=link_
+ok 307 - binding: challenge deep link points at the bot username with start=link_
   ---
-  duration_ms: 40.541042
+  duration_ms: 36.8415
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: AC-11: /start with valid token but NO web confirm → binding NOT created
-ok 271 - AC-11: /start with valid token but NO web confirm → binding NOT created
+ok 308 - AC-11: /start with valid token but NO web confirm → binding NOT created
   ---
-  duration_ms: 46.69825
+  duration_ms: 48.418
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: AC-11 positive: confirm (web) + /start (telegram) → binding active, zero consent rows
-ok 272 - AC-11 positive: confirm (web) + /start (telegram) → binding active, zero consent rows
+ok 309 - AC-11 positive: confirm (web) + /start (telegram) → binding active, zero consent rows
   ---
-  duration_ms: 40.982708
+  duration_ms: 46.841708
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: AC-11 negative: another web session cannot confirm a stolen challenge (404, session-bound)
-ok 273 - AC-11 negative: another web session cannot confirm a stolen challenge (404, session-bound)
+ok 310 - AC-11 negative: another web session cannot confirm a stolen challenge (404, session-bound)
   ---
-  duration_ms: 38.546208
+  duration_ms: 40.187917
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: /start: no token and bad token → instructions reply, no binding, NO consent rows
-ok 274 - /start: no token and bad token → instructions reply, no binding, NO consent rows
+ok 311 - /start: no token and bad token → instructions reply, no binding, NO consent rows
   ---
-  duration_ms: 27.147583
+  duration_ms: 21.671417
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: /start: non-command text from an unknown chat → ignored, no dialog with strangers
-ok 275 - /start: non-command text from an unknown chat → ignored, no dialog with strangers
+ok 312 - /start: non-command text from an unknown chat → ignored, no dialog with strangers
   ---
-  duration_ms: 7.545208
+  duration_ms: 8.398208
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
@@ -1737,134 +1948,147 @@ ok 275 - /start: non-command text from an unknown chat → ignored, no dialog wi
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: /stop: binding revoked, queued sends suppressed (AC-39); command replies answered
-ok 276 - /stop: binding revoked, queued sends suppressed (AC-39); command replies answered
+ok 313 - /stop: binding revoked, queued sends suppressed (AC-39); command replies answered
   ---
-  duration_ms: 57.129667
+  duration_ms: 48.582208
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: /stop itself never writes consent rows
-ok 277 - /stop itself never writes consent rows
+ok 314 - /stop itself never writes consent rows
   ---
-  duration_ms: 10.999375
+  duration_ms: 12.182791
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: replayed /start update cannot double-bind or double-consume
-ok 278 - replayed /start update cannot double-bind or double-consume
+ok 315 - replayed /start update cannot double-bind or double-consume
   ---
-  duration_ms: 27.374417
+  duration_ms: 31.004791
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: replay hardening: same update_id replays once (accepted:false) — UNIQUE dedupe
-ok 279 - replay hardening: same update_id replays once (accepted:false) — UNIQUE dedupe
+ok 316 - replay hardening: same update_id replays once (accepted:false) — UNIQUE dedupe
   ---
-  duration_ms: 2.509208
+  duration_ms: 2.964
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: replay hardening: DIFFERENT update_id with identical payload still processes (no false dedupe)
-ok 280 - replay hardening: DIFFERENT update_id with identical payload still processes (no false dedupe)
+ok 317 - replay hardening: DIFFERENT update_id with identical payload still processes (no false dedupe)
   ---
-  duration_ms: 2.808375
+  duration_ms: 3.672042
   type: 'test'
   ...
 # Subtest: replay hardening: stale update (older than the window) → 400 stale_update, nothing stored
-ok 281 - replay hardening: stale update (older than the window) → 400 stale_update, nothing stored
+ok 318 - replay hardening: stale update (older than the window) → 400 stale_update, nothing stored
   ---
-  duration_ms: 0.766375
+  duration_ms: 1.16275
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: replay hardening: fresh update with valid date is accepted
-ok 282 - replay hardening: fresh update with valid date is accepted
+ok 319 - replay hardening: fresh update with valid date is accepted
   ---
-  duration_ms: 1.71875
+  duration_ms: 1.332375
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: regression: stranger update processed → delivered, never re-claimed after lease expiry
-ok 283 - regression: stranger update processed → delivered, never re-claimed after lease expiry
+ok 320 - regression: stranger update processed → delivered, never re-claimed after lease expiry
   ---
-  duration_ms: 17.222167
+  duration_ms: 22.995
   type: 'test'
   ...
 # [webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop: `after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context
 # Subtest: regression: /start without token processed once — one instructions reply across lease expiry
-ok 284 - regression: /start without token processed once — one instructions reply across lease expiry
+ok 321 - regression: /start without token processed once — one instructions reply across lease expiry
   ---
-  duration_ms: 10.477
+  duration_ms: 12.277542
   type: 'test'
   ...
 # Subtest: worker-tick: missing secret → 401 (fail-closed)
-ok 285 - worker-tick: missing secret → 401 (fail-closed)
+ok 322 - worker-tick: missing secret → 401 (fail-closed)
   ---
-  duration_ms: 3.41525
+  duration_ms: 3.585708
   type: 'test'
   ...
 # Subtest: worker-tick: wrong secret on both carriers → 401 (header, Bearer)
-ok 286 - worker-tick: wrong secret on both carriers → 401 (header, Bearer)
+ok 323 - worker-tick: wrong secret on both carriers → 401 (header, Bearer)
   ---
-  duration_ms: 1.654625
+  duration_ms: 1.038459
   type: 'test'
   ...
 # Subtest: worker-tick: fail-closed — production with unset secret → 401
-ok 287 - worker-tick: fail-closed — production with unset secret → 401
+ok 324 - worker-tick: fail-closed — production with unset secret → 401
   ---
-  duration_ms: 1.242083
+  duration_ms: 0.943166
   type: 'test'
   ...
 # Subtest: worker-tick: correct secret via header → 200, queued job transitions to sent
-ok 288 - worker-tick: correct secret via header → 200, queued job transitions to sent
+ok 325 - worker-tick: correct secret via header → 200, queued job transitions to sent
   ---
-  duration_ms: 55.298
+  duration_ms: 45.0845
   type: 'test'
   ...
 # Subtest: worker-tick: correct secret via Authorization Bearer (Vercel cron style) → 200
-ok 289 - worker-tick: correct secret via Authorization Bearer (Vercel cron style) → 200
+ok 326 - worker-tick: correct secret via Authorization Bearer (Vercel cron style) → 200
   ---
-  duration_ms: 3.889167
+  duration_ms: 3.465917
   type: 'test'
   ...
 # Subtest: worker-tick: ?secret= query carrier was REMOVED (F-09) → 401 even with the correct secret
-ok 290 - worker-tick: ?secret= query carrier was REMOVED (F-09) → 401 even with the correct secret
+ok 327 - worker-tick: ?secret= query carrier was REMOVED (F-09) → 401 even with the correct secret
   ---
-  duration_ms: 0.55525
+  duration_ms: 0.611458
   type: 'test'
   ...
 # Subtest: worker-tick: development with unset secret → 200 (documented local allowance)
-ok 291 - worker-tick: development with unset secret → 200 (documented local allowance)
+ok 328 - worker-tick: development with unset secret → 200 (documented local allowance)
   ---
-  duration_ms: 3.72775
+  duration_ms: 3.023667
   type: 'test'
   ...
 # Subtest: stored XSS: public JSON API returns payloads as plain data strings
-ok 292 - stored XSS: public JSON API returns payloads as plain data strings
+ok 329 - stored XSS: public JSON API returns payloads as plain data strings
   ---
-  duration_ms: 69.957542
+  duration_ms: 73.961875
   type: 'test'
   ...
 # Subtest: stored XSS: public card HTML contains user data escaped, never executable
-ok 293 - stored XSS: public card HTML contains user data escaped, never executable
+ok 330 - stored XSS: public card HTML contains user data escaped, never executable
   ---
-  duration_ms: 22.181292
+  duration_ms: 23.939334
   type: 'test'
   ...
 # Subtest: vCard injection: display_name CRLF property injection is neutralized (\\n escape)
-ok 294 - vCard injection: display_name CRLF property injection is neutralized (\\n escape)
+ok 331 - vCard injection: display_name CRLF property injection is neutralized (\\n escape)
   ---
-  duration_ms: 14.216833
+  duration_ms: 15.337958
   type: 'test'
   ...
-1..294
-# tests 294
+1..331
+# tests 331
 # suites 0
-# pass 293
+# pass 330
 # fail 0
 # cancelled 0
 # skipped 1
 # todo 0
-# duration_ms 20542.061416
+# duration_ms 20493.091458
+applied 001 001_init.sql
+applied 002 002_phase2_events_matching.sql
+applied 003 003_link_challenges_claim.sql
+applied 004 004_outbox_campaigns.sql
+applied 005 005_security_hardening.sql
+applied 006 006_mfa_step_up.sql
+applied 007 007_taxonomy_v3.sql
+applied 008 008_profile_card_fields.sql
+applied 009 009_introduction_consent_source.sql
+applied 010 010_session_last_seen.sql
+applied 011 011_profile_goals.sql
+
+

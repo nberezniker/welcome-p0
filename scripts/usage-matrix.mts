@@ -3015,6 +3015,79 @@ function assertNoSecrets(text: string, label: string): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Address-book import helpers (S11–S13)
+// ---------------------------------------------------------------------------
+
+/** A minimal .vcf holding the given addresses (the parser itself is unit-tested). */
+function vcardOf(entries: { email: string; name: string }[]): string {
+  return entries
+    .flatMap((entry) => ['BEGIN:VCARD', 'VERSION:3.0', `FN:${entry.name}`, `EMAIL:${entry.email}`, 'END:VCARD'])
+    .join('\r\n');
+}
+
+/**
+ * The tables an address book could conceivably be written to — the snapshot S12
+ * compares row counts against. It deliberately leaves out the worker's own
+ * queues (outbox_jobs/notifications) and audit_events: the live run shares its
+ * database with the production cron, and a tick landing mid-check is not
+ * evidence about this endpoint. audit_events is compared separately, by the
+ * single fact THIS account wrote.
+ */
+const STORAGE_TABLES = [
+  'accounts', 'profiles', 'contact_fields', 'registrations', 'link_challenges', 'sessions',
+  'event_memberships', 'introduction_consents', 'introductions', 'connection_notes', 'blocks',
+  'reports', 'consent_events', 'enrichment_requests', 'campaigns', 'events', 'organizers', 'inbox_events',
+];
+
+async function storageSnapshot(): Promise<Record<string, number>> {
+  if (!sql) throw new Error('DATABASE_URL unavailable');
+  const out: Record<string, number> = {};
+  for (const table of STORAGE_TABLES) {
+    const rows = await sql<{ count: number }[]>`SELECT count(*)::int AS count FROM ${sql(table)}`;
+    out[table] = rows[0]?.count ?? 0;
+  }
+  return out;
+}
+
+/** Rows carrying this address as a lookup key in EVERY table that has such a column. */
+async function countByLookupHash(email: string): Promise<number> {
+  if (!sql) throw new Error('DATABASE_URL unavailable');
+  const columns = await sql<{ table_name: string }[]>`
+    SELECT table_name FROM information_schema.columns
+    WHERE table_schema = 'public' AND column_name = 'email_lookup_hash'
+  `;
+  const lookup = hash(email);
+  let total = 0;
+  for (const column of columns) {
+    const rows = await sql<{ count: number }[]>`
+      SELECT count(*)::int AS count FROM ${sql(column.table_name)} WHERE email_lookup_hash = ${lookup}
+    `;
+    total += rows[0]?.count ?? 0;
+  }
+  return total;
+}
+
+/** How many "an import happened" facts this account has in the audit log. */
+async function importFactsFor(accountId: string): Promise<number> {
+  if (!sql) throw new Error('DATABASE_URL unavailable');
+  const rows = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM audit_events
+    WHERE actor_account_id = ${accountId} AND action = 'contacts.import.match'
+  `;
+  return rows[0]?.count ?? 0;
+}
+
+async function latestImportMetadata(accountId: string): Promise<{ action: string; metadata: Record<string, unknown> }> {
+  if (!sql) throw new Error('DATABASE_URL unavailable');
+  const rows = await sql<{ action: string; metadata: Record<string, unknown> }[]>`
+    SELECT action, metadata FROM audit_events
+    WHERE actor_account_id = ${accountId} AND action = 'contacts.import.match'
+    ORDER BY created_at DESC LIMIT 1
+  `;
+  return rows[0] ?? { action: '', metadata: {} };
+}
+
 const S: { icsSlug: string; icsId: string; noDateSlug: string; roomLink: string; modesEvent: string } = {
   icsSlug: '',
   icsId: '',
@@ -3238,9 +3311,11 @@ async function modeS(): Promise<void> {
       must(res.text.includes(`data-testid="provider-${id}"`), `provider card ${id} missing`);
     }
     must(res.text.includes('TELEGRAM_BOT_TOKEN'), 'env NAMES must be listed');
+    must(res.text.includes('data-testid="contact-import"'), 'the address-book import panel must be on the page');
+    must(res.text.includes('data-testid="contact-import-note"'), 'the "we do not keep your address book" note must be visible');
     assertNoSecrets(res.text, 'S9');
     must(!res.text.includes('candidateOffers'), 'the matching patterns must not reach the page');
-    return { actual: `signed-out ${anonRes.status} → ${anonRes.headers.get('location')}; signed-in 200 с 15 карточками и именами переменных`, evidence: `signed-out: ${anonRes.status} ${anonRes.headers.get('location')} | signed-in: HTTP ${res.status}, ${res.text.length} bytes` };
+    return { actual: `signed-out ${anonRes.status} → ${anonRes.headers.get('location')}; signed-in 200 с 15 карточками, панелью импорта и именами переменных`, evidence: `signed-out: ${anonRes.status} ${anonRes.headers.get('location')} | signed-in: HTTP ${res.status}, ${res.text.length} bytes` };
   });
 
   // ── S10: the public card affordances ─────────────────────────────────────
@@ -3259,6 +3334,119 @@ async function modeS(): Promise<void> {
     equals(vcard.status, 200, 'anonymous vCard download');
     must(vcard.text.startsWith('BEGIN:VCARD'), 'vCard body');
     return { actual: `200: og:url + vCard + 4 сети, анонимная выгрузка .vcf работает, приватных целей нет`, evidence: `HTTP ${res.status}, ${res.text.length} bytes | vCard HTTP ${vcard.status}` };
+  });
+
+  // ── S11: the address book — "who of my contacts is already here" ──────────
+  await check('S11', 'S', 'POST /api/me/contacts/import: fixture-сосед находится по адресу из .vcf', '200, matched по slug, в теле нет ни одного email, 5/час', async () => {
+    const bravo = users.get('bravo')!;
+    const session = await userSession(alpha);
+    const stranger = `matrix-nobody-${rand(3)}@welcome.test`;
+    const content = vcardOf([
+      { email: bravo.email, name: 'Bravo Fixture' },
+      { email: stranger, name: 'Nobody' },
+    ]);
+    const res = await session.post('/api/me/contacts/import', { content, filename: 'contacts.vcf' });
+    equals(res.status, 200, 'import status');
+    const body = res.json as {
+      ok?: boolean; scanned?: number; matched_count?: number; unmatched_count?: number;
+      matched?: { display_name: string; slug: string; headline: string | null }[]; matched_truncated?: boolean;
+    };
+    equals(body.ok, true, 'ok flag');
+    equals(body.scanned, 2, 'scanned');
+    equals(body.matched_count, 1, 'matched_count');
+    equals(body.unmatched_count, 1, 'unmatched_count');
+    equals(body.matched?.[0]?.slug, bravo.slug, 'the known fixture must be found by its address');
+    equals(body.matched?.[0]?.display_name, bravo.displayName, 'display name comes from the profile');
+    must(!res.text.includes('@'), 'the response must not contain any email address');
+    equals(res.headers.get('cache-control'), 'no-store, private', 'cache-control');
+    equals(res.headers.get('x-ratelimit-limit'), '5', 'rate limit header');
+    assertNoSecrets(res.text, 'S11');
+    return {
+      actual: `200: scanned=2, matched=${body.matched_count} (${bravo.displayName} / ${bravo.slug}), unmatched=1, ни одного email в ответе`,
+      evidence: `${ev(res, 'ok', 'scanned', 'matched_count', 'unmatched_count')} | X-RateLimit-Limit=${res.headers.get('x-ratelimit-limit')}`,
+    };
+  });
+
+  // ── S12: nothing is stored ────────────────────────────────────────────────
+  await check('S12', 'S', 'импорт ничего не сохраняет: снимок всех таблиц до/после, плюс только факт в audit_events', 'ни одна таблица хранения не изменилась; адрес не появился ни одним хешем; в audit — ровно один факт этого аккаунта', async () => {
+    const delta = users.get('delta')!;
+    const charlie = users.get('charlie')!;
+    // Session FIRST: creating a session row would otherwise show up in the diff.
+    const session = await userSession(delta);
+    const unknown = `matrix-nobody-${rand(3)}@welcome.test`;
+    const factsBefore = await importFactsFor(delta.accountId);
+    const before = await storageSnapshot();
+    const res = await session.post('/api/me/contacts/import', {
+      content: vcardOf([
+        { email: charlie.email, name: 'Charlie Fixture' },
+        { email: unknown, name: 'Nobody' },
+      ]),
+      filename: 'contacts.vcf',
+    });
+    equals(res.status, 200, 'import status');
+    const after = await storageSnapshot();
+    const changed = Object.entries(after)
+      .filter(([table, count]) => count !== before[table])
+      .map(([table, count]) => `${table}:${String(before[table])}→${count}`);
+    equals(changed.length, 0, `no storage table may change: ${changed.join(', ')}`);
+
+    // The imported address left no trace in ANY column the product uses as a
+    // lookup key (accounts + registrations carry email_lookup_hash).
+    const hashRows = await countByLookupHash(unknown);
+    equals(hashRows, 0, 'the imported address must not exist as a lookup key anywhere');
+    const factsAfter = await importFactsFor(delta.accountId);
+    equals(factsAfter - factsBefore, 1, 'exactly one audit fact for this import');
+
+    const metadata = await latestImportMetadata(delta.accountId);
+    equals(metadata.action, 'contacts.import.match', 'audit action');
+    equals(
+      Object.keys(metadata.metadata).sort().join(','),
+      'format,matched_count,scanned,skipped',
+      'the audit row carries counts only',
+    );
+    must(!JSON.stringify(metadata.metadata).includes('@'), 'the audit row may never hold an address');
+    return {
+      actual: `таблиц проверено: ${Object.keys(after).length}, изменений в таблицах хранения: 0; хешей импортированного адреса в БД: 0; audit_events: +1 факт (${Object.keys(metadata.metadata).sort().join(', ')})`,
+      evidence: `snapshot=${clip(JSON.stringify({ tables: Object.keys(after).length, changed: changed.length, unknownHashRows: hashRows }), 200)} | audit=${clip(JSON.stringify(metadata.metadata), 160)}`,
+    };
+  });
+
+  // ── S13: 401 / 429 ────────────────────────────────────────────────────────
+  await check('S13', 'S', 'импорт: 401 без сессии и 429 на шестой запрос в час (пер-аккаунтный бюджет)', 'anon → 401; 5 запросов 200 → шестой 429 + Retry-After; другой аккаунт не задет', async () => {
+    const anonymous = await anon.post('/api/me/contacts/import', {
+      content: vcardOf([{ email: `matrix-nobody-${rand(3)}@welcome.test`, name: 'Nobody' }]),
+      filename: 'contacts.vcf',
+    });
+    equals(anonymous.status, 401, 'anonymous status');
+    equals((anonymous.json as { code?: string }).code, 'unauthorized', 'anonymous code');
+
+    const quotaUser = await ensureFixtureUser('import', `${MARK}Import Quota`);
+    const session = await sessionFor(quotaUser.accountId, 'matrix-import-quota');
+    const content = vcardOf([{ email: `matrix-nobody-${rand(3)}@welcome.test`, name: 'Nobody' }]);
+    const statuses: number[] = [];
+    let remaining: string | null = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const res = await session.post('/api/me/contacts/import', { content, filename: 'contacts.vcf' });
+      statuses.push(res.status);
+      remaining = res.headers.get('x-ratelimit-remaining');
+    }
+    equals(statuses.join(','), '200,200,200,200,200', 'the first five requests are allowed');
+    equals(remaining, '0', 'the budget is exactly five');
+
+    const sixth = await session.post('/api/me/contacts/import', { content, filename: 'contacts.vcf' });
+    equals(sixth.status, 429, 'sixth status');
+    equals((sixth.json as { code?: string }).code, 'rate_limited', 'sixth code');
+    const retryAfter = Number(sixth.headers.get('retry-after') ?? '0');
+    must(retryAfter > 0 && retryAfter <= 3600, `Retry-After must be inside the hourly window, got ${retryAfter}`);
+
+    // The budget is per account: another identity still gets through.
+    const other = await sessionFor(users.get('plain')!.accountId, 'matrix-import-other');
+    const fresh = await other.post('/api/me/contacts/import', { content, filename: 'contacts.vcf' });
+    equals(fresh.status, 200, 'another account is unaffected');
+    return {
+      actual: `anon 401 unauthorized; подряд: ${statuses.join(', ')} → 429 rate_limited (Retry-After=${retryAfter}s); другой аккаунт 200`,
+      evidence: `${ev(anonymous, 'code')} | ${ev(sixth, 'code')} | Retry-After=${sixth.headers.get('retry-after')} | other=${fresh.status}`,
+    };
   });
 }
 
@@ -3361,55 +3549,88 @@ interface Bug {
 
 /** Fixes landed since the previous matrix run; rendered as its own section. */
 /**
- * What THIS run's tree adds on top of the previous evidence run (017cb89 →
- * the three commits below). Rendered near the top of USAGE_MATRIX.md so the
+ * What THIS run's tree adds on top of the previous evidence run (1c5ad0f →
+ * the five commits below). Rendered near the top of USAGE_MATRIX.md so the
  * report states its own increment instead of inheriting the previous one's.
  */
 const INCREMENT: { id: string; title: string; commit: string; changed: string; tests: string }[] = [
   {
-    id: 'WQ1',
-    title: 'Импорт CSV: явный маппинг колонок + счётчики «добавим/обновим»',
-    commit: '5689453',
+    id: 'CI1',
+    title: 'Импорт адресной книги: «кто из моих контактов уже здесь» — без Google OAuth',
+    commit: 'ea74261 + edcfcfa + 08cf21a + 14ac172',
     changed:
-      'validateMapping({csvColumn: field}) в src/domain/import.ts (коды unknown_mapping_field / unknown_csv_column / duplicate_mapping_field; headline — алиас role, поэтому коллизия ловится), эхо mapping и columns в mapCsvRows, would_insert/would_update/would_skip/quarantined_count в preview (один read-only запрос тем же ключом, что и commit), селект на каждую колонку + «Пересчитать» в import-panel, i18n EN/RU/ES.',
+      'src/domain/contact-import.ts — чистый парсер: vCard (FN/N/EMAIL, несколько карточек, складывание строк, CRLF/LF/CR, группы item1.EMAIL; PHOTO/LOGO/KEY/SOUND и base64/quoted-printable игнорируются, а не додумываются; карточка без адреса = skipped) и CSV (существующий RFC4180-парсер + авто-детект колонок EN/RU с приоритетом exact → full → given и исключением family/last/middle, позиционный фолбэк для файлов без заголовка; незакрытая кавычка — отказ, а не половина файла); лимиты 5 МБ / 5000 контактов, превышение честно помечается truncated. POST /api/me/contacts/import — 401, 400 invalid_body/no_contacts/csv_parse_error, 413 на оба лимита, 429; бюджет 5/час на аккаунт в памяти (новый consumeSubjectToken в src/lib/ratelimit.ts, рядом с пер-IP бакетами; таблица-счётчик отклонена, потому что импорт обещает не оставить ни строки); сопоставление — emailLookupHash(email, HASH_PEPPER) по accounts.email_lookup_hash (только active, кроме себя); в ответе display_name/slug/headline ≤50 и НИ ОДНОГО email; единственная запись в БД — audit_events с двумя числами. Карточка «Импорт контактов» на /me/connections (файл .vcf/.csv или вставка, результат «N из ваших контактов уже здесь» со ссылками /p/<slug>, приписка о непосохранении, локализованные ошибки) и capability match у vcard/csv в реестре + docs-internal/product/GOOGLE_OAUTH_SETUP.md.',
     tests:
-      'unit: import-map (+11 — коды валидации, эхо маппинга, коллизия алиасов); integration: import-mapping (+13 — маппинг меняет результат, 400 на каждый код, would_update, идемпотентный повтор, would_skip, preview не пишет, 401/403); e2e: organizer-import-mapping (+2); живые чеки H1, H7, H8.',
+      'unit: contact-import (+20 — карточки/складка/кодировки/дедуп/лимиты/детект формата/дегенеративные входы, «только email+name»), rate-limit-bucket (+1 — пер-субъектный бакет изолирован от per-IP и других маршрутов); integration: contact-import (+8 — матч по известному адресу и ответ без единого @, CSV-путь, self/disabled исключены, СНИМОК всех таблиц «ничего не сохранено» (+1 только audit_events) и отсутствие хеша импортированного адреса, 401 без следа, 400 на мусор, 413 на оба лимита, 429 на шестом с Retry-After и 200 у другого аккаунта); e2e: contact-import (+2 — реальный сосед, созданный через OTP, найден загрузкой настоящего .vcf; отказ на файле без адресов); живые чеки S9 (панель на странице), S11–S13.',
+  },
+];
+
+/**
+ * The increments of PREVIOUS runs (packet 3: provider registry, ICS, goals,
+ * matching v4), kept verbatim as historical reference — the current run's own
+ * increment is the table above.
+ */
+const PREVIOUS_INCREMENTS: { id: string; title: string; commit: string; changed: string; tests: string }[] = [
+  {
+    id: 'WP1',
+    title: 'Реестр провайдеров, статус-резолвер, `GET /api/providers`',
+    commit: '03d210c',
+    changed:
+      'src/domain/providers.ts (контракт §A2, таблица §A3: id/kind/auth/capabilities/direction/status/reason_code/setup{env,steps}; шаги — i18n-ключи, домен без текста), src/lib/provider-status.ts (telegram → TELEGRAM_BOT_TOKEN, email → RESEND_API_KEY; planned/disabled из реестра; только ИМЕНА переменных), публичный `/api/providers` (no-store, без сессии), i18n EN/RU/ES.',
+    tests:
+      'unit: providers (+9 — снимок реестра против §A3, инвариант direction, наличие i18n-ключей, ветки резолвера, отсутствие значений env в payload); integration: providers (+5 — анонимный 200, allowlist полей, честные статусы, no-store); живые чеки S1–S2.',
   },
   {
-    id: 'WQ2',
-    title: 'Управление сессиями: «Активные устройства» в /me/security',
-    commit: '9339356',
+    id: 'WP2',
+    title: 'ICS-файл события, кнопки календаря/контактов, диплинки шэринга, og:url',
+    commit: 'b57e7bb',
     changed:
-      'миграция 010 (sessions.last_seen_at + индекс), throttled bump в requireAccount (≤1 запись / 5 мин), src/lib/sessions.ts (общий листинг), GET /api/me/sessions (без токенов, current первой), DELETE /api/me/sessions/[id] (чужая → 404, своя → cookie сбрасывается), DELETE /api/me/sessions («выйти везде»), sessions-panel в /me/security, i18n EN/RU/ES.',
+      'src/domain/ics.ts (RFC 5545: UTC DTSTART/DTEND, X-WR-TIMEZONE, стабильный UID `welcome-event-<id>@<host>`, CRLF-only, складывание по 75 октетов, экранирование с нейтрализацией CRLF-инъекции; online_link физически некуда положить), `GET /api/events/[id]/ics` (доступ как у страницы события, 404/409, no-store), кнопки на `/e/[slug]`, src/domain/share.ts + src/components/share-links.tsx (X/WhatsApp/Telegram/LinkedIn + navigator.share), og:url и vCard-кнопка на карточке.',
     tests:
-      'integration: sessions (+11 — нет токенов в ответе, порядок, истёкшие скрыты, отзыв удаляет строку и убивает cookie, чужая → 404, битый id → 404, выйти везде, anon 401, bump и его throttle); e2e: sessions (+1 — второй реальный контекст виден и реально разлогинен); живые чеки B6–B8.',
+      'unit: ics (+17 — экранирование/инъекция/UTC/UID/склад/whitelist/Google-ссылка) + share (+5); integration: ics (+5 — 200 + заголовки, 404, 409, комнатная ссылка не утекает, стабильный UID); e2e: interop (+2); живые чеки S3–S5, S10.',
   },
   {
-    id: 'WQ3',
-    title: 'Печатный лист QR-бейджей + claim-ссылки для бейджей',
-    commit: '2b26c42',
+    id: 'WP3',
+    title: 'Страница `/me/connections`',
+    commit: '78af9c1',
     changed:
-      '/organizer/events/[eventId]/badges (owner/admin, A4 2×4, имя + инлайн-SVG-QR; email/телефоны не выбираются из БД вовсе, quarantined не печатаются), POST .../badge-links (owner/admin, 200/час, audit; ссылки только для unclaimed вне карантина, CSV registration_id,claim_url без PII), src/lib/qr.ts, печатный CSS в globals.css, i18n EN/RU/ES.',
+      'рендер реестра: карточка на провайдера (статус, причина, capabilities простыми словами, направление, `<details>` «как подключить» с шагами и ИМЕНАМИ переменных, кнопка действия только для живых), блок «что делаем / чего не делаем», запись в nav `/me/layout.tsx`, i18n EN/RU/ES (~40 ключей + названия и описания 15 провайдеров). Исправлен баг, найденный новым интеграционным тестом: `icsFilename` схлопывал `_` в `-` и переименовывал файл относительно события (generateEventSlug отдаёт base64url).',
     tests:
-      'integration: badges (+8 — проекция и отрендеренный HTML с именами и QR-целями без email/телефонов, quarantined исключён, claimed ведёт на карточку, токен только хешем, страница/API закрыты для чужих); e2e: badges (+1 — лист открывается с страницы события, QR инлайн, claim-ссылки перепривязывают бейджи, print-медиа скрывает управление); живые чеки N15–N17.',
+      'integration: connections (+5 — все id отрендерены, причина и имя переменной, значения env не попадают в HTML, гейт сессии); e2e: connections (+2 — из nav, статусы/раскрытие, redirect для анонима); живые чеки S9.',
   },
   {
-    id: 'WQ4',
-    title: 'a11y-гейт (axe) и два найденных им дефекта',
-    commit: '4a04090',
+    id: 'WP4',
+    title: 'Приватные цели профиля (каталог ≤3)',
+    commit: '88f8f25',
     changed:
-      'tests/e2e/a11y.spec.ts (@axe-core/playwright, dev-only; правило 0 нарушений serious/critical на /, /login, /legal/privacy, /p/<slug>, /me/security), скрипт test:a11y; фиксы: --color-accent #d84932 → #c93d26 (4.27:1 → 5.03:1 против белого и 4.56:1 против --color-paper), пустой <div aria-label> в футере → <nav> и не рендерится, когда ссылок нет.',
+      'миграция 011 (profiles.goals text[] NOT NULL DEFAULT \'{}\' + GIN; НЕ дублируется в event_memberships — цели приватны), src/domain/goals.ts (16 целей с ru/en/es и паттернами для v4), валидация (каталог, ≤3, дедуп с сохранением первого места = приоритета), goals в POST/GET `/api/me/profile`, в `/api/taxonomy` (версия остаётся v3) и в GDPR-экспорте, пикер в `/me/profile` и на шаге 2 онбординга (в черновике — top-level, чтобы контракт `values` не менялся).',
     tests:
-      'e2e: a11y (1 спек, 5 страниц; было 2 типа нарушений serious, стало 0 на всех страницах, включая moderate); полный test:e2e — 18 passed; перегенерированы скриншоты-доказательства (accent реально изменился).',
+      'unit: goals (+8 — каталог, три локали, паттерны ссылаются на реальные id, валидация/порядок/лимит, форма payload, паритет i18n); integration: goals (+10 — схема и GIN, порядок round-trip, 400 на 4-ю и неизвестную, очистка, ПРИВАТНОСТЬ: нет в публичном JSON/vCard/HTML карточки, есть в экспорте, taxonomy аддитивна); e2e: goals (+1); живые чеки S6–S7.',
   },
   {
-    id: 'WQ5',
-    title: 'Репетиция бэкапа/восстановления (AC-54)',
-    commit: '6acde68',
+    id: 'WP5',
+    title: 'Matching v4: полезность, комплементарность, цели, 4 режима, две строки причин',
+    commit: '5f8018d',
     changed:
-      'scripts/backup-rehearsal.mjs (pg_dump прода → gitignored .runtime/, одноразовый кластер PG18, restore в welcome_restore_test, сверка 11 таблиц по числу строк и контрольным суммам, отчёт о PITR как об ограничении), evidence/BACKUP_RESTORE_REHEARSAL.md + backup-rehearsal.json.',
+      'src/domain/networking-score.ts (аддитивно: NETWORKING_ALGORITHM_V4, веса 0.30/0.20/0.25/0.15/0.10, матрица из 6 пар функций, intentFit с приоритетом намерения, complementarity = матрица ИЛИ взаимные needs×offers, goalAlignment по приватным целям, novelty против уже выбранных, recency — тайбрейкер вне формулы; гейт v3 + complementarity ≥ 0.25 для `useful`; чистая `rankCandidates`), src/domain/reasons-v4.ts (отдельный словарь, один код = одна строка), `GET .../recommendations?mode=useful|grow|similar|explore` (+ `excluded_reason`), переключатель режимов и двухстрочные причины в UI. Только два оговорённых ассерта изменены (литерал algorithm в taxonomy-v3, allowlist в recommendations); парити-тест matching не тронут.',
     tests:
-      'операционный прогон: 32/32 таблицы восстановлены, 11/11 совпали по числу строк и контрольным суммам (0 расхождений), дамп 160 KiB за 3.8s, restore 0.2s, всего 7.8s; PITR не проверен — нет NEON_API_KEY и neonctl (зафиксировано честно).',
+      'unit: networking-v4 (+23 — формула дословно, сумма весов = 1, матрица, приоритет, goalAlignment, novelty, детерминизм, recency как тайбрейкер, гейты, режимы, причины, v3 не изменился) + reasons-v4 (+8); integration: recommendations-v4 (+5 — четыре режима дают разные выдачи, коды двух строк, 400 на неизвестный режим, excluded_reason, allowlist, цели кандидата не читаются); e2e: matching-modes (+1); живые чеки S8.',
+  },
+  {
+    id: 'WP6',
+    title: 'Полный прогон гейтов + скрипт `pnpm gates`',
+    commit: '1049039',
+    changed:
+      'scripts/run-gates.mjs (7 гейтов последовательно, `evidence/final-gates.{json,log}`, предыдущий прогон сохраняется в `previous_run`); найден и исправлен флейк e2e (клик по nav сразу после OTP-редиректа гоняется с перерисовкой shell), обновлены скриншоты карточки.',
+    tests: '7/7 exit 0: unit 438 (было 366), integration 322 + 1 skip (293), e2e 24 (18).',
+  },
+  {
+    id: 'WP7',
+    title: 'Новые чеки матрицы + живой прогон против прод-БД',
+    commit: 'fda5c17',
+    changed:
+      'Режим S в scripts/usage-matrix.mts (10 чеков: providers, ICS, goals, режимы рекомендаций, connections, карточка), `createEvent` умеет расписание и комнатную ссылку, `updateProfile` переносит goals.',
+    tests: '123 чека: 122 PASS / 0 FAIL / 1 SKIP (было 113: 112/0/1).',
   },
 ];
 
@@ -3666,6 +3887,14 @@ function writeReports(cleanupNotes: string[], startedAt: string, finishedAt: str
     for (const g of gates) lines.push(`| ${g.id} | \`${g.command}\` | **${g.exit}** | ${cell(g.summary)} |`);
     lines.push('');
     lines.push('Сырые логи гейтов: `evidence/matrix/*.log`.');
+  }
+  lines.push('');
+  lines.push('## Инкременты ПРЕДЫДУЩИХ прогонов (историческая справка, не часть этого инкремента)');
+  lines.push('');
+  lines.push('| ID | Что | Коммит | Изменения | Тесты |');
+  lines.push('|---|---|---|---|---|');
+  for (const inc of PREVIOUS_INCREMENTS) {
+    lines.push(`| ${inc.id} | ${cell(inc.title)} | \`${inc.commit}\` | ${cell(inc.changed)} | ${cell(inc.tests)} |`);
   }
   lines.push('');
   lines.push('## Исправления в ПРЕДЫДУЩИХ прогонах (историческая справка, не часть этого инкремента)');
