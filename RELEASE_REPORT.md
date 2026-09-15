@@ -198,3 +198,20 @@ Verified live (real API calls against prod, sessions via demo accounts):
 - Intro card no longer masks `declined`/`revoked`; new neutral labels in EN/RU/ES.
 - Verification: gates all green (unit 323, integration 250, e2e 7, build, secrets, drill); usage matrix 98 PASS / 0 FAIL / 1 SKIP against a local production build, and 96 PASS / 2 FAIL / 1 SKIP against the live deployment — both failures are OTP per-account quota exhaustion caused by the session's own repeated manual logins (not product defects), observed rows: A1/A1b.
 - Prod DB left clean (0 MATRIX fixtures).
+
+## Increments while owner away — 2026-09-15
+
+**Package 1 (email channel, organizer funnel, campaign segments):**
+- Email as a second outbound channel (Resend) with deterministic channel selection (active Telegram → Telegram; else email + `service_channel` consent; else `suppressed:no_channel`); campaigns require `organizer_marketing`. ADR 0011.
+- `GET /api/organizer/events/[eventId]/analytics` — event-scoped funnel (registrations → claimed → active → directory → intros → mutual → reveals) + 30-day series. Live verified: 8 regs / 4 members / 4 intros / 3 mutual / 3 reveals.
+- Campaign audience segments by taxonomy axes (intents/interests/function/industry) with preview count and send-time re-validation.
+
+**Package 2 (import mapping, sessions, badges, a11y, backup rehearsal):**
+- CSV import: explicit per-column `mapping` + `would_insert`/`would_update`/`would_skip` counters.
+- Session management: migration 010 (`last_seen_at`), `GET/DELETE /api/me/sessions`, "Active devices" block in `/me/security` (no tokens exposed). Live: 30 sessions listed, no token leak.
+- Printable QR-badge sheet `/organizer/events/[eventId]/badges` + `POST …/badge-links`. Live: 8 badge links for the demo event.
+- a11y gate with axe: fixed 2 real defects (accent contrast #d84932 → #c93d26 clearing 4.5:1; empty labelled div in the footer). 0 serious/critical violations on 5 pages.
+- Backup/restore rehearsal (AC-54): pg_dump prod → scratch restore, 11/11 key tables match (rows + checksums), 0 discrepancies; PITR not verifiable without a Neon API key.
+
+**Verification:** gates green (unit 366, integration 293, e2e 18 incl. axe, build, scan, drill); usage matrix 112 PASS / 0 FAIL / 1 SKIP live.
+**Deploy note:** migration 010 must be applied before this code (already applied to prod).
