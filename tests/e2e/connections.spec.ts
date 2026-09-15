@@ -27,14 +27,32 @@ async function loginViaOtp(page: Page, email: string): Promise<void> {
   await page.waitForURL(/\/(me|onboarding)$/, { timeout: 30_000 });
 }
 
+/** Creates the profile the authenticated shell requires (/me bounces without one). */
+async function createProfile(page: Page, displayName: string): Promise<void> {
+  await page.goto('/me/profile');
+  await waitHydrated(page);
+  await page.getByTestId('pf-name').fill(displayName);
+  await page.getByTestId('pf-save').click();
+  await expect(page.getByTestId('toast-success')).toBeVisible();
+}
+
 test('connections: reachable from the profile nav, statuses and reasons render, setup expands', async ({ page }) => {
   await loginViaOtp(page, EMAIL);
+  // The shell needs a profile (/me redirects to the onboarding wizard without
+  // one), and the dashboard has to settle before the nav is clicked: straight
+  // after the OTP redirect the shell is still re-rendering, and a click during
+  // that window races with the element being replaced.
+  await createProfile(page, 'Connections Owner');
+  await page.goto('/me');
+  await waitHydrated(page);
 
   // Reached from the nav of the authenticated shell, not by typing a URL.
   const nav = page.getByTestId('me-nav');
   await expect(nav).toBeVisible();
-  await nav.getByRole('link', { name: 'Connections' }).click();
-  await page.waitForURL('**/me/connections');
+  await Promise.all([
+    page.waitForURL('**/me/connections'),
+    nav.getByRole('link', { name: 'Connections' }).click(),
+  ]);
   await expect(page.getByTestId('connections-title')).toHaveText('Connections');
 
   // Every provider in the registry has a card with a human status.
