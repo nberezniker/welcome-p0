@@ -973,10 +973,11 @@ export const es: Partial<Dictionary> = {
     'El organizador exporta la lista de participantes en CSV; cada línea importada se confirma a mano. Tu propia libreta se puede importar como CSV en «Importar tus contactos».',
   'providers.ics.step1': 'Previsto: descarga .ics y enlaces «añadir al calendario» en la página del evento.',
   'providers.share-deeplinks.step1': 'Previsto: compartir una tarjeta en X, WhatsApp, Telegram o LinkedIn como enlace.',
-  'providers.google-contacts.step1': 'Crea un cliente OAuth en Google Cloud y define GOOGLE_OAUTH_CLIENT_ID y GOOGLE_OAUTH_CLIENT_SECRET.',
-  'providers.google-contacts.step2': 'Añade el permiso People API y pulsa «Conectar» aquí.',
-  'providers.google-calendar.step1': 'Reutiliza el mismo cliente OAuth de Google (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET).',
-  'providers.google-calendar.step2': 'Añade el permiso Calendar para crear una reunión tras una presentación.',
+  'providers.google-contacts.step1': 'Pulsa Conectar y elige la cuenta de Google cuyos contactos quieres comprobar.',
+  'providers.google-contacts.step2':
+    'Google pide acceso de solo lectura a tus contactos. Se comparan dentro de la petición y no se guardan.',
+  'providers.google-calendar.step1': 'Pulsa Conectar y elige la cuenta de Google cuyo calendario quieres usar.',
+  'providers.google-calendar.step2': 'Google pide permiso para crear eventos, solo en tu propio calendario.',
   'providers.microsoft-people.step1': 'Registra una app en Entra ID y define MICROSOFT_OAUTH_CLIENT_ID y MICROSOFT_OAUTH_CLIENT_SECRET.',
   'providers.microsoft-people.step2': 'Concede el permiso People.Read y pulsa «Conectar» aquí.',
   'providers.github.step1': 'Crea una app OAuth de GitHub y define GITHUB_OAUTH_CLIENT_ID y GITHUB_OAUTH_CLIENT_SECRET.',
@@ -1096,6 +1097,56 @@ export const es: Partial<Dictionary> = {
   'connections.privacyDont4': 'Nunca vemos tu libreta de direcciones: una importación solo dice quién ya está aquí.',
   'connections.secretsNote': 'Esta página muestra solo NOMBRES de variables: los valores no salen del servidor.',
 
+  // ── Conexiones de Google (Fase 2) ──
+  'connections.google.panelTitle': 'Cuenta de Google',
+  'connections.google.state.connected': 'Conectado',
+  'connections.google.state.not_connected': 'Sin conectar',
+  'connections.google.state.expired': 'Caducado: vuelve a conectar',
+  'connections.google.state.revoked': 'Acceso revocado en Google',
+  'connections.google.state.not_configured': 'Sin configurar en esta instancia',
+  'connections.google.connect': 'Conectar',
+  'connections.google.reconnect': 'Conectar de nuevo',
+  'connections.google.disconnect': 'Desconectar',
+  'connections.google.disconnecting': 'Desconectando…',
+  'connections.google.connectedAt': 'Conectado {date}',
+  'connections.google.notConfiguredHelp':
+    'Esta instancia no tiene cliente OAuth de Google: faltan {env}. El propietario define esas dos variables una vez, para todos. Hasta entonces esta tarjeta no puede hacer nada, y lo dice en lugar de fallar al pulsarla.',
+  'connections.google.revokedHelp':
+    'Google ya no tiene nuestro acceso: se retiró en la página de tu cuenta de Google, o el permiso caducó. Aquí ya no queda nada tuyo guardado; pulsa Conectar de nuevo para volver a concederlo.',
+  'connections.google.expiredHelp':
+    'El permiso guardado ya no se puede renovar, así que ahora mismo no se puede leer ni escribir nada. Pulsa Conectar de nuevo.',
+  'connections.google.idleHelp':
+    'No se lee nada de Google hasta que pulsas Conectar. Pedimos solo los permisos que la acción necesita, y los tokens se quedan en el servidor, cifrados.',
+  'connections.google.readsLabel': 'Qué leemos',
+  'connections.google.writesLabel': 'Qué escribimos',
+  'connections.google.reads.google-contacts':
+    'Nombres y direcciones de tus contactos de Google, solo al pulsar el botón de comprobación, solo dentro de esa petición y solo para responder cuáles ya están en WELCOME.',
+  'connections.google.writes.google-contacts':
+    'Nada. No se crea, cambia ni borra ningún contacto en Google, y ninguna dirección de tus contactos de Google se guarda aquí, ni siquiera las que coinciden.',
+  'connections.google.reads.google-calendar': 'Nada. Nunca leemos tu calendario.',
+  'connections.google.writes.google-calendar':
+    'Un evento en tu propio calendario, cuando añades una reunión. La otra persona aparece como nombre; su email solo se envía si lo marcas para esa reunión concreta.',
+  'connections.google.checkTitle': 'Comprobar tus contactos de Google',
+  'connections.google.checkButton': 'Ver quién ya está aquí',
+  'connections.google.checkBusy': 'Preguntando a Google…',
+  'connections.google.checkNote':
+    'Solo lectura, y no se guarda nada: la lista de contactos se compara dentro de la petición y se descarta. Solo se registra el número de coincidencias.',
+  'connections.google.truncated': 'Leímos los primeros 5000 contactos: tu cuenta de Google tiene más.',
+  'connections.google.errorReconnect': 'La conexión con Google necesita renovarse. Pulsa Conectar de nuevo.',
+  'connections.google.errorScope': 'Google rechazó el permiso de contactos para esta cuenta.',
+  'connections.google.errorUnavailable': 'Google no responde ahora mismo. Inténtalo más tarde.',
+  'connections.google.status.connected': 'Google conectado.',
+  'connections.google.status.denied': 'Cancelaste la pantalla de consentimiento de Google: no se conectó nada.',
+  'connections.google.status.invalid_state':
+    'Ese intento ya no es válido (caducó o ya se usó). Pulsa Conectar para empezar de nuevo.',
+  'connections.google.status.exchange_failed':
+    'Google no completó la conexión, así que no se guardó nada. Inténtalo de nuevo.',
+  'connections.google.status.not_configured': 'Esta instancia no tiene cliente OAuth de Google configurado.',
+  'connections.google.status.unavailable': 'No se pudo iniciar la conexión. Inténtalo de nuevo.',
+
+  'calendar.event.summary': 'Reunión con {name}',
+  'calendar.event.origin': 'Creado desde WELCOME.',
+
   // Nombres y descripciones breves de proveedores (ids del registro, §A3).
   'providers.telegram.title': 'Telegram',
   'providers.telegram.description': 'Avisos bidireccionales y vinculación con código de un solo uso; el bot envía solo lo que aceptaste.',
@@ -1114,9 +1165,10 @@ export const es: Partial<Dictionary> = {
   'providers.share-deeplinks.title': 'Enlaces para compartir',
   'providers.share-deeplinks.description': 'Comparte una tarjeta o un evento en X, WhatsApp, Telegram o LinkedIn como enlace.',
   'providers.google-contacts.title': 'Google Contactos',
-  'providers.google-contacts.description': 'Ver quién de tus contactos ya está aquí y devolver los contactos elegidos.',
+  'providers.google-contacts.description':
+    'Ver cuál de tus contactos de Google ya está en WELCOME: solo lectura, comparado en memoria y nunca guardado.',
   'providers.google-calendar.title': 'Google Calendar',
-  'providers.google-calendar.description': 'Crear una reunión a partir de una presentación.',
+  'providers.google-calendar.description': 'Poner tu propia nota de una reunión en tu propio calendario de Google.',
   'providers.microsoft-people.title': 'Microsoft People y Calendario',
   'providers.microsoft-people.description': 'Lo mismo que Google Contactos, a través de Microsoft Graph.',
   'providers.github.title': 'GitHub',

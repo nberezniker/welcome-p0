@@ -9,7 +9,22 @@ import {
   type ProviderKind,
 } from '../../../domain/providers';
 import { resolveProviders, type PublicProvider } from '../../../lib/provider-status';
+import { getSql } from '../../../lib/db';
+import { getOptionalAccountIdForRender } from '../../../lib/session-page';
+import { loadGoogleGrantStates } from '../../../lib/oauth-grants';
+import {
+  GOOGLE_OAUTH_PROVIDERS,
+  isGoogleFlowStatus,
+  isGoogleOAuthProvider,
+  type GoogleFlowStatus,
+  type GoogleOAuthProvider,
+} from '../../../domain/google-oauth';
 import { ContactImportPanel, type ContactImportStrings } from './contact-import';
+import {
+  GoogleConnectPanel,
+  type GooglePanelState,
+  type GooglePanelStrings,
+} from './google-panel';
 
 export const metadata: Metadata = { title: 'Интеграции', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';
@@ -31,11 +46,25 @@ export const dynamic = 'force-dynamic';
  * The one thing a user can DO for a live provider. A provider with no page of
  * its own (`email`) or one that is not built yet has no button at all: the
  * "how to connect" block is the honest answer there.
+ *
+ * The Google rows are absent on purpose: their action is not a page but the
+ * per-account connect/disconnect control rendered inside their own card by
+ * GoogleConnectPanel, because their state is per USER, not per instance.
  */
 const ACTIONS: Partial<Record<ProviderId, { href: string; label: DictKey }>> = {
   telegram: { href: '/me/telegram', label: 'connections.action.telegram' },
   vcard: { href: '/me', label: 'connections.action.vcard' },
   csv: { href: '/organizer', label: 'connections.action.csv' },
+};
+
+/** Flow-status banner keys, keyed by the word the OAuth routes report. */
+const FLOW_STATUS_KEY: Record<GoogleFlowStatus, DictKey> = {
+  connected: 'connections.google.status.connected',
+  denied: 'connections.google.status.denied',
+  invalid_state: 'connections.google.status.invalid_state',
+  exchange_failed: 'connections.google.status.exchange_failed',
+  not_configured: 'connections.google.status.not_configured',
+  unavailable: 'connections.google.status.unavailable',
 };
 
 const PRIVACY_DO: readonly DictKey[] = [
@@ -68,9 +97,66 @@ const STATUS_CLASS: Record<string, string> = {
   disabled: 'chip !bg-amber-50 !text-amber-900',
 };
 
-export default async function ConnectionsPage() {
+export default async function ConnectionsPage(
+  { searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> } = {},
+) {
   const { t } = await getT();
   const providers = resolveProviders();
+
+  // Per-USER Google state (Phase 2). Read from OUR database only — nothing here
+  // touches Google, so opening this page never spends a consent or a quota.
+  //
+  // `getOptionalAccountIdForRender` returns null when the page is rendered
+  // without a request (component-level tests) or when nobody is signed in, and
+  // the honest render for both is "not connected": the page then shows the
+  // controls without pretending a grant exists.
+  const accountId = await getOptionalAccountIdForRender();
+  const googleGrants = await loadGoogleGrantStates(getSql(), accountId, GOOGLE_OAUTH_PROVIDERS);
+
+  // Where the OAuth flow reported back. An unparsable word is ignored rather
+  // than rendered, so a hand-typed URL cannot put words in the product's mouth.
+  const rawSearch = searchParams ? await searchParams : {};
+  const rawStatus = typeof rawSearch.status === 'string' ? rawSearch.status : '';
+  const flowStatus = isGoogleFlowStatus(rawStatus) ? rawStatus : null;
+
+  const googleStrings: GooglePanelStrings = {
+    panelTitle: t('connections.google.panelTitle'),
+    stateConnected: t('connections.google.state.connected'),
+    stateNotConnected: t('connections.google.state.not_connected'),
+    stateExpired: t('connections.google.state.expired'),
+    stateRevoked: t('connections.google.state.revoked'),
+    stateNotConfigured: t('connections.google.state.not_configured'),
+    connect: t('connections.google.connect'),
+    reconnect: t('connections.google.reconnect'),
+    disconnect: t('connections.google.disconnect'),
+    disconnecting: t('connections.google.disconnecting'),
+    connectedAt: t('connections.google.connectedAt'),
+    notConfiguredHelp: t('connections.google.notConfiguredHelp'),
+    revokedHelp: t('connections.google.revokedHelp'),
+    expiredHelp: t('connections.google.expiredHelp'),
+    idleHelp: t('connections.google.idleHelp'),
+    readsLabel: t('connections.google.readsLabel'),
+    writesLabel: t('connections.google.writesLabel'),
+    checkTitle: t('connections.google.checkTitle'),
+    checkButton: t('connections.google.checkButton'),
+    checkBusy: t('connections.google.checkBusy'),
+    checkNote: t('connections.google.checkNote'),
+    truncated: t('connections.google.truncated'),
+    errorReconnect: t('connections.google.errorReconnect'),
+    errorScope: t('connections.google.errorScope'),
+    errorUnavailable: t('connections.google.errorUnavailable'),
+    errorRateLimited: t('connections.import.errorRateLimited'),
+    errorGeneric: t('common.errorUnauthorized'),
+    // Reused from the address-book import: "who is already here" is ONE answer,
+    // so the two doors must not grow two vocabularies for it.
+    resultSome: t('connections.import.resultSome'),
+    resultOne: t('connections.import.resultOne'),
+    resultNone: t('connections.import.resultNone'),
+    unmatched: t('connections.import.unmatched'),
+    matchesTruncated: t('connections.import.matchesTruncated'),
+    openCard: t('connections.import.openCard'),
+  };
+
   const statusLabel: Record<string, DictKey> = {
     live: 'providers.status.live',
     disabled: 'providers.status.disabled',
@@ -132,6 +218,23 @@ export default async function ConnectionsPage() {
       </h1>
       <p className="mt-1.5 text-sm text-muted">{t('connections.subtitle')}</p>
 
+      {/* Where the OAuth flow reported back. Rendered from a fixed map, so the
+          words come from the dictionary and never from the query string. */}
+      {flowStatus ? (
+        <p
+          className={
+            flowStatus === 'connected'
+              ? 'mt-4 rounded-xl bg-emerald-50 px-4 py-2 text-sm text-emerald-900'
+              : 'mt-4 rounded-xl bg-amber-50 px-4 py-2 text-sm text-amber-900'
+          }
+          role="status"
+          data-testid="google-flow-status"
+          data-google-flow-status={flowStatus}
+        >
+          {t(FLOW_STATUS_KEY[flowStatus])}
+        </p>
+      ) : null}
+
       <ul className="mt-6 flex flex-col gap-3">
         {providers.map((provider) => (
           <ProviderCard
@@ -143,6 +246,17 @@ export default async function ConnectionsPage() {
             kindLabel={kindLabel}
             directionLabel={directionLabel}
             capabilityLabel={capabilityLabel}
+            googlePanel={
+              isGoogleOAuthProvider(provider.id) ? (
+                <GoogleCard
+                  provider={provider.id}
+                  providerResolution={provider}
+                  grant={googleGrants.find((g) => g.provider === provider.id) ?? null}
+                  t={t}
+                  strings={googleStrings}
+                />
+              ) : null
+            }
           />
         ))}
       </ul>
@@ -183,6 +297,52 @@ export default async function ConnectionsPage() {
   );
 }
 
+/**
+ * The per-user half of a Google card (Phase 2).
+ *
+ * It exists because a Google row has TWO independent truths that the registry
+ * cannot express on its own: whether THIS INSTANCE has an OAuth client at all
+ * (`providerResolution`, env-derived) and whether THIS USER has connected their
+ * Google account (`grant`, read from our database). Both are shown, and neither
+ * is inferred from the other.
+ */
+function GoogleCard({
+  provider,
+  providerResolution,
+  grant,
+  t,
+  strings,
+}: {
+  provider: GoogleOAuthProvider;
+  providerResolution: PublicProvider;
+  grant: { state: string; connectedAt: string | null } | null;
+  t: (key: DictKey, vars?: Record<string, string | number>) => string;
+  strings: GooglePanelStrings;
+}) {
+  const configured = providerResolution.status === 'live';
+  // `not_configured` is an INSTANCE fact and wins over the per-user one: there is
+  // no point saying "not connected" when nothing could ever be connected here.
+  const state: GooglePanelState = !configured
+    ? 'not_configured'
+    : ((grant?.state ?? 'not_connected') as GooglePanelState);
+
+  const readsKey = `connections.google.reads.${provider}` as DictKey;
+  const writesKey = `connections.google.writes.${provider}` as DictKey;
+
+  return (
+    <GoogleConnectPanel
+      provider={provider}
+      configured={configured}
+      missingEnv={providerResolution.missing_env}
+      state={state}
+      connectedAt={state === 'connected' ? (grant?.connectedAt ?? null) : null}
+      reads={t(readsKey)}
+      writes={t(writesKey)}
+      strings={strings}
+    />
+  );
+}
+
 function ProviderCard({
   provider,
   t,
@@ -191,6 +351,7 @@ function ProviderCard({
   kindLabel,
   directionLabel,
   capabilityLabel,
+  googlePanel,
 }: {
   provider: PublicProvider;
   t: (key: DictKey, vars?: Record<string, string | number>) => string;
@@ -199,6 +360,8 @@ function ProviderCard({
   kindLabel: Record<ProviderKind, DictKey>;
   directionLabel: Record<ProviderDirection, DictKey>;
   capabilityLabel: (capability: ProviderCapability) => DictKey;
+  /** Rendered inside the card for the Google rows only. */
+  googlePanel?: React.ReactNode;
 }) {
   // The registry row carries the design fields (kind/capabilities/steps); the
   // resolver owns the per-instance status. A registered id always has its row.
@@ -272,6 +435,8 @@ function ProviderCard({
           </span>
         )}
       </div>
+
+      {googlePanel}
     </li>
   );
 }

@@ -43,8 +43,8 @@ type Provider = {
 | CSV | contacts | none | import, export | **live** | импорт событий, экспорт организатора |
 | ICS (календарь) | calendar | none | export, deeplink | **planned** | `.ics` события + «Добавить в Google/Apple Calendar» |
 | Share-deeplinks | publish | none | publish | **planned** | Поделиться карточкой в X/WhatsApp/Telegram/LinkedIn (без API) |
-| Google Contacts | contacts | oauth | import, export | **planned** | People API; нужен наш OAuth-клиент (GCP) |
-| Google Calendar | calendar | oauth | import, export | **planned** | создание события/встречи по итогам знакомства |
+| Google Contacts | contacts | oauth | import, match | **live** | People API; OAuth-клиент создан (`welcome-web`). Capabilities сужены до того, что даёт этот клиент: write-back потребовал бы скоуп `contacts` (rw) — см. GOOGLE_OAUTH_SETUP.md §6 |
+| Google Calendar | calendar | oauth | export | **live** | встреча пишется в собственный календарь пользователя; чтение календаря потребовало бы `calendar.readonly` — см. GOOGLE_OAUTH_SETUP.md §6 |
 | Microsoft People/Calendar | contacts, calendar | oauth | import, export | **planned** | Graph API |
 | GitHub | contacts | oauth | import | **planned** | публичный API уже используется для префилла |
 | LinkedIn | publish | oauth | publish | **disabled** | только OIDC (имя/фото/email) + ссылка; скрейпинг запрещён |
@@ -136,14 +136,18 @@ type Provider = {
 3. Share-диплинки (X/WhatsApp/Telegram/LinkedIn) с OG-превью.
 4. Цели профиля (каталог ≤3) + matching v4 (goalAlignment, complementarity, novelty) + 4 режима + двухстрочные причины. Тесты, i18n EN/RU/ES.
 
-**Фаза 2 — нужен наш OAuth-клиент (GCP/Microsoft, 15–20 минут владельца)**
-5. Google Contacts (People API): импорт «кто уже здесь» и экспорт выбранных контактов.
-6. Google Calendar / Microsoft Graph: встреча по итогам знакомства.
+**Фаза 2 — OAuth-клиент создан, реализовано**
+5. Google Contacts (People API): импорт «кто уже здесь» — сделано
+   (`POST /api/me/contacts/google`, та же приватность, что у .vcf/CSV: ничего не сохраняется).
+   Write-back контактов в Google не делается: OAuth-клиент без read-write скоупа.
+6. Google Calendar: встреча по итогам знакомства — сделано
+   (`POST /api/me/calendar/google`, событие в собственном календаре пользователя; email
+   второй стороны уходит только при явном opt-in на это действие).
 
-Пошаговая инструкция для владельца (consent screen, scopes, redirect URIs, имена переменных):
-[GOOGLE_OAUTH_SETUP.md](GOOGLE_OAUTH_SETUP.md). До этих креденшелов «кто уже здесь» уже
-отвечает импорт адресной книги (.vcf/CSV) без OAuth — см. §A3 строки vcard/csv, capability
-`match`.
+Детали, статусы и рунбук (проект `my-project-48009welcome-p0`, клиент `welcome-web`,
+redirect URIs, миграция 013, отзыв/ротация): [GOOGLE_OAUTH_SETUP.md](GOOGLE_OAUTH_SETUP.md).
+Импорт адресной книги (.vcf/CSV) по-прежнему работает без OAuth — §A3 строки vcard/csv,
+capability `match`.
 
 **Фаза 3 — по решению владельца**
 7. WhatsApp Business API (если нужен реальный канал), LinkedIn OIDC (базовый), Luma API.

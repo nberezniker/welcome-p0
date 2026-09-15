@@ -41,6 +41,16 @@
  *      already here", the one thing an address book can do without any OAuth
  *      client (POST /api/me/contacts/import). It is neither inbound nor
  *      outbound data flow, so it does not enter the `direction` reading below.
+ *   6. PHASE 2 narrows the two Google rows' capabilities to what the provisioned
+ *      OAuth client can actually grant, and marks them `live` (env-gated). §A3
+ *      listed Google Contacts as `import, export` and Google Calendar as
+ *      `import, export`; the client is scoped `contacts.readonly` +
+ *      `calendar.events`, so a contacts write-back and a calendar read are both
+ *      impossible. A live row claiming them would be a false statement in the UI
+ *      ("What it can do"), so `google-contacts` declares `import, match` and
+ *      `google-calendar` declares `export`. Re-adding either half means adding
+ *      the corresponding Google scope — a consent-screen change, not a code
+ *      change. Recorded in docs-internal/product/GOOGLE_OAUTH_SETUP.md.
  */
 
 import type { DictKey } from '../i18n/en';
@@ -180,10 +190,16 @@ export const PROVIDERS: readonly Provider[] = Object.freeze([
     id: 'google-contacts',
     kind: 'contacts',
     auth: 'oauth',
-    capabilities: ['import', 'export'],
-    direction: 'both',
-    status: 'planned',
-    reason_code: 'needs_oauth_client',
+    // Phase 2 reads the user's connections through `people/me/connections` and
+    // MATCHES them in memory — the same question the .vcf/.csv import answers.
+    // `export` ("push chosen contacts back") is deliberately NOT declared: the
+    // provisioned OAuth client is scoped `contacts.readonly`, so a write-back is
+    // impossible, and a `live` row claiming a capability the client cannot grant
+    // would be exactly the kind of pretending the registry exists to prevent.
+    capabilities: ['import', 'match'],
+    direction: 'in',
+    status: 'live',
+    reason_code: null,
     setup: {
       env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
       steps: ['providers.google-contacts.step1', 'providers.google-contacts.step2'],
@@ -193,10 +209,13 @@ export const PROVIDERS: readonly Provider[] = Object.freeze([
     id: 'google-calendar',
     kind: 'calendar',
     auth: 'oauth',
-    capabilities: ['import', 'export'],
-    direction: 'both',
-    status: 'planned',
-    reason_code: 'needs_oauth_client',
+    // Phase 2 WRITES one event into the user's own calendar. `import` (reading
+    // their calendar) is not declared and not requested: `calendar.events` is the
+    // only Calendar scope on the client, and it cannot list events.
+    capabilities: ['export'],
+    direction: 'out',
+    status: 'live',
+    reason_code: null,
     setup: {
       env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
       steps: ['providers.google-calendar.step1', 'providers.google-calendar.step2'],
@@ -284,15 +303,25 @@ export const PROVIDERS: readonly Provider[] = Object.freeze([
 ] satisfies readonly Provider[]);
 
 /**
- * The env a provider's LIVE status actually depends on. Only the two live
- * channel providers are instance-configurable; everything else is either
- * audience-independent (vcard/csv) or not built yet. Keeping the gate here (and
- * not in `setup.env`, which also lists optional variables like the webhook
- * secret) means the resolver can name exactly what is missing.
+ * The env a provider's LIVE status actually depends on — the honest per-instance
+ * switch, and the only thing that can turn a `live` row into a `disabled` one.
+ *
+ * Four providers are instance-configurable: the two channel providers (bot
+ * token, mail key) and, since Phase 2, the two Google rows — which share the
+ * SAME pair of variables, because they share one OAuth client. Everything else
+ * is either audience-independent (vcard/csv) or not built yet. Keeping the gate
+ * here (and not in `setup.env`, which also lists optional variables) means the
+ * resolver can name exactly what is missing.
+ *
+ * A `planned` / `disabled` row can NOT be switched on by configuration: those
+ * are design states, and `resolveProviderStatus` only consults this map for rows
+ * whose registry status is already `live`.
  */
 export const REQUIRED_ENV: Partial<Record<ProviderId, readonly string[]>> = Object.freeze({
   telegram: Object.freeze(['TELEGRAM_BOT_TOKEN']),
   email: Object.freeze(['RESEND_API_KEY']),
+  'google-contacts': Object.freeze(['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET']),
+  'google-calendar': Object.freeze(['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET']),
 });
 
 /** Provider ids in registry (table) order — the connections page renders this. */

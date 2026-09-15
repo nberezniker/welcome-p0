@@ -24,8 +24,13 @@ const EXPECTED_ROWS = [
   { id: 'csv', kind: 'contacts', auth: 'none', capabilities: ['import', 'export', 'match'], direction: 'both', status: 'live', reason_code: null, env: [] },
   { id: 'ics', kind: 'calendar', auth: 'none', capabilities: ['export', 'deeplink'], direction: 'out', status: 'planned', reason_code: 'not_implemented', env: [] },
   { id: 'share-deeplinks', kind: 'publish', auth: 'none', capabilities: ['publish'], direction: 'out', status: 'planned', reason_code: 'not_implemented', env: [] },
-  { id: 'google-contacts', kind: 'contacts', auth: 'oauth', capabilities: ['import', 'export'], direction: 'both', status: 'planned', reason_code: 'needs_oauth_client', env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'] },
-  { id: 'google-calendar', kind: 'calendar', auth: 'oauth', capabilities: ['import', 'export'], direction: 'both', status: 'planned', reason_code: 'needs_oauth_client', env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'] },
+  // Phase 2: both Google rows are live and env-gated by the SAME pair of
+  // variables (one OAuth client). Their capability sets were narrowed to what
+  // that client can actually grant — `contacts.readonly` cannot write contacts
+  // back and `calendar.events` cannot list a calendar — so a `live` row never
+  // claims more than it can do (src/domain/providers.ts, deviation note 6).
+  { id: 'google-contacts', kind: 'contacts', auth: 'oauth', capabilities: ['import', 'match'], direction: 'in', status: 'live', reason_code: null, env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'] },
+  { id: 'google-calendar', kind: 'calendar', auth: 'oauth', capabilities: ['export'], direction: 'out', status: 'live', reason_code: null, env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'] },
   { id: 'microsoft-people', kind: 'contacts', auth: 'oauth', capabilities: ['import', 'export'], direction: 'both', status: 'planned', reason_code: 'needs_oauth_client', env: ['MICROSOFT_OAUTH_CLIENT_ID', 'MICROSOFT_OAUTH_CLIENT_SECRET'] },
   { id: 'github', kind: 'contacts', auth: 'oauth', capabilities: ['import'], direction: 'in', status: 'planned', reason_code: 'needs_oauth_client', env: ['GITHUB_OAUTH_CLIENT_ID', 'GITHUB_OAUTH_CLIENT_SECRET'] },
   { id: 'linkedin', kind: 'publish', auth: 'oauth', capabilities: ['publish'], direction: 'out', status: 'disabled', reason_code: 'policy_restricted', env: ['LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET'] },
@@ -138,11 +143,17 @@ test('resolver: a live env-gated provider without its variable is disabled + not
   });
 });
 
-test('resolver: only telegram and email are env-gated; the gate names live in REQUIRED_ENV', () => {
-  assert.deepEqual(Object.keys(REQUIRED_ENV).sort(), ['email', 'telegram']);
+test('resolver: the env-gated providers are telegram, email and the two Google rows', () => {
+  assert.deepEqual(Object.keys(REQUIRED_ENV).sort(), [
+    'email',
+    'google-calendar',
+    'google-contacts',
+    'telegram',
+  ]);
   // A provider with no env dependency keeps its registry status under any env.
+  const gated = new Set(['telegram', 'email', 'google-contacts', 'google-calendar']);
   for (const provider of PROVIDERS) {
-    if (provider.id === 'telegram' || provider.id === 'email') continue;
+    if (gated.has(provider.id)) continue;
     assert.deepEqual(resolveProviderStatus(provider, ENV_WITH_NOTHING), {
       status: provider.status,
       reason_code: provider.reason_code,
@@ -151,14 +162,54 @@ test('resolver: only telegram and email are env-gated; the gate names live in RE
   }
 });
 
+test('resolver: the Google rows flip live/disabled on the OAuth client pair alone', () => {
+  const contacts = providerById('google-contacts')!;
+  const calendar = providerById('google-calendar')!;
+
+  // Phase 2 reality: mark both Google rows live and gate them on the two
+  // variables; without them the honest answer names BOTH missing names.
+  for (const row of [contacts, calendar]) {
+    assert.equal(row.status, 'live');
+    assert.equal(row.reason_code, null);
+    assert.deepEqual(resolveProviderStatus(row, ENV_WITH_EVERYTHING), {
+      status: 'live',
+      reason_code: null,
+      missing_env: [],
+    });
+    assert.deepEqual(resolveProviderStatus(row, ENV_WITH_NOTHING), {
+      status: 'disabled',
+      reason_code: 'not_configured',
+      missing_env: ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
+    });
+  }
+
+  // One variable is not enough: half a client is not a client.
+  const half = providerById('google-contacts')!;
+  assert.deepEqual(
+    resolveProviderStatus(half, (name) =>
+      name === 'GOOGLE_OAUTH_CLIENT_ID' ? 'set' : undefined,
+    ),
+    {
+      status: 'disabled',
+      reason_code: 'not_configured',
+      missing_env: ['GOOGLE_OAUTH_CLIENT_SECRET'],
+    },
+  );
+});
+
 test('resolver: planned and disabled are design states — configuration cannot flip them', () => {
   const linkedin = providerById('linkedin')!;
   const luma = providerById('luma')!;
+  const microsoft = providerById('microsoft-people')!;
   assert.equal(resolveProviderStatus(linkedin, ENV_WITH_EVERYTHING).status, 'disabled');
   assert.equal(resolveProviderStatus(linkedin, ENV_WITH_EVERYTHING).reason_code, 'policy_restricted');
   assert.equal(resolveProviderStatus(luma, ENV_WITH_EVERYTHING).status, 'disabled');
   assert.equal(resolveProviderStatus(luma, ENV_WITH_EVERYTHING).reason_code, 'awaiting_access');
   assert.equal(providerById('ics')!.status, 'planned');
+  // Still waiting for its own OAuth client (Phase 3), so still planned whatever
+  // the environment says — the Google pair does not un-plan Microsoft.
+  assert.equal(resolveProviderStatus(microsoft, ENV_WITH_EVERYTHING).status, 'planned');
+  assert.equal(resolveProviderStatus(microsoft, ENV_WITH_EVERYTHING).reason_code, 'needs_oauth_client');
 });
 
 test('resolver: processEnvLookup treats unset and blank variables as missing', () => {

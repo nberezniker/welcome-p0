@@ -33,6 +33,10 @@ import { getSql } from '../lib/db';
  *                       registration claim link, NULL audit_events actor;
  *                       consent_events are KEPT (scope record) — the
  *                       pseudonymous accounts shell stays so their FK holds.
+ *                       oauth_grants cascade with the profile rows above, so a
+ *                       deleted account takes its Google tokens with it.
+ *   oauth_flow_states   consumed_at < now() - 1 hour, or expires_at < now
+ *                       (Phase 2 handshakes; never a lasting record)
  */
 
 const BATCH = 500;
@@ -57,6 +61,8 @@ export interface CleanupReport {
   inbox_events: number;
   registrations_unclaimed: number;
   accounts_purged: number;
+  /** Phase 2: spent/expired OAuth handshake rows (migration 013). */
+  oauth_flow_states: number;
 }
 
 /** Runs one full cleanup pass. Exported for tests and manual admin runs. */
@@ -71,6 +77,7 @@ export async function runCleanupPass(deps: { sql?: Sql } = {}): Promise<CleanupR
     inbox_events: 0,
     registrations_unclaimed: 0,
     accounts_purged: 0,
+    oauth_flow_states: 0,
   };
 
   // 1. Expired sessions.
@@ -195,6 +202,28 @@ export async function runCleanupPass(deps: { sql?: Sql } = {}): Promise<CleanupR
 
   // 7. Purge accounts whose soft delete is older than the grace window.
   report.accounts_purged += await purgeDeletingAccounts(sql);
+
+  // 8. Spent OAuth flow states (Phase 2, migration 013).
+  //    A state row is a HANDSHAKE, not a record: it holds an encrypted PKCE
+  //    verifier for ten minutes and is deleted as soon as it is consumed or
+  //    expires. A consumed row is kept for an hour first so a replayed callback
+  //    arriving just after the real one is still rejected as "already used"
+  //    rather than as "unknown" — the same answer, but with the reason intact.
+  //    No grant is touched here: `oauth_grants` lives until the user disconnects
+  //    (hard delete) or the account is purged (CASCADE, step 7).
+  report.oauth_flow_states = await drainBatches(async () => {
+    const rows = await sql<{ jti: string }[]>`
+      DELETE FROM oauth_flow_states
+      WHERE jti IN (
+        SELECT jti FROM oauth_flow_states
+        WHERE expires_at < now()
+           OR (consumed_at IS NOT NULL AND consumed_at < now() - interval '1 hour')
+        LIMIT ${BATCH}
+      )
+      RETURNING jti
+    `;
+    return rows.length;
+  });
 
   return report;
 }

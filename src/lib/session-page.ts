@@ -11,6 +11,28 @@ export async function getOptionalAccountId(): Promise<string | null> {
 }
 
 /**
+ * Optional session for server components, TOLERANT OF BEING RENDERED OUTSIDE A
+ * REQUEST SCOPE.
+ *
+ * `getOptionalAccountId` above calls `cookies()`, which throws when a page is
+ * rendered without a request (component-level tests render pages directly — the
+ * same situation `getLocale()` handles in src/i18n/index.ts by falling back to
+ * the default). The fallback here is `null`, i.e. "no session we can see", which
+ * is the honest answer in both cases: outside a request there is no cookie jar,
+ * and the caller must render the signed-out state.
+ *
+ * Protected pages must keep using `requireAccountId` — this is for components
+ * that render usefully without a session as well.
+ */
+export async function getOptionalAccountIdForRender(): Promise<string | null> {
+  try {
+    return await getOptionalAccountId();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Auth gate for protected pages (NFR: server-side check, no client trust).
  * Redirects to /login (with a same-origin `next` path when given).
  */

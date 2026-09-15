@@ -46,6 +46,16 @@ export default defineConfig({
       APP_BASE_URL: baseURL,
       TELEGRAM_WEBHOOK_SECRET: 'e2e-telegram-webhook-secret',
       TELEGRAM_BOT_USERNAME: 'WELCOME_e2e_bot',
+      // Phase 2 (tests/e2e/connections.spec.ts): the two Google rows are LIVE on
+      // this server, so the spec can drive their connect/disconnect controls and
+      // the per-user states. The values are deliberately fake and no e2e test ever
+      // reaches Google — the flows that would are covered with a mocked transport
+      // in tests/integration/google-oauth.test.ts. The UNCONFIGURED branch for
+      // these two rows is asserted in tests/integration/connections.test.ts, for
+      // the same reason the followup flags below are split: a second env
+      // configuration would need a second `next dev` sharing one `.next` dir.
+      GOOGLE_OAUTH_CLIENT_ID: 'e2e-client-id.apps.googleusercontent.com',
+      GOOGLE_OAUTH_CLIENT_SECRET: 'e2e-client-secret-never-sent-to-google',
       // Phase 4 (tests/e2e/followup.spec.ts): the reminder mechanic is ON so its
       // opt-in switch can be driven end-to-end, while the digest flag is
       // deliberately LEFT UNSET so the same server also proves the other half of

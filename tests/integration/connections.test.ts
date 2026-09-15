@@ -20,8 +20,8 @@ after(async () => {
 });
 
 /** Renders the server component the way Next would (locale outside a request → en). */
-async function renderPage(): Promise<string> {
-  const element = await ConnectionsPage();
+async function renderPage(searchParams?: Record<string, string | string[]>): Promise<string> {
+  const element = await ConnectionsPage(searchParams ? { searchParams: Promise.resolve(searchParams) } : {});
   return renderToStaticMarkup(element);
 }
 
@@ -100,4 +100,119 @@ test('connections: the /me shell cannot render without a session', async () => {
     const element = await MeLayout({ children: React.createElement('p', null, 'x') });
     renderToStaticMarkup(element);
   });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 2 — the two Google rows
+//
+// The e2e suite runs against ONE `next dev` whose env either has the Google OAuth
+// client or does not (playwright.config.ts documents why a second server is not
+// started: two `next dev` processes would share a single `.next` build dir). So
+// the CONFIGURED branch is asserted end-to-end in tests/e2e/connections.spec.ts
+// and the UNCONFIGURED branch is asserted here, by rendering the same page with
+// the two variables absent — the pattern tests/integration/followup-digest.test.ts
+// already uses for the one flag that must stay off.
+// ---------------------------------------------------------------------------
+
+/** Runs `run` with the Google OAuth pair either absent or set to sentinels. */
+async function withGoogleEnv<T>(mode: 'absent' | 'set', run: () => Promise<T>): Promise<T> {
+  const names = ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'];
+  const saved = new Map<string, string | undefined>();
+  for (const name of names) {
+    saved.set(name, process.env[name]);
+    if (mode === 'absent') delete process.env[name];
+    else process.env[name] = `sentinel-value-${name.toLowerCase()}`;
+  }
+  try {
+    return await run();
+  } finally {
+    for (const [name, value] of saved) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  }
+}
+
+/**
+ * The slice of HTML belonging to ONE provider card.
+ *
+ * Sliced on the next `<li class="card"` rather than on the next `provider-*`
+ * testid: a card contains several of those (its status chip, its reason line, the
+ * Google panel), so slicing on a testid would cut the card off inside itself.
+ */
+function cardOf(html: string, id: string): string {
+  const start = html.indexOf(`data-testid="provider-${id}"`);
+  assert.ok(start >= 0, `${id} card must exist`);
+  const end = html.indexOf('<li class="card"', start + 1);
+  return html.slice(start, end > 0 ? end : undefined);
+}
+
+test('connections: without the OAuth client both Google rows say so, name both variables, and offer no connect', async () => {
+  const html = await withGoogleEnv('absent', () => renderPage());
+
+  for (const id of ['google-contacts', 'google-calendar']) {
+    const card = cardOf(html, id);
+    assert.ok(card.includes('data-status="disabled"'), `${id} must be disabled without the OAuth client`);
+    assert.ok(card.includes(`data-testid="provider-reason-${id}"`), `${id} must render the reason line`);
+    // The honest reason names BOTH missing variables — names, never values.
+    assert.ok(card.includes('GOOGLE_OAUTH_CLIENT_ID'), `${id} must name the first missing variable`);
+    assert.ok(card.includes('GOOGLE_OAUTH_CLIENT_SECRET'), `${id} must name the second missing variable`);
+    assert.equal(
+      card.includes(`data-testid="google-connect-${id}"`),
+      false,
+      `${id}: there is nothing to connect to, so there must be no connect control`,
+    );
+    // The per-instance state is stated, not left blank.
+    assert.ok(card.includes(`data-google-state="not_configured"`), `${id} must say which state it is in`);
+    assert.ok(card.includes('Not set up on this instance'), `${id} must say which state it is in`);
+  }
+});
+
+test('connections: with the OAuth client the Google rows are live, explain what is read and written, and link to the real start route', async () => {
+  const html = await withGoogleEnv('set', () => renderPage());
+
+  for (const id of ['google-contacts', 'google-calendar']) {
+    const card = cardOf(html, id);
+
+    assert.ok(card.includes('data-status="live"'), `${id} must be live when the client is configured`);
+    // Nothing was connected in this render, and the page says exactly that
+    // instead of implying a connection.
+    assert.ok(card.includes('data-google-state="not_connected"'), `${id} must render "not connected"`);
+    assert.ok(card.includes(`href="/api/oauth/google/start?provider=${id}"`), `${id} connect control must point at the start route`);
+    // The two halves of the privacy statement, per provider.
+    assert.ok(card.includes(`data-testid="google-reads-${id}"`), `${id} must state what is read`);
+    assert.ok(card.includes(`data-testid="google-writes-${id}"`), `${id} must state what is written`);
+    // And the registry's own status chip agrees with the panel: no card claiming
+    // "Available" while its panel says nothing can be done.
+    assert.ok(card.includes(`data-testid="provider-status-${id}"`));
+    assert.ok(card.includes('Available'));
+  }
+
+  // Provider-specific honesty, not a generic sentence reused twice.
+  assert.ok(html.includes('Names and email addresses from your Google contacts'));
+  assert.ok(html.includes('No contact is created, changed or deleted in Google'));
+  assert.ok(html.includes('Nothing. We never read your calendar.'));
+  assert.ok(html.includes('their email address is sent only if you tick the opt-in'));
+  // The panel never leaks the sentinel VALUES set for this render.
+  assert.equal(html.includes('sentinel-value-google_oauth_client_secret'), false);
+});
+
+test('connections: the OAuth result banner renders only a known word, and nothing at all for an unknown one', async () => {
+  const connected = await renderPage({ google: 'google-contacts', status: 'connected' });
+  assert.ok(connected.includes('data-testid="google-flow-status"'));
+  assert.ok(connected.includes('data-google-flow-status="connected"'));
+  assert.ok(connected.includes('Google connected.'));
+
+  const denied = await renderPage({ status: 'denied' });
+  assert.ok(denied.includes('data-google-flow-status="denied"'));
+  assert.ok(denied.includes('You cancelled the Google consent screen'));
+
+  // An unparsable status is ignored: a hand-typed URL cannot put words in the
+  // product's mouth, and a stale link cannot show someone else's outcome.
+  const bogus = await renderPage({ status: '<script>alert(1)</script>' });
+  assert.equal(bogus.includes('data-testid="google-flow-status"'), false);
+  assert.equal(bogus.includes('alert(1)'), false);
+
+  const absent = await renderPage({});
+  assert.equal(absent.includes('data-testid="google-flow-status"'), false);
 });

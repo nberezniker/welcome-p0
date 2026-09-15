@@ -2,8 +2,6 @@ import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
 import { internalError, jsonError, jsonOk, privateCacheHeaders, readJsonBody, withApi } from '../../../../../lib/http';
-import { recordAudit } from '../../../../../lib/audit';
-import { emailLookupHash } from '../../../../../lib/crypto';
 import { requireHashPepper } from '../../../../../lib/env';
 import { consumeSubjectToken } from '../../../../../lib/ratelimit';
 import {
@@ -11,6 +9,7 @@ import {
   CONTACT_IMPORT_MAX_CONTACTS,
   parseContacts,
 } from '../../../../../domain/contact-import';
+import { matchContactEmails, recordContactMatchAudit, CONTACTS_IMPORT_PER_HOUR } from '../../../../../domain/contact-match';
 
 /** POST /api/me/contacts/import — "who of my contacts is already here".
  *
@@ -35,13 +34,12 @@ import {
  *           200 with { scanned, matched_count, matched[], unmatched_count }.
  */
 
-/** Imports per account per hour. Also quoted in the UI copy. */
-export const CONTACTS_IMPORT_PER_HOUR = 5;
-
-/** Rows read from the DB. A bound, not a promise: `matched_truncated` says so. */
-const MATCH_READ_LIMIT = 200;
-/** Matches returned to the client (the brief's ceiling). */
-const MATCH_RESPONSE_LIMIT = 50;
+/**
+ * Imports per account per hour. Declared in src/domain/contact-match.ts because
+ * the Google Contacts endpoint shares this exact budget — the two doors answer
+ * the same question and must not double it.
+ */
+export { CONTACTS_IMPORT_PER_HOUR };
 
 const WINDOW_MS = 60 * 60 * 1000;
 
@@ -115,46 +113,32 @@ async function postRoute(req: NextRequest) {
     }
 
     const pepper = requireHashPepper();
-    const hashes = parsed.contacts.map((contact) => emailLookupHash(contact.email, pepper));
 
+    // Matching lives in one place for both import doors — the address book and
+    // Google Contacts (Phase 2) — so the privacy contract is a property of the
+    // code path rather than of this file (src/domain/contact-match.ts).
     const sql = getSql();
-    // Lookup only: the same key the product already stores for its own users, so
-    // this reads rows the caller's account could not otherwise see (a display
-    // name behind a match) and never exposes one that is not on WELCOME.
-    const rows = await sql<{ display_name: string; public_slug: string; headline: string | null }[]>`
-      SELECT p.display_name, p.public_slug, p.headline
-      FROM accounts a
-      JOIN profiles p ON p.account_id = a.id
-      WHERE a.email_lookup_hash = ANY(${hashes}::text[])
-        AND a.status = 'active'
-        AND a.id <> ${auth.accountId}
-      ORDER BY p.display_name ASC
-      LIMIT ${MATCH_READ_LIMIT}
-    `;
-
-    const matched = rows.slice(0, MATCH_RESPONSE_LIMIT).map((row) => ({
-      display_name: row.display_name,
-      slug: row.public_slug,
-      headline: row.headline,
-    }));
-    const matchedCount = rows.length;
+    const result = await matchContactEmails(sql, {
+      accountId: auth.accountId,
+      emails: parsed.contacts.map((contact) => contact.email),
+      pepper,
+    });
 
     // The one trace: what happened, in numbers, without any content.
-    await recordAudit(sql, auth.accountId, 'contacts.import.match', 'account', auth.accountId, {
-      scanned: parsed.contacts.length,
-      matched_count: matchedCount,
+    await recordContactMatchAudit(sql, auth.accountId, parsed.format, {
+      scanned: result.scanned,
+      matched_count: result.matched_count,
       skipped: parsed.skipped,
-      format: parsed.format,
     });
 
     return jsonOk(
       {
         ok: true,
-        scanned: parsed.contacts.length,
-        matched_count: matchedCount,
-        matched,
-        unmatched_count: Math.max(0, parsed.contacts.length - matchedCount),
-        matched_truncated: matchedCount >= MATCH_READ_LIMIT,
+        scanned: result.scanned,
+        matched_count: result.matched_count,
+        matched: result.matched,
+        unmatched_count: result.unmatched_count,
+        matched_truncated: result.matched_truncated,
         skipped: parsed.skipped,
       },
       { headers: { ...privateCacheHeaders(), ...rateHeaders } },

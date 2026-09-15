@@ -997,10 +997,13 @@ export const en = {
     'Organizers export a participant list as CSV; every imported line is confirmed by hand. Your own address book can be imported as CSV under "Import your contacts".',
   'providers.ics.step1': 'Planned: an .ics download and "add to calendar" links on the event page.',
   'providers.share-deeplinks.step1': 'Planned: share a card to X, WhatsApp, Telegram or LinkedIn as a plain link.',
-  'providers.google-contacts.step1': 'Create an OAuth client in Google Cloud and set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET.',
-  'providers.google-contacts.step2': 'Add the People API scope, then press "Connect" here.',
-  'providers.google-calendar.step1': 'Reuse the same Google OAuth client (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET).',
-  'providers.google-calendar.step2': 'Add the Calendar scope to create a meeting after an introduction.',
+  // Phase 2: the OAuth client exists on this instance (or it does not), and the
+  // steps below are what the USER does — the owner-facing part is the env line.
+  'providers.google-contacts.step1': 'Press Connect and choose the Google account whose contacts you want to check.',
+  'providers.google-contacts.step2':
+    'Google asks for read-only access to your contacts. They are matched inside the request and never stored.',
+  'providers.google-calendar.step1': 'Press Connect and choose the Google account whose calendar you want to use.',
+  'providers.google-calendar.step2': 'Google asks for permission to create events — in your own calendar only.',
   'providers.microsoft-people.step1': 'Register an app in Entra ID and set MICROSOFT_OAUTH_CLIENT_ID and MICROSOFT_OAUTH_CLIENT_SECRET.',
   'providers.microsoft-people.step2': 'Grant the People.Read scope, then press "Connect" here.',
   'providers.github.step1': 'Create a GitHub OAuth app and set GITHUB_OAUTH_CLIENT_ID and GITHUB_OAUTH_CLIENT_SECRET.',
@@ -1122,6 +1125,61 @@ export const en = {
   'connections.privacyDont4': 'We never see your address book; an import only tells you who is already here.',
   'connections.secretsNote': 'This page shows variable NAMES only — values never leave the server.',
 
+  // ── Google connections (Phase 2, docs-internal/product/GOOGLE_OAUTH_SETUP.md) ──
+  // Rendered by the GoogleConnectPanel on /me/connections. The states are the
+  // honest per-grant words from src/domain/google-oauth.ts (googleGrantState) plus
+  // the per-INSTANCE `not_configured`; each one says what it is and what to do,
+  // because a disabled control with no reason is the thing this page refuses.
+  'connections.google.panelTitle': 'Google account',
+  'connections.google.state.connected': 'Connected',
+  'connections.google.state.not_connected': 'Not connected',
+  'connections.google.state.expired': 'Expired — connect again',
+  'connections.google.state.revoked': 'Access revoked at Google',
+  'connections.google.state.not_configured': 'Not set up on this instance',
+  'connections.google.connect': 'Connect',
+  'connections.google.reconnect': 'Connect again',
+  'connections.google.disconnect': 'Disconnect',
+  'connections.google.disconnecting': 'Disconnecting…',
+  'connections.google.connectedAt': 'Connected {date}',
+  'connections.google.notConfiguredHelp':
+    'This instance has no Google OAuth client: {env} is missing. The owner sets those two variables once, for everyone. Until then this card can do nothing — and it says so rather than failing when you press it.',
+  'connections.google.revokedHelp':
+    'Google no longer has our access — it was removed on your Google account page, or the permission expired. Nothing of yours is stored on our side any more; press Connect again to grant it afresh.',
+  'connections.google.expiredHelp':
+    'The stored permission can no longer be renewed, so nothing can be read or written right now. Press Connect again to renew it.',
+  'connections.google.idleHelp':
+    'Nothing is fetched from Google until you press Connect. The permission we ask for is read-only where reading is all we do, and the tokens stay on the server, encrypted.',
+  'connections.google.readsLabel': 'What we read',
+  'connections.google.writesLabel': 'What we write',
+  'connections.google.reads.google-contacts':
+    'Names and email addresses from your Google contacts — only when you press the check button, only in that request, and only to answer which of them is already on WELCOME.',
+  'connections.google.writes.google-contacts':
+    'Nothing. No contact is created, changed or deleted in Google, and no address from your Google contacts is stored here — not even the ones that matched.',
+  'connections.google.reads.google-calendar': 'Nothing. We never read your calendar.',
+  'connections.google.writes.google-calendar':
+    'One event in your own calendar, when you add a meeting. The other person appears as a name; their email address is sent only if you tick the opt-in for that meeting.',
+  'connections.google.checkTitle': 'Check your Google contacts',
+  'connections.google.checkButton': 'See who is already here',
+  'connections.google.checkBusy': 'Asking Google…',
+  'connections.google.checkNote':
+    'Read-only, and nothing is kept: the contact list is matched inside the request and discarded. Only the count of matches is recorded.',
+  'connections.google.truncated': 'We read the first 5000 contacts — your Google account holds more.',
+  'connections.google.errorReconnect': 'The Google connection needs renewing. Press Connect again.',
+  'connections.google.errorScope': 'Google refused the contacts permission for this account.',
+  'connections.google.errorUnavailable': 'Google is not answering right now. Please try again later.',
+  'connections.google.status.connected': 'Google connected.',
+  'connections.google.status.denied': 'You cancelled the Google consent screen — nothing was connected.',
+  'connections.google.status.invalid_state':
+    'That attempt is no longer valid (expired, or already used). Press Connect to start again.',
+  'connections.google.status.exchange_failed':
+    'Google did not complete the connection, so nothing was stored. Please try again.',
+  'connections.google.status.not_configured': 'This instance has no Google OAuth client configured.',
+  'connections.google.status.unavailable': 'The connection could not be started. Please try again.',
+
+  // Text that goes INTO the user's own Google Calendar (POST /api/me/calendar/google).
+  'calendar.event.summary': 'Meeting with {name}',
+  'calendar.event.origin': 'Created from WELCOME.',
+
   // Provider names and one-line descriptions (registry ids, §A3).
   'providers.telegram.title': 'Telegram',
   'providers.telegram.description': 'Two-way notices and a one-time-code binding; the bot sends only what you opted into.',
@@ -1140,9 +1198,10 @@ export const en = {
   'providers.share-deeplinks.title': 'Share links',
   'providers.share-deeplinks.description': 'Share a card or an event to X, WhatsApp, Telegram or LinkedIn as a plain link.',
   'providers.google-contacts.title': 'Google Contacts',
-  'providers.google-contacts.description': 'See who of your contacts is already here, and push chosen contacts back.',
+  'providers.google-contacts.description':
+    'See which of your Google contacts is already on WELCOME — read-only, matched in memory, never stored.',
   'providers.google-calendar.title': 'Google Calendar',
-  'providers.google-calendar.description': 'Create a meeting from an introduction.',
+  'providers.google-calendar.description': 'Put your own note of a meeting into your own Google Calendar.',
   'providers.microsoft-people.title': 'Microsoft People & Calendar',
   'providers.microsoft-people.description': 'The same as Google Contacts, through Microsoft Graph.',
   'providers.github.title': 'GitHub',

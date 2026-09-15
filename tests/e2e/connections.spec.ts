@@ -7,6 +7,8 @@ import { test, expect, type Page } from '@playwright/test';
  */
 
 const EMAIL = 'connections@example.org';
+/** Its own account so the Google assertions do not depend on the other test's state. */
+const GOOGLE_EMAIL = 'connections-google@example.org';
 
 async function waitHydrated(page: Page) {
   await expect(page.locator('html[data-hydrated="true"]')).toBeAttached({ timeout: 30_000 });
@@ -90,5 +92,72 @@ test('connections: signed-out visitors are sent to the sign-in page', async ({ b
   await page.waitForURL('**/login**');
   expect(page.url()).toContain('/login');
   await expect(page.getByTestId('connections-title')).toHaveCount(0);
+  await context.close();
+});
+
+/**
+ * Phase 2: the two Google providers. This server HAS an OAuth client (see the
+ * webServer env in playwright.config.ts), so the cards are live and the controls
+ * are real; the unconfigured instance is asserted in
+ * tests/integration/connections.test.ts, because a second env configuration would
+ * need a second `next dev` sharing one `.next` build directory.
+ */
+test('connections: the Google cards are live, honest about being unconnected, and explain read vs write', async ({ page }) => {
+  await loginViaOtp(page, GOOGLE_EMAIL);
+  await createProfile(page, 'Google Owner');
+  await page.goto('/me/connections');
+  await waitHydrated(page);
+
+  for (const provider of ['google-contacts', 'google-calendar'] as const) {
+    const card = page.getByTestId(`provider-${provider}`);
+    await expect(card).toHaveAttribute('data-status', 'live');
+    await expect(page.getByTestId(`provider-status-${provider}`)).toHaveText('Available');
+
+    // The per-user state is stated: nothing is connected on a fresh account.
+    await expect(card.locator(`[data-google-state="not_connected"]`)).toHaveCount(1);
+    await expect(card).toContainText('Not connected');
+
+    // A REAL connect control, pointing at the route that starts the handshake.
+    const connect = page.getByTestId(`google-connect-${provider}`);
+    await expect(connect).toHaveAttribute('href', `/api/oauth/google/start?provider=${provider}`);
+    await expect(connect).toBeVisible();
+
+    // No disconnect control without a grant — there is nothing to disconnect.
+    await expect(page.getByTestId(`google-disconnect-${provider}`)).toHaveCount(0);
+
+    // Both halves of the privacy statement, per provider.
+    await expect(page.getByTestId(`google-reads-${provider}`)).toBeVisible();
+    await expect(page.getByTestId(`google-writes-${provider}`)).toBeVisible();
+  }
+
+  // The honest, provider-specific wording (never one generic sentence twice).
+  await expect(page.getByTestId('google-reads-google-contacts')).toContainText('Names and email addresses');
+  await expect(page.getByTestId('google-writes-google-contacts')).toContainText('No contact is created');
+  await expect(page.getByTestId('google-reads-google-calendar')).toContainText('We never read your calendar');
+  await expect(page.getByTestId('google-writes-google-calendar')).toContainText('sent only if you tick the opt-in');
+
+  // And no OAuth secret can ever reach the browser.
+  expect(await page.content()).not.toContain('e2e-client-secret');
+});
+
+test('connections: the connect control is inert without a session — no Google flow is started', async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  // Following the connect link signed out must land on the sign-in page: the
+  // start route requires a session, so no state, no PKCE and no consent screen.
+  await page.goto('/api/oauth/google/start?provider=google-contacts');
+  await page.waitForURL('**/login**');
+  expect(page.url()).toContain('/login');
+  expect(page.url()).not.toContain('accounts.google.com');
+  // The sign-in page remembers where the user was going.
+  expect(decodeURIComponent(page.url())).toContain('/me/connections');
+
+  // The callback is equally inert: with no session it abandons the flow rather
+  // than storing anything, and it never bounces the visitor to Google.
+  const callback = await page.goto('/api/oauth/google/callback?code=anything&state=anything');
+  expect(callback?.url() ?? page.url()).not.toContain('accounts.google.com');
+  expect(decodeURIComponent(page.url())).toContain('/login');
+
   await context.close();
 });

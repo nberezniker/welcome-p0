@@ -66,8 +66,15 @@ export type ContactImportResult = ParsedContacts | ContactImportFailure;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-/** Trim + lowercase + shape check; the one normalization used everywhere. */
-function normalizeContactEmail(raw: string): string | null {
+/**
+ * Trim + lowercase + shape check; the one normalization used everywhere.
+ *
+ * Exported since Phase 2: the Google Contacts path (src/domain/google-oauth.ts)
+ * normalizes with THIS function before hashing, so an address from a .vcf, a
+ * .csv and the People API produces the same lookup hash. Two normalizations
+ * would mean two different answers to "who of my contacts is already here".
+ */
+export function normalizeContactEmail(raw: string): string | null {
   const value = raw.trim().toLowerCase();
   if (value.length < 3 || value.length > 320) return null;
   if (!EMAIL_RE.test(value)) return null;

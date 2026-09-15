@@ -971,10 +971,11 @@ export const ru: Partial<Dictionary> = {
     'Организатор выгружает список участников в CSV; каждая импортированная строка подтверждается вручную. Свою адресную книгу можно загрузить как CSV — в «Импорте контактов».',
   'providers.ics.step1': 'В планах: скачивание .ics и ссылки «добавить в календарь» на странице события.',
   'providers.share-deeplinks.step1': 'В планах: поделиться карточкой в X, WhatsApp, Telegram или LinkedIn обычной ссылкой.',
-  'providers.google-contacts.step1': 'Создайте OAuth-клиент в Google Cloud и задайте GOOGLE_OAUTH_CLIENT_ID и GOOGLE_OAUTH_CLIENT_SECRET.',
-  'providers.google-contacts.step2': 'Добавьте скоуп People API и нажмите «Подключить» здесь.',
-  'providers.google-calendar.step1': 'Используйте тот же Google OAuth-клиент (GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET).',
-  'providers.google-calendar.step2': 'Добавьте скоуп Calendar, чтобы создавать встречу по итогам знакомства.',
+  'providers.google-contacts.step1': 'Нажмите «Подключить» и выберите аккаунт Google, контакты которого хотите проверить.',
+  'providers.google-contacts.step2':
+    'Google спросит доступ только на чтение контактов. Они сопоставляются внутри запроса и не сохраняются.',
+  'providers.google-calendar.step1': 'Нажмите «Подключить» и выберите аккаунт Google, календарь которого хотите использовать.',
+  'providers.google-calendar.step2': 'Google спросит право создавать события — только в вашем календаре.',
   'providers.microsoft-people.step1': 'Зарегистрируйте приложение в Entra ID и задайте MICROSOFT_OAUTH_CLIENT_ID и MICROSOFT_OAUTH_CLIENT_SECRET.',
   'providers.microsoft-people.step2': 'Выдайте скоуп People.Read и нажмите «Подключить» здесь.',
   'providers.github.step1': 'Создайте GitHub OAuth-приложение и задайте GITHUB_OAUTH_CLIENT_ID и GITHUB_OAUTH_CLIENT_SECRET.',
@@ -1094,6 +1095,56 @@ export const ru: Partial<Dictionary> = {
   'connections.privacyDont4': 'Не видим вашу адресную книгу: импорт лишь говорит, кто из контактов уже здесь.',
   'connections.secretsNote': 'На этой странице только ИМЕНА переменных — значения не покидают сервер.',
 
+  // ── Google-подключения (Фаза 2) ──
+  'connections.google.panelTitle': 'Аккаунт Google',
+  'connections.google.state.connected': 'Подключено',
+  'connections.google.state.not_connected': 'Не подключено',
+  'connections.google.state.expired': 'Истекло — подключите заново',
+  'connections.google.state.revoked': 'Доступ отозван в Google',
+  'connections.google.state.not_configured': 'Не настроено на этом инстансе',
+  'connections.google.connect': 'Подключить',
+  'connections.google.reconnect': 'Подключить заново',
+  'connections.google.disconnect': 'Отключить',
+  'connections.google.disconnecting': 'Отключаем…',
+  'connections.google.connectedAt': 'Подключено {date}',
+  'connections.google.notConfiguredHelp':
+    'На этом инстансе нет OAuth-клиента Google: не заданы {env}. Владелец задаёт эти две переменные один раз для всех. До этого карточка ничего не может — и говорит об этом прямо, вместо ошибки по нажатию.',
+  'connections.google.revokedHelp':
+    'У Google больше нет нашего доступа — его убрали на странице аккаунта Google, либо срок разрешения истёк. У нас ничего вашего уже не хранится; нажмите «Подключить заново», чтобы выдать доступ снова.',
+  'connections.google.expiredHelp':
+    'Сохранённое разрешение больше нельзя продлить, поэтому сейчас ничего нельзя ни прочитать, ни записать. Нажмите «Подключить заново».',
+  'connections.google.idleHelp':
+    'Из Google ничего не читается, пока вы не нажмёте «Подключить». Мы просим только те права, которые нужны для самого действия, а токены живут на сервере, зашифрованы.',
+  'connections.google.readsLabel': 'Что читаем',
+  'connections.google.writesLabel': 'Что записываем',
+  'connections.google.reads.google-contacts':
+    'Имена и адреса из ваших контактов Google — только по нажатию кнопки проверки, только внутри этого запроса и только чтобы ответить, кто из них уже на WELCOME.',
+  'connections.google.writes.google-contacts':
+    'Ничего. В Google не создаётся, не меняется и не удаляется ни один контакт, и ни один адрес из ваших контактов у нас не сохраняется — даже совпавшие.',
+  'connections.google.reads.google-calendar': 'Ничего. Ваш календарь мы не читаем.',
+  'connections.google.writes.google-calendar':
+    'Одно событие в вашем собственном календаре — когда вы добавляете встречу. Второй человек присутствует как имя; его email уходит только если вы отметили это для конкретной встречи.',
+  'connections.google.checkTitle': 'Проверить контакты Google',
+  'connections.google.checkButton': 'Показать, кто уже здесь',
+  'connections.google.checkBusy': 'Спрашиваем Google…',
+  'connections.google.checkNote':
+    'Только чтение, и ничего не сохраняется: список контактов сопоставляется внутри запроса и удаляется. Записывается лишь количество совпадений.',
+  'connections.google.truncated': 'Прочитаны первые 5000 контактов — в вашем аккаунте Google их больше.',
+  'connections.google.errorReconnect': 'Подключение к Google нужно продлить. Нажмите «Подключить заново».',
+  'connections.google.errorScope': 'Google не дал доступ к контактам для этого аккаунта.',
+  'connections.google.errorUnavailable': 'Google сейчас не отвечает. Попробуйте позже.',
+  'connections.google.status.connected': 'Google подключён.',
+  'connections.google.status.denied': 'Вы закрыли экран согласия Google — ничего не подключено.',
+  'connections.google.status.invalid_state':
+    'Эта попытка больше не действительна (истекла или уже использована). Нажмите «Подключить» заново.',
+  'connections.google.status.exchange_failed':
+    'Google не завершил подключение, поэтому ничего не сохранено. Попробуйте ещё раз.',
+  'connections.google.status.not_configured': 'На этом инстансе не настроен OAuth-клиент Google.',
+  'connections.google.status.unavailable': 'Не удалось начать подключение. Попробуйте ещё раз.',
+
+  'calendar.event.summary': 'Встреча с {name}',
+  'calendar.event.origin': 'Создано из WELCOME.',
+
   // Названия и краткие описания провайдеров (id из реестра, §A3).
   'providers.telegram.title': 'Telegram',
   'providers.telegram.description': 'Двусторонние уведомления и привязка одноразовым кодом; бот пишет только то, на что вы согласились.',
@@ -1112,9 +1163,9 @@ export const ru: Partial<Dictionary> = {
   'providers.share-deeplinks.title': 'Ссылки «поделиться»',
   'providers.share-deeplinks.description': 'Поделиться карточкой или событием в X, WhatsApp, Telegram или LinkedIn обычной ссылкой.',
   'providers.google-contacts.title': 'Google Контакты',
-  'providers.google-contacts.description': 'Понять, кто из ваших контактов уже здесь, и выгрузить выбранных обратно.',
+  'providers.google-contacts.description': 'Понять, кто из ваших контактов Google уже на WELCOME — только чтение, сопоставление в памяти, без хранения.',
   'providers.google-calendar.title': 'Google Календарь',
-  'providers.google-calendar.description': 'Создать встречу по итогам знакомства.',
+  'providers.google-calendar.description': 'Занести свою заметку о встрече в ваш собственный календарь Google.',
   'providers.microsoft-people.title': 'Microsoft People и Календарь',
   'providers.microsoft-people.description': 'То же, что Google Контакты, но через Microsoft Graph.',
   'providers.github.title': 'GitHub',

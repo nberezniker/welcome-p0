@@ -36,6 +36,12 @@ const WARMUP_PATHS = [
   '/api/channels/telegram', '/api/registration-claims',
   // Param-bearing pages compile on demand too (signed out → /login redirect).
   '/organizer/events/00000000-0000-0000-0000-000000000000/badges',
+  // Phase 2: the Google OAuth handshake routes. Signed out, `start` answers with
+  // a redirect to /login and the callback abandons the flow uncompleted — both
+  // prove the route compiled, which is the point of warming them.
+  '/api/oauth/google/start?provider=google-contacts',
+  '/api/oauth/google/start?provider=google-calendar',
+  '/api/oauth/google/callback',
   // Preview images (og-image.spec.ts). A missing slug 404s, which still proves
   // the route compiled — and image generation is the slowest path in the suite.
   // The landing card is the slowest of the three to compile and the one the
