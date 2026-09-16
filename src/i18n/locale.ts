@@ -25,19 +25,33 @@ export function isLocale(value: unknown): value is Locale {
 }
 
 /**
- * Resolves the locale for one request from the two documented inputs:
+ * Resolves the locale for one request from the three documented inputs:
  *   1. a VALID `?lang=` query value — an explicit, per-visit choice; the
  *      middleware persists it to the cookie (and the current render already
- *      uses it);
- *   2. otherwise the `welcome_locale` cookie;
- *   3. otherwise English.
- * An invalid `?lang=` (unknown code, different case, extra parameters) is
- * ignored entirely and never overwrites a stored preference.
+ *      uses it). It is the only input that may beat the account preference;
+ *      it NEVER writes `accounts.locale`;
+ *   2. `accounts.locale` — the DURABLE preference of a signed-in account
+ *      (migration 014). Ranked above the cookie on purpose: the cookie is a
+ *      device fact and can be planted by a shared `?lang=` link, while the
+ *      account is what the user chose for themselves in the switcher;
+ *   3. the `welcome_locale` cookie — the device preference, and the only input
+ *      for a visitor who is not signed in;
+ *   4. otherwise English.
+ * An invalid `?lang=` (unknown code, different case, extra parameters), an
+ * unset account column (NULL = "never chose") and an invalid cookie are all
+ * ignored rather than guessed at.
+ *
+ * Pure and dependency-free: `getLocale()` (src/i18n/index.ts) does the I/O
+ * (header, cookie jar, session row) and hands the three raw values here, so the
+ * full truth table is testable without a request —
+ * tests/unit/locale-query.test.ts.
  */
 export function resolveRequestLocale(
   queryLang: string | undefined | null,
   cookieLocale: string | undefined | null,
+  accountLocale?: string | undefined | null,
 ): { locale: Locale; fromQuery: boolean } {
   if (isLocale(queryLang)) return { locale: queryLang, fromQuery: true };
+  if (isLocale(accountLocale)) return { locale: accountLocale, fromQuery: false };
   return { locale: resolveLocale(cookieLocale), fromQuery: false };
 }

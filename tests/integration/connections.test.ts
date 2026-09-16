@@ -147,6 +147,20 @@ function cardOf(html: string, id: string): string {
   return html.slice(start, end > 0 ? end : undefined);
 }
 
+/**
+ * The slice belonging to the GOOGLE PANEL inside that card.
+ *
+ * The card states the instance-level fact too (the registry's own reason line,
+ * shared by every provider), so a statement can legitimately appear twice on the
+ * card. Assertions about the PANEL must therefore be scoped to the panel.
+ */
+function panelOf(html: string, id: string): string {
+  const card = cardOf(html, id);
+  const start = card.indexOf(`data-testid="google-panel-${id}"`);
+  assert.ok(start >= 0, `${id} panel must exist`);
+  return card.slice(start);
+}
+
 test('connections: without the OAuth client both Google rows say so, name both variables, and offer no connect', async () => {
   const html = await withGoogleEnv('absent', () => renderPage());
 
@@ -165,6 +179,24 @@ test('connections: without the OAuth client both Google rows say so, name both v
     // The per-instance state is stated, not left blank.
     assert.ok(card.includes(`data-google-state="not_configured"`), `${id} must say which state it is in`);
     assert.ok(card.includes('Not set up on this instance'), `${id} must say which state it is in`);
+
+    // The per-instance truth is the PANEL's own sentence, and the panel says it
+    // ONCE. It used to say it twice — a chip plus a dead button styled to look
+    // pressable — which is exactly the "invites a press that cannot work" shape
+    // the UI review flagged. (The card's registry-level reason line above is a
+    // different statement, about the instance, and is unchanged.)
+    const panel = panelOf(html, id);
+    assert.ok(panel.includes(`data-testid="google-help-${id}"`), `${id} must carry the per-instance explanation`);
+    assert.equal(
+      panel.split('Not set up on this instance').length - 1,
+      1,
+      `${id}: the panel must state its state once, not as a chip beside a dead button`,
+    );
+    assert.equal(
+      /aria-disabled/.test(panel),
+      false,
+      `${id}: the panel must render no disabled ghost button standing in for the connect control`,
+    );
   }
 });
 
@@ -195,6 +227,47 @@ test('connections: with the OAuth client the Google rows are live, explain what 
   assert.ok(html.includes('their email address is sent only if you tick the opt-in'));
   // The panel never leaks the sentinel VALUES set for this render.
   assert.equal(html.includes('sentinel-value-google_oauth_client_secret'), false);
+});
+
+test('connections: the connect control is a PRIMARY action that names its provider', async () => {
+  // The user-reported complaint: with two Google cards on one page, a bare
+  // "Connect" said nothing about which account was about to be opened. Three
+  // properties are asserted, because all three were wrong before: the label names
+  // the provider, the control is the primary variant, and it sits ABOVE the
+  // explanatory copy rather than below it inside a nested panel row.
+  const html = await withGoogleEnv('set', () => renderPage());
+
+  const expected: Record<string, string> = {
+    'google-contacts': 'Connect Google Contacts',
+    'google-calendar': 'Connect Google Calendar',
+  };
+
+  for (const [id, label] of Object.entries(expected)) {
+    const card = cardOf(html, id);
+    const anchor = new RegExp(`<a[^>]*data-testid="google-connect-${id}"[^>]*>([^<]*)</a>`).exec(card);
+    assert.ok(anchor, `${id}: the connect control must be an anchor to the start route`);
+    assert.equal(anchor[1]?.trim(), label, `${id}: the control must name the provider it connects`);
+    assert.ok(
+      /class="[^"]*btn-primary/.test(anchor[0]),
+      `${id}: the connect control must be the primary action, not a secondary-looking button`,
+    );
+    assert.ok(
+      /class="[^"]*\bw-full\b/.test(anchor[0]),
+      `${id}: the control must be full width on a phone`,
+    );
+    assert.ok(
+      card.indexOf(`google-connect-${id}`) < card.indexOf(`google-help-${id}`),
+      `${id}: the action must come before the explanation it refers to`,
+    );
+    // Two cards, two distinguishable labels.
+    assert.notEqual(anchor[1]?.trim(), expected[id === 'google-contacts' ? 'google-calendar' : 'google-contacts']);
+  }
+
+  // Disconnect is not rendered at all without a grant, so it cannot compete with
+  // the primary action on a fresh account.
+  for (const id of Object.keys(expected)) {
+    assert.equal(cardOf(html, id).includes(`google-disconnect-${id}`), false, `${id}: nothing to disconnect yet`);
+  }
 });
 
 test('connections: the OAuth result banner renders only a known word, and nothing at all for an unknown one', async () => {

@@ -44,6 +44,16 @@ milestone; none of these are silent gaps.
   Secure-in-production (F-18's concern is resolved by F-01 enabling a real
   production login flow; flags set in `src/lib/auth.ts`).
 - **Revisit when**: the cookie starts influencing anything security-relevant.
+- **Update 2026-09-16 (migration `014_account_locale.sql`)**: the same preference
+  now also exists as `accounts.locale`, written ONLY by `POST /api/locale` — the
+  user pressing the switcher. `?lang=` keeps writing the cookie and the current
+  render and can never reach the column (`src/proxy.ts` has no database import at
+  all; `tests/unit/locale-query.test.ts`, `tests/integration/locale.test.ts`), so
+  a URL fetched by an unfurler or a scanner still grants nothing. Like the cookie,
+  the column selects a DICTIONARY and nothing else — never a consent, never an
+  authorization decision (`src/i18n/README.md`). It is a first-party preference
+  with no identifier and no capability, so this stays an accepted info finding and
+  the revisit condition does not fire.
 
 ## F-18 — Production session-cookie flags (resolved via F-01)
 

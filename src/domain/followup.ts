@@ -218,9 +218,13 @@ function substitute(template: string, vars: Record<string, string>): string {
 
 /**
  * Renders the reminder for either channel. `locale` defaults to the product
- * default because WELCOME stores NO per-account locale (the preference lives in
- * the `welcome_locale` cookie only) — the same documented choice the intro
- * notices make.
+ * default because the WORKER does not read the recipient's stored language: a
+ * durable per-account preference has existed since migration 014
+ * (`accounts.locale`, src/i18n/README.md), but this module is a pure renderer
+ * and its only caller (src/infra/worker.ts) passes DEFAULT_LOCALE. Honouring the
+ * column outbound is a behaviour change with its own copy and tests, so it is
+ * deliberately left for a separate change — recorded as a known gap, not an
+ * oversight.
  */
 export function renderReminderMessage(input: ReminderMessageInput): OutboundMessage {
   return {

@@ -999,10 +999,10 @@ export const en = {
   'providers.share-deeplinks.step1': 'Planned: share a card to X, WhatsApp, Telegram or LinkedIn as a plain link.',
   // Phase 2: the OAuth client exists on this instance (or it does not), and the
   // steps below are what the USER does — the owner-facing part is the env line.
-  'providers.google-contacts.step1': 'Press Connect and choose the Google account whose contacts you want to check.',
+  'providers.google-contacts.step1': 'Press "Connect Google Contacts" and choose the Google account whose contacts you want to check.',
   'providers.google-contacts.step2':
     'Google asks for read-only access to your contacts. They are matched inside the request and never stored.',
-  'providers.google-calendar.step1': 'Press Connect and choose the Google account whose calendar you want to use.',
+  'providers.google-calendar.step1': 'Press "Connect Google Calendar" and choose the Google account whose calendar you want to use.',
   'providers.google-calendar.step2': 'Google asks for permission to create events — in your own calendar only.',
   'providers.microsoft-people.step1': 'Register an app in Entra ID and set MICROSOFT_OAUTH_CLIENT_ID and MICROSOFT_OAUTH_CLIENT_SECRET.',
   'providers.microsoft-people.step2': 'Grant the People.Read scope, then press "Connect" here.',
@@ -1136,19 +1136,25 @@ export const en = {
   'connections.google.state.expired': 'Expired — connect again',
   'connections.google.state.revoked': 'Access revoked at Google',
   'connections.google.state.not_configured': 'Not set up on this instance',
-  'connections.google.connect': 'Connect',
-  'connections.google.reconnect': 'Connect again',
+  // The connect control NAMES the provider it connects. A bare "Connect" gave the
+  // user no way to tell which of the two Google cards they were about to open,
+  // and the same word appeared on both — the reported complaint. {provider} is
+  // the localized provider title (providers.google-contacts.title /
+  // providers.google-calendar.title), and no key remains that could render an
+  // unnamed connect button again.
+  'connections.google.connectProvider': 'Connect {provider}',
+  'connections.google.reconnectProvider': 'Connect {provider} again',
   'connections.google.disconnect': 'Disconnect',
   'connections.google.disconnecting': 'Disconnecting…',
   'connections.google.connectedAt': 'Connected {date}',
   'connections.google.notConfiguredHelp':
-    'This instance has no Google OAuth client: {env} is missing. The owner sets those two variables once, for everyone. Until then this card can do nothing — and it says so rather than failing when you press it.',
+    'This instance has no Google OAuth client: {env} is missing. The owner sets those two variables once, for everyone. Until then there is nothing to connect, so this card offers no button at all rather than one that could only fail.',
   'connections.google.revokedHelp':
-    'Google no longer has our access — it was removed on your Google account page, or the permission expired. Nothing of yours is stored on our side any more; press Connect again to grant it afresh.',
+    'Google no longer has our access — it was removed on your Google account page, or the permission expired. Nothing of yours is stored on our side any more; use the button above to grant it afresh.',
   'connections.google.expiredHelp':
-    'The stored permission can no longer be renewed, so nothing can be read or written right now. Press Connect again to renew it.',
+    'The stored permission can no longer be renewed, so nothing can be read or written right now. Use the button above to renew it.',
   'connections.google.idleHelp':
-    'Nothing is fetched from Google until you press Connect. The permission we ask for is read-only where reading is all we do, and the tokens stay on the server, encrypted.',
+    'Nothing is fetched from Google until you press the button above. The permission we ask for is read-only where reading is all we do, and the tokens stay on the server, encrypted.',
   'connections.google.readsLabel': 'What we read',
   'connections.google.writesLabel': 'What we write',
   'connections.google.reads.google-contacts':

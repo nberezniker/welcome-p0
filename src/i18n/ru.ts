@@ -971,10 +971,10 @@ export const ru: Partial<Dictionary> = {
     'Организатор выгружает список участников в CSV; каждая импортированная строка подтверждается вручную. Свою адресную книгу можно загрузить как CSV — в «Импорте контактов».',
   'providers.ics.step1': 'В планах: скачивание .ics и ссылки «добавить в календарь» на странице события.',
   'providers.share-deeplinks.step1': 'В планах: поделиться карточкой в X, WhatsApp, Telegram или LinkedIn обычной ссылкой.',
-  'providers.google-contacts.step1': 'Нажмите «Подключить» и выберите аккаунт Google, контакты которого хотите проверить.',
+  'providers.google-contacts.step1': 'Нажмите «Подключить Google Контакты» и выберите аккаунт Google, контакты которого хотите проверить.',
   'providers.google-contacts.step2':
     'Google спросит доступ только на чтение контактов. Они сопоставляются внутри запроса и не сохраняются.',
-  'providers.google-calendar.step1': 'Нажмите «Подключить» и выберите аккаунт Google, календарь которого хотите использовать.',
+  'providers.google-calendar.step1': 'Нажмите «Подключить Google Календарь» и выберите аккаунт Google, календарь которого хотите использовать.',
   'providers.google-calendar.step2': 'Google спросит право создавать события — только в вашем календаре.',
   'providers.microsoft-people.step1': 'Зарегистрируйте приложение в Entra ID и задайте MICROSOFT_OAUTH_CLIENT_ID и MICROSOFT_OAUTH_CLIENT_SECRET.',
   'providers.microsoft-people.step2': 'Выдайте скоуп People.Read и нажмите «Подключить» здесь.',
@@ -1102,19 +1102,23 @@ export const ru: Partial<Dictionary> = {
   'connections.google.state.expired': 'Истекло — подключите заново',
   'connections.google.state.revoked': 'Доступ отозван в Google',
   'connections.google.state.not_configured': 'Не настроено на этом инстансе',
-  'connections.google.connect': 'Подключить',
-  'connections.google.reconnect': 'Подключить заново',
+  // Кнопка подключения НАЗЫВАЕТ провайдера: без этого на странице было две
+  // одинаковые кнопки «Подключить», и понять, какая из них ведёт в Контакты, а
+  // какая в Календарь, было невозможно. {provider} — локализованное название
+  // провайдера (providers.google-contacts.title / providers.google-calendar.title).
+  'connections.google.connectProvider': 'Подключить {provider}',
+  'connections.google.reconnectProvider': 'Подключить {provider} заново',
   'connections.google.disconnect': 'Отключить',
   'connections.google.disconnecting': 'Отключаем…',
   'connections.google.connectedAt': 'Подключено {date}',
   'connections.google.notConfiguredHelp':
-    'На этом инстансе нет OAuth-клиента Google: не заданы {env}. Владелец задаёт эти две переменные один раз для всех. До этого карточка ничего не может — и говорит об этом прямо, вместо ошибки по нажатию.',
+    'На этом инстансе нет OAuth-клиента Google: не заданы {env}. Владелец задаёт эти две переменные один раз для всех. До этого подключать нечего — поэтому кнопки здесь нет вовсе, а не кнопка, которая всё равно не сработает.',
   'connections.google.revokedHelp':
-    'У Google больше нет нашего доступа — его убрали на странице аккаунта Google, либо срок разрешения истёк. У нас ничего вашего уже не хранится; нажмите «Подключить заново», чтобы выдать доступ снова.',
+    'У Google больше нет нашего доступа — его убрали на странице аккаунта Google, либо срок разрешения истёк. У нас ничего вашего уже не хранится; нажмите кнопку выше, чтобы выдать доступ снова.',
   'connections.google.expiredHelp':
-    'Сохранённое разрешение больше нельзя продлить, поэтому сейчас ничего нельзя ни прочитать, ни записать. Нажмите «Подключить заново».',
+    'Сохранённое разрешение больше нельзя продлить, поэтому сейчас ничего нельзя ни прочитать, ни записать. Нажмите кнопку выше, чтобы продлить.',
   'connections.google.idleHelp':
-    'Из Google ничего не читается, пока вы не нажмёте «Подключить». Мы просим только те права, которые нужны для самого действия, а токены живут на сервере, зашифрованы.',
+    'Из Google ничего не читается, пока вы не нажмёте кнопку выше. Мы просим только те права, которые нужны для самого действия, а токены живут на сервере, зашифрованы.',
   'connections.google.readsLabel': 'Что читаем',
   'connections.google.writesLabel': 'Что записываем',
   'connections.google.reads.google-contacts':

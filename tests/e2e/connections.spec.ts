@@ -108,6 +108,12 @@ test('connections: the Google cards are live, honest about being unconnected, an
   await page.goto('/me/connections');
   await waitHydrated(page);
 
+  /** The label each control must carry — the reported complaint, pinned. */
+  const connectLabel: Record<'google-contacts' | 'google-calendar', string> = {
+    'google-contacts': 'Connect Google Contacts',
+    'google-calendar': 'Connect Google Calendar',
+  };
+
   for (const provider of ['google-contacts', 'google-calendar'] as const) {
     const card = page.getByTestId(`provider-${provider}`);
     await expect(card).toHaveAttribute('data-status', 'live');
@@ -117,10 +123,44 @@ test('connections: the Google cards are live, honest about being unconnected, an
     await expect(card.locator(`[data-google-state="not_connected"]`)).toHaveCount(1);
     await expect(card).toContainText('Not connected');
 
-    // A REAL connect control, pointing at the route that starts the handshake.
+    // A REAL connect control, pointing at the route that starts the handshake —
+    // and it NAMES the provider. "where do I even connect Google, the button is
+    // not obvious" was the report: a bare "Connect", twice on one page, told the
+    // user nothing about which Google account it would open.
     const connect = page.getByTestId(`google-connect-${provider}`);
     await expect(connect).toHaveAttribute('href', `/api/oauth/google/start?provider=${provider}`);
     await expect(connect).toBeVisible();
+    await expect(connect).toHaveText(connectLabel[provider]);
+    await expect(connect).toHaveAttribute('data-google-action', 'connect');
+
+    // It is the PRIMARY action, and it fills its panel on a phone — not a small
+    // secondary-looking link below the explanation. Measured rather than eyeballed:
+    // the two widths are compared against the panel's own content box.
+    await expect(connect).toHaveClass(/btn-primary/);
+    const widthOf = async (): Promise<{ control: number; panelContent: number }> =>
+      page.getByTestId(`google-panel-${provider}`).evaluate((panel) => {
+        const style = getComputedStyle(panel);
+        const anchor = panel.querySelector('a[data-google-action]') as HTMLElement | null;
+        return {
+          panelContent:
+            panel.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+          control: anchor ? anchor.getBoundingClientRect().width : 0,
+        };
+      });
+
+    await page.setViewportSize({ width: 360, height: 780 });
+    const phone = await widthOf();
+    expect(phone.control, `${provider}: the control must span the panel on a phone`).toBeGreaterThan(phone.panelContent - 3);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const desktop = await widthOf();
+    expect(desktop.control, `${provider}: the control must shrink to its label on a wide screen`).toBeLessThan(
+      desktop.panelContent - 20,
+    );
+
+    // The action comes BEFORE the copy that refers to it ("the button above").
+    const order = await card.locator(`a[data-testid="google-connect-${provider}"], p[data-testid="google-help-${provider}"]`);
+    await expect(order).toHaveCount(2);
+    await expect(order.first()).toHaveAttribute('data-testid', `google-connect-${provider}`);
 
     // No disconnect control without a grant — there is nothing to disconnect.
     await expect(page.getByTestId(`google-disconnect-${provider}`)).toHaveCount(0);
@@ -129,6 +169,11 @@ test('connections: the Google cards are live, honest about being unconnected, an
     await expect(page.getByTestId(`google-reads-${provider}`)).toBeVisible();
     await expect(page.getByTestId(`google-writes-${provider}`)).toBeVisible();
   }
+
+  // The two controls are distinguishable from each other, not two copies of one word.
+  await expect(page.getByTestId('google-connect-google-contacts')).not.toHaveText(
+    connectLabel['google-calendar'],
+  );
 
   // The honest, provider-specific wording (never one generic sentence twice).
   await expect(page.getByTestId('google-reads-google-contacts')).toContainText('Names and email addresses');

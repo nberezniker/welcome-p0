@@ -105,9 +105,11 @@ export interface NoticeEmail {
 
 /**
  * Renders one service notice as a plain-text email. `locale` defaults to the
- * product default because WELCOME stores NO per-account locale: the language
- * preference lives in the `welcome_locale` cookie only (src/i18n/locale.ts), so
- * a server-side notification has no stored preference to honor and uses EN.
+ * product default because the WORKER, which is the only production caller, does
+ * not read the recipient's stored language and passes DEFAULT_LOCALE. A durable
+ * per-account preference does exist since migration 014 (`accounts.locale`,
+ * src/i18n/README.md) — honouring it outbound is a behaviour change with its own
+ * copy and tests, recorded as a known gap rather than silently assumed here.
  * `baseUrl` comes from APP_BASE_URL — never a guessed host.
  */
 export function serviceNoticeEmail(

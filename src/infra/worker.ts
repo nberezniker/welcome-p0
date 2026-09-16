@@ -317,7 +317,9 @@ async function sendEmailWithJobText(
     subject = job.kind === 'followup_reminder' ? reminderSubject(DEFAULT_LOCALE) : digestSubject(DEFAULT_LOCALE);
     body = typeof job.payload['text'] === 'string' ? (job.payload['text'] as string) : '';
   } else if (isServiceNoticeKind(job.kind)) {
-    // EN: WELCOME stores no per-account locale (cookie only) — see the module doc.
+    // EN: the worker does not read accounts.locale (migration 014). The column
+    // is the durable UI preference; honouring it for outbound mail is a separate
+    // change — a recorded known gap (src/i18n/README.md), not an oversight.
     const rendered = serviceNoticeEmail(job.kind, appBaseUrl(), DEFAULT_LOCALE);
     subject = rendered.subject;
     body = rendered.text;

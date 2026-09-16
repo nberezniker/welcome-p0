@@ -80,11 +80,17 @@ and therefore the only one usable for a push.
    terminally on every tick instead of an honest suppression. With no provider the
    job is `suppressed:channel_disabled`.
 
-7. **Locale.** WELCOME stores no per-account locale — the preference lives in the
-   `welcome_locale` cookie only (`src/i18n/locale.ts`), and a server-side
-   notification has no request to read it from. Emails therefore use the product
-   default (EN). The notice renderer is locale-parameterized (EN/RU/ES) so a stored
-   locale can be honoured later without touching the templates.
+7. **Locale.** (Amended 2026-09-16, migration `014_account_locale.sql`.) WELCOME
+   now stores a per-account language in `accounts.locale`, written by exactly one
+   thing — the explicit switcher (`POST /api/locale`); a `?lang=` query parameter
+   writes the device cookie and the current render only. The full resolution order
+   is in `src/i18n/README.md`. The OUTBOUND decision below is unchanged, but its
+   premise has: the worker still reads no locale when it renders a notice, so
+   emails continue to use the product default (EN). Honouring the column outbound
+   is now a behaviour change with its own copy and tests rather than a missing
+   capability, and is recorded as a known gap in `src/i18n/README.md`. The notice
+   renderer stays locale-parameterized (EN/RU/ES), so that change is a call-site
+   change rather than a template rewrite.
 
 ## Consequences
 

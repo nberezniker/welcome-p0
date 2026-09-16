@@ -1,4 +1,6 @@
+import { cache } from 'react';
 import { cookies, headers } from 'next/headers';
+import { getSessionByToken, SESSION_COOKIE } from '../lib/auth';
 import { en, type Dictionary, type DictKey } from './en';
 import { ru } from './ru';
 import { es } from './es';
@@ -61,13 +63,37 @@ export function t(
   return interpolate(value, vars);
 }
 
-/** Server-side locale resolution for pages/layouts.
+/**
+ * The DURABLE language of the signed-in account (migration 014), or null when
+ * there is no session or the account never chose one.
  *
- * Resolution order (src/i18n/locale.ts documents the inputs):
+ * Memoized per request by React's `cache`: the layout and the page both ask for
+ * the locale, and the session lookup must not run twice for one render. Outside a
+ * request scope `cache` degrades to a plain call, which is why a failure here is
+ * swallowed into null rather than thrown — the caller falls back to the cookie.
+ */
+const accountLocaleOf = cache(async (token: string | undefined): Promise<Locale | null> => {
+  try {
+    return (await getSessionByToken(token))?.locale ?? null;
+  } catch {
+    return null;
+  }
+});
+
+/** Server-side locale resolution for pages/layouts and route handlers.
+ *
+ * Resolution order — the full truth table is in src/i18n/README.md:
  *   1. the header the middleware sets for a valid `?lang=` — already validated,
- *      so the current render matches the query the visitor just asked for;
- *   2. the `welcome_locale` cookie;
- *   3. English.
+ *      so the current render matches the query the visitor just asked for. The
+ *      proxy ALSO writes the device cookie, but never the account;
+ *   2. `accounts.locale` — the durable preference, consulted only when the
+ *      request carries a valid session. It outranks the cookie on purpose: the
+ *      account is what the user said about themselves, the cookie is what one
+ *      device happens to hold, and a cookie planted by a shared `?lang=` link
+ *      must not outvote it;
+ *   3. the `welcome_locale` cookie — the device preference, and the only input
+ *      for a visitor who is not signed in;
+ *   4. English.
  * Falls back to the default locale when called outside a request scope
  * (e.g. when component-level tests render a page directly, or a route handler
  * is invoked without a Next request context). */
@@ -75,8 +101,10 @@ export async function getLocale(): Promise<Locale> {
   try {
     const [jar, requestHeaders] = await Promise.all([cookies(), headers()]);
     const override = requestHeaders.get(LOCALE_HEADER);
-    if (isLocale(override)) return override;
-    return resolveLocale(jar.get(LOCALE_COOKIE)?.value);
+    // A valid `?lang=` already decided this render, so the session row is not
+    // looked up at all: a public link costs no database round trip.
+    const accountLocale = isLocale(override) ? null : await accountLocaleOf(jar.get(SESSION_COOKIE)?.value);
+    return resolveRequestLocale(override, jar.get(LOCALE_COOKIE)?.value, accountLocale).locale;
   } catch {
     return DEFAULT_LOCALE;
   }

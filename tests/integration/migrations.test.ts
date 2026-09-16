@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { after } from 'node:test';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { runMigrations } from '../../scripts/migrate.mjs';
 import { listMigrationFiles } from '../../scripts/migrate.mjs';
 import { getSql, closeSql } from '../../src/lib/db';
@@ -284,4 +286,56 @@ test('migrations 009: introduction_consents.source defaults to explicit and only
     sql`UPDATE introduction_consents SET source = ${'guessed'} WHERE introduction_id = ${introId}`,
     (err: { code?: string }) => err.code === '23514',
   );
+});
+
+// ---------------------------------------------------------------------------
+// Migration 014 — the durable locale preference
+// ---------------------------------------------------------------------------
+
+test('migrations 014: accounts.locale is nullable, has no default, and is a closed registry', async () => {
+  const sql = getSql();
+  const cols = await sql<{ is_nullable: string; column_default: string | null; data_type: string }[]>`
+    SELECT is_nullable, column_default, data_type FROM information_schema.columns
+    WHERE table_name = 'accounts' AND column_name = 'locale'
+  `;
+  assert.equal(cols.length, 1, 'accounts.locale must exist (migration 014)');
+  assert.equal(cols[0]?.data_type, 'text');
+  // NULL = "never chose", a different fact from 'en'. A default would invent a
+  // choice nobody made, and NOT NULL would make a pre-deploy apply impossible.
+  assert.equal(cols[0]?.is_nullable, 'YES');
+  assert.equal(cols[0]?.column_default, null);
+
+  // The standing order: this migration is applied to production BEFORE the code
+  // deploy, so it must not require, rewrite or re-mean any existing row. A fresh
+  // account therefore gets NO language — it never chose one.
+  const fresh = await sql<{ id: string; locale: string | null }[]>`
+    INSERT INTO accounts (auth_subject) VALUES (${'locale-mig:' + Date.now()}) RETURNING id, locale
+  `;
+  assert.equal(fresh[0]?.locale, null, 'a migrated account must not acquire a language it never chose');
+  const accountId = fresh[0]!.id;
+
+  // …and the migration file itself cannot backfill or default anything: the
+  // STATEMENTS (comments removed — this file talks about defaults on purpose)
+  // contain no DEFAULT clause and no UPDATE, so applying it before the deploy is
+  // inert for every existing row.
+  const migration = readFileSync(path.join(process.cwd(), 'db/migrations/014_account_locale.sql'), 'utf8')
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('--'))
+    .join('\n');
+  assert.equal(/\bDEFAULT\b/i.test(migration), false, '014 must not invent a default language');
+  assert.equal(/\bUPDATE\b/i.test(migration), false, '014 must not rewrite an existing row');
+
+  for (const bad of ['de', 'RU', 'ru-RU', '', 'english']) {
+    await assert.rejects(
+      sql`UPDATE accounts SET locale = ${bad} WHERE id = ${accountId}`,
+      (err: { code?: string }) => err.code === '23514',
+      `accounts_locale_check must reject ${JSON.stringify(bad)}`,
+    );
+  }
+  for (const good of ['en', 'ru', 'es']) {
+    const updated = await sql<{ locale: string }[]>`
+      UPDATE accounts SET locale = ${good} WHERE id = ${accountId} RETURNING locale
+    `;
+    assert.equal(updated[0]?.locale, good);
+  }
 });

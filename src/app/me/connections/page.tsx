@@ -126,8 +126,8 @@ export default async function ConnectionsPage(
     stateExpired: t('connections.google.state.expired'),
     stateRevoked: t('connections.google.state.revoked'),
     stateNotConfigured: t('connections.google.state.not_configured'),
-    connect: t('connections.google.connect'),
-    reconnect: t('connections.google.reconnect'),
+    connectProvider: t('connections.google.connectProvider'),
+    reconnectProvider: t('connections.google.reconnectProvider'),
     disconnect: t('connections.google.disconnect'),
     disconnecting: t('connections.google.disconnecting'),
     connectedAt: t('connections.google.connectedAt'),
@@ -332,6 +332,10 @@ function GoogleCard({
   return (
     <GoogleConnectPanel
       provider={provider}
+      // The connect control names the provider it connects. Taken from the
+      // registry's own title row (the same string as the card heading above it),
+      // so a renamed provider cannot leave the button naming a stale one.
+      providerName={t(titleKey(provider))}
       configured={configured}
       missingEnv={providerResolution.missing_env}
       state={state}

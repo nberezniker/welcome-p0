@@ -3,6 +3,7 @@ import type { TransactionSql } from 'postgres';
 import { getSql } from './db';
 import { generateSessionToken, hashSessionToken } from './crypto';
 import { isProduction } from './env';
+import { isLocale, type Locale } from '../i18n/locale';
 
 export const SESSION_COOKIE = 'welcome_session';
 export const SESSION_TTL_DAYS = 30;
@@ -92,17 +93,24 @@ export async function requireAccount(req: NextRequest): Promise<AuthContext | nu
   return { accountId: row.account_id, accountStatus: row.account_status, sessionId: row.session_id, mfaVerifiedAt: row.mfa_verified_at ? new Date(row.mfa_verified_at) : null };
 }
 
-/** Resolves the ACTIVE session (account id + session row id) from a raw token.
- * Server components have no Request object for requireAccount, so they resolve
- * the cookie here; route handlers get the same data from requireAccount. */
+/** Resolves the ACTIVE session (account id + session row id + the account's
+ * durable language) from a raw token. Server components have no Request object
+ * for requireAccount, so they resolve the cookie here; route handlers get the
+ * same data from requireAccount.
+ *
+ * `locale` is read here rather than in a second query because this lookup
+ * already joins `accounts`, and every request carrying a session needs it
+ * exactly once (src/i18n/index.ts getLocale). NULL = "never chose", which is a
+ * different fact from 'en'. Validated against the closed locale registry, so a
+ * hand-edited column can never widen the union. */
 export async function getSessionByToken(
   token: string | null | undefined,
-): Promise<{ accountId: string; sessionId: string } | null> {
+): Promise<{ accountId: string; sessionId: string; locale: Locale | null } | null> {
   if (!token) return null;
   const tokenHash = hashSessionToken(token);
   const sql = getSql();
-  const rows = await sql<{ session_id: string; account_id: string; account_status: string }[]>`
-    SELECT s.id AS session_id, s.account_id, a.status AS account_status
+  const rows = await sql<{ session_id: string; account_id: string; account_status: string; locale: string | null }[]>`
+    SELECT s.id AS session_id, s.account_id, a.status AS account_status, a.locale
     FROM sessions s
     JOIN accounts a ON a.id = s.account_id
     WHERE s.token_hash = ${tokenHash} AND s.expires_at > now()
@@ -110,13 +118,39 @@ export async function getSessionByToken(
   `;
   const row = rows[0];
   if (!row || row.account_status !== 'active') return null;
-  return { accountId: row.account_id, sessionId: row.session_id };
+  return {
+    accountId: row.account_id,
+    sessionId: row.session_id,
+    locale: isLocale(row.locale) ? row.locale : null,
+  };
 }
 
 /** Resolves an active account id from a raw session token (server components —
  * page context has no Request object for requireAccount). */
 export async function getAccountIdByToken(token: string | null | undefined): Promise<string | null> {
   return (await getSessionByToken(token))?.accountId ?? null;
+}
+
+/**
+ * Stores the account's DURABLE language preference (migration 014).
+ *
+ * Called from exactly ONE place — POST /api/locale, i.e. the user pressing the
+ * locale switcher. A `?lang=` query parameter never reaches this function: a URL
+ * fetched by an unfurler or a scanner must not change the language of the user's
+ * own account.
+ *
+ * `IS DISTINCT FROM` makes a repeated switch a no-op instead of a write, so
+ * pressing the language you already have changes no row. `updated_at` is
+ * deliberately NOT bumped either: it drives the account-deletion sweep, and a
+ * language preference is not a change to the account. Returns whether a row was
+ * actually written. */
+export async function setAccountLocale(accountId: string, locale: Locale): Promise<boolean> {
+  const rows = await getSql()`
+    UPDATE accounts SET locale = ${locale}
+    WHERE id = ${accountId} AND locale IS DISTINCT FROM ${locale}
+    RETURNING id
+  `;
+  return rows.length > 0;
 }
 
 /**

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { CONSENT_PURPOSES, validateConsentInput, isConsentPurpose, isConsentScopeType } from '../../src/domain/consent';
+import { CONSENT_PURPOSES_UI } from '../../src/app/me/privacy/purposes';
 
 // ---------------------------------------------------------------------------
 // Purpose registry — one source of truth for consent purposes
@@ -20,6 +21,22 @@ test('consent purposes: exactly the seven registered purposes', () => {
     'product_marketing',
     'digest_weekly',
   ]);
+});
+
+test('consent purposes: the /me/privacy toggles are a strict subset of the registry', () => {
+  // The page's toggle list is NOT a second registry: every purpose it offers must
+  // be one the API and the DB CHECK accept, or the toggle would 400 on press.
+  for (const purpose of CONSENT_PURPOSES_UI) {
+    assert.ok(
+      (CONSENT_PURPOSES as readonly string[]).includes(purpose),
+      `${purpose} is offered as a toggle but is not a registered purpose`,
+    );
+  }
+  // `digest_weekly` is deliberately absent: it is a real purpose with a switch of
+  // its own next to the mechanic it governs (/me/notes), so its absence from this
+  // screen is a decision rather than a forgotten row.
+  assert.equal((CONSENT_PURPOSES_UI as readonly string[]).includes('digest_weekly'), false);
+  assert.equal(CONSENT_PURPOSES_UI.length, CONSENT_PURPOSES.length - 1);
 });
 
 test('consent purposes: membership helpers reject unknown values', () => {

@@ -2,7 +2,8 @@ import type { Metadata } from 'next';
 import { getSql } from '../../../lib/db';
 import { requireAccountId } from '../../../lib/session-page';
 import { getT, POLICY_VERSION, type DictKey } from '../../../i18n';
-import { PrivacyPanel, CONSENT_PURPOSES_UI, type ConsentToggleRow } from './privacy-panel';
+import { PrivacyPanel, type ConsentToggleRow } from './privacy-panel';
+import { CONSENT_PURPOSES_UI } from './purposes';
 
 export const metadata: Metadata = { title: 'Приватность', robots: { index: false, follow: false } };
 export const dynamic = 'force-dynamic';

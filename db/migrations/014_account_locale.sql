@@ -1,0 +1,53 @@
+-- WELCOME P0 migration 014 — the DURABLE locale preference of an account.
+-- Additive: 001-013 tables/columns/CHECKs are untouched; one nullable column and
+-- one CHECK of its own.
+--
+-- WHY. Until now the chosen language lived ONLY in the `welcome_locale` cookie
+-- (src/i18n/README.md). A cookie is a DEVICE fact, so a signed-in user who picks
+-- Russian on their laptop met an English cabinet on their phone — the exact
+-- complaint this column fixes: "the cabinet's translations work when
+-- welcome_locale=ru is present", and nowhere else.
+--
+--   accounts.locale  the language the user EXPLICITLY chose for their account.
+--
+-- NULL IS THE ONLY DEFAULT, deliberately: NULL means "never chose", which is a
+-- different fact from 'en' ("chose English"). A nullable column with no default
+-- also makes this migration safe to apply to production BEFORE the code deploy
+-- (the standing order): the running build never reads the column, and no
+-- existing row changes meaning when the column appears.
+--
+-- WHO WRITES IT — exactly one place: POST /api/locale, which is only ever
+-- reached by the user pressing the locale switcher (src/components/
+-- locale-switcher.tsx, src/components/footer-locale-links.tsx). A `?lang=`
+-- query parameter writes the DEVICE COOKIE and the current render and NOTHING
+-- else, on purpose: a `?lang=` URL is fetched by link unfurlers, chat clients
+-- and scanners, so letting it rewrite accounts.locale would let a shared link
+-- silently change the language of the user's own account (and, once the worker
+-- reads this column, of the messages sent under it). The asymmetry is asserted
+-- in tests/integration/locale.test.ts.
+--
+-- Resolution order for a request (src/i18n/index.ts getLocale):
+--   1. a valid forwarded `?lang=` (public entry points only — the proxy matcher)
+--      — this render, never stored on the account;
+--   2. accounts.locale, when the request carries a valid session;
+--   3. the `welcome_locale` cookie — the device preference, and the only input
+--      for a visitor who is not signed in;
+--   4. English.
+-- Step 2 sits above step 3 because the durable preference is the user's
+-- statement about their ACCOUNT while the cookie is a statement about one
+-- device: a cookie planted by a shared `?lang=` link must not outvote the
+-- language the user chose for themselves.
+--
+-- A language choice is NOT consent and NOT a security event: it is never written
+-- to consent_events (src/domain/consent.ts) and never to audit_events. Nothing
+-- in this migration stores an IP, a user agent or a device.
+--
+-- Idempotent: the column is IF NOT EXISTS and the CHECK is dropped IF EXISTS
+-- before being re-added, the same maintenance pattern migrations 002/009/012 use
+-- for their closed registries. The registry itself is closed and must stay in
+-- sync with src/i18n/locale.ts LOCALES ('en', 'ru', 'es').
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS locale text;
+
+ALTER TABLE accounts DROP CONSTRAINT IF EXISTS accounts_locale_check;
+ALTER TABLE accounts ADD CONSTRAINT accounts_locale_check
+  CHECK (locale IS NULL OR locale IN ('en', 'ru', 'es'));

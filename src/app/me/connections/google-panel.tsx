@@ -31,8 +31,14 @@ export interface GooglePanelStrings {
   stateExpired: string;
   stateRevoked: string;
   stateNotConfigured: string;
-  connect: string;
-  reconnect: string;
+  /**
+   * The connect control NAMES the provider (`{provider}` is filled with
+   * `providerName` below), because a bare "Connect" appeared twice on one page
+   * and told the user nothing about which Google account they were about to
+   * open. There is deliberately no unnamed variant left in the dictionaries.
+   */
+  connectProvider: string;
+  reconnectProvider: string;
   disconnect: string;
   disconnecting: string;
   connectedAt: string;
@@ -63,6 +69,9 @@ export interface GooglePanelStrings {
 
 export interface GooglePanelProps {
   provider: GoogleProviderId;
+  /** Localized provider title (providers.<id>.title) — the name the connect
+   *  control has to carry, and the reason it is passed in rather than derived. */
+  providerName: string;
   /** False when this instance has no Google OAuth client at all. */
   configured: boolean;
   /** Missing env NAMES when not configured (never values). */
@@ -110,6 +119,7 @@ const STATE_CLASS: Record<GooglePanelState, string> = {
 
 export function GoogleConnectPanel({
   provider,
+  providerName,
   configured,
   missingEnv,
   state,
@@ -214,6 +224,9 @@ export function GoogleConnectPanel({
 
   return (
     <div className="mt-4 rounded-xl bg-paper px-4 py-3" data-testid={`google-panel-${provider}`}>
+      {/* 1. Title + per-user state. One unit: the state word and the action that
+          changes it sit in the same visual block, so "not connected" is read
+          together with the control that fixes it. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="text-sm font-bold tracking-tight">{strings.panelTitle}</h3>
         <span
@@ -225,6 +238,30 @@ export function GoogleConnectPanel({
         </span>
       </div>
 
+      {/* 2. THE action, unmistakable: a primary button, full width on a phone,
+          directly under the state and ABOVE the explanation — and it names the
+          provider, so the two Google cards on this page are told apart by the
+          control itself rather than by the paragraph underneath it. */}
+      {configured && state !== 'connected' ? (
+        <a
+          href={startHref}
+          className="btn-primary mt-3 w-full sm:w-auto"
+          data-testid={`google-connect-${provider}`}
+          data-google-action={hasGrant ? 'reconnect' : 'connect'}
+          // The route requires a session: signed out it sends you to /login,
+          // and no Google flow, state or grant is created.
+          rel="nofollow"
+        >
+          {hasGrant
+            ? fill(strings.reconnectProvider, { provider: providerName })
+            : fill(strings.connectProvider, { provider: providerName })}
+        </a>
+      ) : null}
+
+      {/* 3. Then the explanation, in this order because the button above is what
+          the sentences refer to. `notConfiguredHelp` is the honest per-instance
+          branch: with no OAuth client there is no control at all — a disabled
+          button would only invite a press that cannot work. */}
       {help ? (
         <p className="mt-2 text-xs text-muted" data-testid={`google-help-${provider}`}>
           {help}
@@ -236,39 +273,6 @@ export function GoogleConnectPanel({
           {formatConnectedAt(connectedAt, strings.connectedAt)}
         </p>
       ) : null}
-
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        {configured && state !== 'connected' ? (
-          <a
-            href={startHref}
-            className="btn btn-small"
-            data-testid={`google-connect-${provider}`}
-            // The route requires a session: signed out it sends you to /login,
-            // and no Google flow, state or grant is created.
-            rel="nofollow"
-          >
-            {hasGrant ? strings.reconnect : strings.connect}
-          </a>
-        ) : null}
-        {configured && hasGrant ? (
-          <button
-            type="button"
-            className="btn-light btn-small"
-            data-testid={`google-disconnect-${provider}`}
-            disabled={busy}
-            onClick={() => {
-              void disconnect();
-            }}
-          >
-            {busy ? strings.disconnecting : strings.disconnect}
-          </button>
-        ) : null}
-        {!configured ? (
-          <span className="btn-light btn-small cursor-not-allowed opacity-60" aria-disabled="true">
-            {strings.stateNotConfigured}
-          </span>
-        ) : null}
-      </div>
 
       {/* Exactly what is read and what is written — the reason this card exists. */}
       <dl className="mt-3 flex flex-col gap-2 text-xs">
@@ -297,6 +301,26 @@ export function GoogleConnectPanel({
             {busy ? strings.checkBusy : strings.checkButton}
           </button>
           <p className="mt-1 text-xs text-muted">{strings.checkNote}</p>
+        </div>
+      ) : null}
+
+      {/* Disconnect stays a quieter secondary control, and at the END of the
+          card: withdrawing a permission is the deliberate, rarer action, so it
+          must not compete with the one the card exists for. The confirmation
+          behaviour is unchanged — the server owns the state, the page reloads. */}
+      {configured && hasGrant ? (
+        <div className="mt-3 border-t border-line pt-3">
+          <button
+            type="button"
+            className="btn-light btn-small"
+            data-testid={`google-disconnect-${provider}`}
+            disabled={busy}
+            onClick={() => {
+              void disconnect();
+            }}
+          >
+            {busy ? strings.disconnecting : strings.disconnect}
+          </button>
         </div>
       ) : null}
 

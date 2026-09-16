@@ -47,16 +47,11 @@ type Strings = {
   errorNetwork: string;
 };
 
-export const CONSENT_PURPOSES_UI = [
-  'public_card',
-  'event_directory',
-  'introduction_fields',
-  'service_channel',
-  'organizer_marketing',
-  'product_marketing',
-] as const;
-
-/** Privacy panel: consent toggles, blocks, export, delete account. */
+/** Privacy panel: consent toggles, blocks, export, delete account.
+ *
+ * The panel renders the rows it is HANDED, so the list of purposes lives on the
+ * server side of the boundary in ./purposes.ts — importing data out of a
+ * `'use client'` module is what broke GET /me/privacy (see that file). */
 export function PrivacyPanel({
   purposeRows,
   blocks,

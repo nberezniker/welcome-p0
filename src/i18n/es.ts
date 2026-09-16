@@ -973,10 +973,10 @@ export const es: Partial<Dictionary> = {
     'El organizador exporta la lista de participantes en CSV; cada línea importada se confirma a mano. Tu propia libreta se puede importar como CSV en «Importar tus contactos».',
   'providers.ics.step1': 'Previsto: descarga .ics y enlaces «añadir al calendario» en la página del evento.',
   'providers.share-deeplinks.step1': 'Previsto: compartir una tarjeta en X, WhatsApp, Telegram o LinkedIn como enlace.',
-  'providers.google-contacts.step1': 'Pulsa Conectar y elige la cuenta de Google cuyos contactos quieres comprobar.',
+  'providers.google-contacts.step1': 'Pulsa «Conectar Google Contactos» y elige la cuenta de Google cuyos contactos quieres comprobar.',
   'providers.google-contacts.step2':
     'Google pide acceso de solo lectura a tus contactos. Se comparan dentro de la petición y no se guardan.',
-  'providers.google-calendar.step1': 'Pulsa Conectar y elige la cuenta de Google cuyo calendario quieres usar.',
+  'providers.google-calendar.step1': 'Pulsa «Conectar Google Calendar» y elige la cuenta de Google cuyo calendario quieres usar.',
   'providers.google-calendar.step2': 'Google pide permiso para crear eventos, solo en tu propio calendario.',
   'providers.microsoft-people.step1': 'Registra una app en Entra ID y define MICROSOFT_OAUTH_CLIENT_ID y MICROSOFT_OAUTH_CLIENT_SECRET.',
   'providers.microsoft-people.step2': 'Concede el permiso People.Read y pulsa «Conectar» aquí.',
@@ -1104,19 +1104,23 @@ export const es: Partial<Dictionary> = {
   'connections.google.state.expired': 'Caducado: vuelve a conectar',
   'connections.google.state.revoked': 'Acceso revocado en Google',
   'connections.google.state.not_configured': 'Sin configurar en esta instancia',
-  'connections.google.connect': 'Conectar',
-  'connections.google.reconnect': 'Conectar de nuevo',
+  // El botón de conexión NOMBRA al proveedor: sin eso había dos botones
+  // "Conectar" idénticos en la misma página y no había forma de saber cuál abría
+  // Contactos y cuál Calendar. {provider} es el título localizado del proveedor
+  // (providers.google-contacts.title / providers.google-calendar.title).
+  'connections.google.connectProvider': 'Conectar {provider}',
+  'connections.google.reconnectProvider': 'Volver a conectar {provider}',
   'connections.google.disconnect': 'Desconectar',
   'connections.google.disconnecting': 'Desconectando…',
   'connections.google.connectedAt': 'Conectado {date}',
   'connections.google.notConfiguredHelp':
-    'Esta instancia no tiene cliente OAuth de Google: faltan {env}. El propietario define esas dos variables una vez, para todos. Hasta entonces esta tarjeta no puede hacer nada, y lo dice en lugar de fallar al pulsarla.',
+    'Esta instancia no tiene cliente OAuth de Google: faltan {env}. El propietario define esas dos variables una vez, para todos. Hasta entonces no hay nada que conectar, así que esta tarjeta no ofrece ningún botón en lugar de uno que solo podría fallar.',
   'connections.google.revokedHelp':
-    'Google ya no tiene nuestro acceso: se retiró en la página de tu cuenta de Google, o el permiso caducó. Aquí ya no queda nada tuyo guardado; pulsa Conectar de nuevo para volver a concederlo.',
+    'Google ya no tiene nuestro acceso: se retiró en la página de tu cuenta de Google, o el permiso caducó. Aquí ya no queda nada tuyo guardado; usa el botón de arriba para volver a concederlo.',
   'connections.google.expiredHelp':
-    'El permiso guardado ya no se puede renovar, así que ahora mismo no se puede leer ni escribir nada. Pulsa Conectar de nuevo.',
+    'El permiso guardado ya no se puede renovar, así que ahora mismo no se puede leer ni escribir nada. Usa el botón de arriba para renovarlo.',
   'connections.google.idleHelp':
-    'No se lee nada de Google hasta que pulsas Conectar. Pedimos solo los permisos que la acción necesita, y los tokens se quedan en el servidor, cifrados.',
+    'No se lee nada de Google hasta que pulsas el botón de arriba. Pedimos solo los permisos que la acción necesita, y los tokens se quedan en el servidor, cifrados.',
   'connections.google.readsLabel': 'Qué leemos',
   'connections.google.writesLabel': 'Qué escribimos',
   'connections.google.reads.google-contacts':
