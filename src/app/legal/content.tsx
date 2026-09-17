@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import type { DictKey } from '../../i18n';
+import { operatorContactEmail } from '../../lib/env';
+import { PROJECT_REPO_URL } from '../../lib/project';
 
 /**
  * Shared building blocks for the legal pages (F-15). The body copy lives in
@@ -14,6 +16,38 @@ export function LegalSection({ title, children }: { title: string; children: Rea
       <h2 className="text-lg font-extrabold tracking-tight">{title}</h2>
       <div className="mt-2 space-y-3 text-sm leading-relaxed text-ink">{children}</div>
     </section>
+  );
+}
+
+/**
+ * Who a data subject writes to. The address is DEPLOYMENT configuration
+ * (`OPERATOR_CONTACT_EMAIL`), never a literal in this source tree: the repo is
+ * public and self-hosted, and a clone must not publish the upstream author's
+ * personal inbox as the operator of somebody else's service.
+ *
+ * With no address configured the pages name the operator without inventing a
+ * mailbox — a data-protection contact that silently drops mail would be worse
+ * than an honest "not configured yet". SELF_HOSTING.md documents the variable.
+ */
+export function OperatorContact({ subject }: { subject?: string } = {}) {
+  const email = operatorContactEmail();
+  if (email.length === 0) {
+    return (
+      <>
+        the operator of this deployment (this build has no contact address configured; the operator
+        sets <code>OPERATOR_CONTACT_EMAIL</code>, and the project source is at{' '}
+        <a href={PROJECT_REPO_URL} className="underline underline-offset-2" rel="noopener noreferrer">
+          {PROJECT_REPO_URL}
+        </a>
+        )
+      </>
+    );
+  }
+  return (
+    <>
+      <strong>{email}</strong>
+      {subject ? <> (subject: “{subject}”)</> : null}
+    </>
   );
 }
 

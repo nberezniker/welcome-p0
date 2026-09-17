@@ -665,7 +665,11 @@ const F: {
   lockCode: string;
 } = {} as never;
 
-const OWNER_EMAIL = 'nberezniker@gmail.com';
+/** Address of the account that owns the deployment under test. Required only by
+ * the `--live` matrix (it logs in there for real), so it is a run parameter:
+ * export MATRIX_OWNER_EMAIL=<your own account>. Never a literal — this repo is
+ * public and a clone has a different operator. */
+const OWNER_EMAIL = process.env.MATRIX_OWNER_EMAIL ?? '';
 const DEMO1 = 'demo1@welcome.test';
 /** Second demo identity — same flow, used to prove the mechanism is not special-cased.
  * (demo2@welcome.test is seeded too; one extra demo login is enough.) */
@@ -713,7 +717,10 @@ async function setup(): Promise<void> {
     SELECT a.id, p.id AS profile_id, p.public_slug, p.display_name
     FROM accounts a JOIN profiles p ON p.account_id = a.id
     WHERE a.email_lookup_hash = ${ownerLookup} LIMIT 1`;
-  must(ownerRows.length >= 1, 'owner account not found in the target database');
+  must(
+    ownerRows.length >= 1,
+    "owner account not found in the target database — set MATRIX_OWNER_EMAIL to the address of the account that owns the deployment under test",
+  );
   const ownerRow = ownerRows[0]!;
   F.owner = {
     key: 'owner',

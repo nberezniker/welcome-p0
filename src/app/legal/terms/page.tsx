@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getT } from '../../../i18n';
 import { SiteHeader, SiteFooter } from '../../../components/site-chrome';
-import { LegalSection, legalFooterStrings } from '../content';
+import { LegalSection, OperatorContact, legalFooterStrings } from '../content';
 
 export const metadata: Metadata = {
   title: 'Terms of Use',
@@ -96,15 +96,15 @@ export default async function LegalTermsPage() {
         <LegalSection title="7. Security issues">
           <p>
             Found a vulnerability? Please report it privately as described in the repository’s
-            SECURITY.md (email: nberezniker@gmail.com, subject “welcome-p0 security”) instead of opening
-            a public issue.
+            SECURITY.md instead of opening a public issue. The reporting address is configured per
+            deployment (see SELF_HOSTING.md), not baked into the source.
           </p>
         </LegalSection>
 
         <LegalSection title="8. Changes; contact">
           <p>
             These terms are versioned and may be updated as the product evolves; the current version
-            applies to your use of the build. Questions: <strong>nberezniker@gmail.com</strong>.
+            applies to your use of the build. Questions: <OperatorContact />.
           </p>
         </LegalSection>
       </main>

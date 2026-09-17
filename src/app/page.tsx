@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getT } from '../i18n';
-import { appBaseUrl } from '../lib/env';
+import { appBaseUrl, pilotMailto } from '../lib/env';
+import { PROJECT_REPO_URL } from '../lib/project';
 import { landingShareMetadata } from '../lib/share-meta';
 import { getOptionalAccountId } from '../lib/session-page';
 import { SiteHeader, SiteFooter } from '../components/site-chrome';
@@ -21,10 +22,6 @@ export async function generateMetadata(): Promise<Metadata> {
     appBaseUrl(),
   );
 }
-
-/** Pilot contact address: a human inbox, not a form (content guardrail §7). */
-const PILOT_MAILTO = 'mailto:nberezniker@gmail.com?subject=WELCOME%20pilot';
-const REPO_URL = 'https://github.com/nberezniker/welcome-p0';
 
 /** Decorative deterministic QR-style mark (fictional, interface example only). */
 function DemoQr({ label }: { label: string }) {
@@ -61,6 +58,11 @@ export default async function LandingPage() {
   const { locale, t } = await getT();
   const accountId = await getOptionalAccountId();
   const authed = accountId !== null;
+
+  // Pilot contact: the operator's own inbox, never a hardcoded one. Unset means
+  // this deployment publishes no address, so the pilot CTAs below are not
+  // rendered at all (see src/lib/env.ts pilotMailto and SELF_HOSTING.md).
+  const pilotMailtoHref = pilotMailto();
 
   // One entry per bullet, so the markup stays a plain list of items.
   const problemItems = [
@@ -436,9 +438,9 @@ export default async function LandingPage() {
                     </span>
                   </summary>
                   <p className="mt-3 text-[13px] leading-relaxed text-muted">{item.a}</p>
-                  {item.link ? (
+                  {item.link && pilotMailtoHref ? (
                     <a
-                      href={PILOT_MAILTO}
+                      href={pilotMailtoHref}
                       className="mt-3 inline-flex text-[13px] font-semibold text-ink underline underline-offset-2 hover:text-accent"
                       data-testid="faq-pilot-link"
                     >
@@ -465,15 +467,19 @@ export default async function LandingPage() {
               <Link href="/login" className="btn-accent" data-testid="final-cta-demo">
                 {t('landing.finalCta.ctaDemo')} <span aria-hidden="true">↗</span>
               </Link>
-              <a
-                href={PILOT_MAILTO}
-                className="btn-outline !border-[#8a9a8a] !text-white hover:!bg-white/10"
-                data-testid="final-cta-pilot"
-              >
-                {t('landing.finalCta.ctaPilot')} <span aria-hidden="true">→</span>
-              </a>
+              {pilotMailtoHref ? (
+                <a
+                  href={pilotMailtoHref}
+                  className="btn-outline !border-[#8a9a8a] !text-white hover:!bg-white/10"
+                  data-testid="final-cta-pilot"
+                >
+                  {t('landing.finalCta.ctaPilot')} <span aria-hidden="true">→</span>
+                </a>
+              ) : null}
             </div>
-            <p className="mt-4 text-[11px] text-[#a9b6ab]">{t('landing.finalCta.pilotNote')}</p>
+            {pilotMailtoHref ? (
+              <p className="mt-4 text-[11px] text-[#a9b6ab]">{t('landing.finalCta.pilotNote')}</p>
+            ) : null}
           </section>
         </div>
       </main>
@@ -485,7 +491,7 @@ export default async function LandingPage() {
         termsLabel={t('landing.footerTerms')}
         termsHref="/legal/terms"
         repoLabel={t('landing.footerRepo')}
-        repoHref={REPO_URL}
+        repoHref={PROJECT_REPO_URL}
         localeLinks={[]}
       />
       <div className="mx-auto w-full max-w-6xl px-5 pb-6 sm:px-7">

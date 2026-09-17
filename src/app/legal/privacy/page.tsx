@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getT } from '../../../i18n';
 import { SiteHeader, SiteFooter } from '../../../components/site-chrome';
-import { LegalSection, legalFooterStrings } from '../content';
+import { LegalSection, OperatorContact, legalFooterStrings } from '../content';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -43,7 +43,7 @@ export default async function LegalPrivacyPage() {
           <p>
             WELCOME is a personal-networking profile service: one persistent profile with a reusable QR,
             event context and contacts under your control. For questions about privacy or data
-            protection, contact <strong>nberezniker@gmail.com</strong> (subject: “WELCOME privacy”).
+            protection, contact <OperatorContact subject="WELCOME privacy" />.
           </p>
         </LegalSection>
 
@@ -148,7 +148,7 @@ export default async function LegalPrivacyPage() {
             <li><strong>Withdrawal of consent</strong> — purpose toggles in the Privacy section; withdrawing stops and suppresses future sends. In Telegram, /stop revokes the channel and clears the queue.</li>
           </ul>
           <p>
-            You may also contact us at <strong>nberezniker@gmail.com</strong> to exercise rights, lodge a
+            You may also contact <OperatorContact /> to exercise rights, lodge a
             complaint or ask questions. If you are in the EU/EEA, you can complain to your local data
             protection authority.
           </p>

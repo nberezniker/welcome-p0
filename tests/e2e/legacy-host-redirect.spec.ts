@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import http from 'node:http';
+import { E2E_CANONICAL_ORIGIN } from './e2e-env';
 
 /**
  * Legacy-host redirects (Gap 2) over real HTTP, against the same server the rest
@@ -15,7 +16,9 @@ import http from 'node:http';
  */
 
 const PORT = Number(process.env.E2E_PORT ?? 3111);
-const CANONICAL = 'https://welcome.colmogravity.net';
+/** The destination the e2e server was booted with (playwright.config.ts). */
+const CANONICAL = E2E_CANONICAL_ORIGIN;
+const CANONICAL_HOST = new URL(E2E_CANONICAL_ORIGIN).hostname;
 const LEGACY_HOSTS = ['welcome-p0-nikiti4.vercel.app', 'welcome-p0.vercel.app'];
 
 /** A request to the dev server as if it had arrived for another host. */
@@ -64,7 +67,7 @@ test('legacy hosts: /api/* keeps answering there instead of redirecting', async 
 
 test('the canonical domain and other *.vercel.app hosts are never redirected', async () => {
   for (const host of [
-    'welcome.colmogravity.net',
+    CANONICAL_HOST,
     'welcome-p0-git-my-branch.vercel.app',
     'welcome-p0-abc123.vercel.app',
     'welcome-p0-nikiti4.vercel.app.evil.test',

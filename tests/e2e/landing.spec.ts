@@ -1,4 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
+import { E2E_OPERATOR_CONTACT_EMAIL } from './e2e-env';
+import { PROJECT_REPO_URL } from '../../src/lib/project';
 
 /**
  * Product-site landing e2e (spec §7 guardrails): every marketing section is
@@ -20,8 +22,13 @@ const SECTIONS = [
   'section-final-cta',
 ] as const;
 
-const PILOT_MAILTO = /^mailto:nberezniker@gmail\.com\?subject=WELCOME%20pilot$/;
-const REPO_URL = 'https://github.com/nberezniker/welcome-p0';
+// The operator contact is deployment configuration; the e2e server is booted
+// with the synthetic fixture from tests/e2e/e2e-env.ts, so the assertion pins
+// the CONTRACT (the CTA mails the configured operator with the pilot subject)
+// rather than one deployment's inbox.
+const PILOT_MAILTO = new RegExp(
+  `^mailto:${E2E_OPERATOR_CONTACT_EMAIL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\?subject=WELCOME%20pilot$`,
+);
 const SCREENSHOTS = 'evidence/screenshots';
 
 async function waitHydrated(page: Page) {
@@ -77,7 +84,7 @@ test('landing (EN): all sections, heading order, honest CTAs and status', async 
   await expect(page.getByTestId('final-cta-demo')).toHaveAttribute('href', '/login');
 
   // Footer keeps privacy/terms plus the open repository, with a safe rel.
-  await expect(page.getByTestId('footer-repo-link')).toHaveAttribute('href', REPO_URL);
+  await expect(page.getByTestId('footer-repo-link')).toHaveAttribute('href', PROJECT_REPO_URL);
   await expect(page.getByTestId('footer-repo-link')).toHaveAttribute('rel', /noopener/);
   await expect(page.getByRole('link', { name: 'Privacy' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Terms' })).toBeVisible();

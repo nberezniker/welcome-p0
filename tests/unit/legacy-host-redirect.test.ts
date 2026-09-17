@@ -6,10 +6,14 @@ import { getRedirectStatus } from 'next/dist/lib/redirect-status.js';
 import { matchHas } from 'next/dist/shared/lib/router/utils/prepare-destination.js';
 import {
   CANONICAL_ORIGIN,
+  DEFAULT_CANONICAL_ORIGIN,
   LEGACY_HOSTS,
   LEGACY_REDIRECT_SOURCE,
+  canonicalOrigin,
   exactHostPattern,
   legacyHostRedirects,
+  legacyHosts,
+  legacyRedirectsEnabled,
 } from '../../src/lib/legacy-host-redirect';
 
 /**
@@ -130,4 +134,47 @@ test('legacy hosts: page paths match, /api/* is carved out', () => {
 
   // The exclusion lives in the source pattern the config exports.
   assert.equal(LEGACY_REDIRECT_SOURCE, '/:path((?!api(?:/|$)).*)');
+});
+
+// ---------------------------------------------------------------------------
+// Self-hosting: the hosts and the destination are deployment configuration
+//
+// Both belong to the ORIGINAL deployment. A clone must be able to point the
+// rules at its own origin, list its own legacy hosts, or drop them entirely —
+// without editing the source (SELF_HOSTING.md).
+// ---------------------------------------------------------------------------
+
+test('legacy hosts: the canonical destination follows CANONICAL_ORIGIN, then APP_BASE_URL', () => {
+  // Explicit setting wins, with any trailing slash normalised away.
+  assert.equal(canonicalOrigin({ CANONICAL_ORIGIN: 'https://mine.test/' }), 'https://mine.test');
+  // Otherwise the deployment's own public origin — this is what keeps a clone
+  // from sending its visitors to the upstream author's domain.
+  assert.equal(canonicalOrigin({ APP_BASE_URL: 'https://ours.test' }), 'https://ours.test');
+  // Only with neither set does the historical release domain apply.
+  assert.equal(canonicalOrigin({}), DEFAULT_CANONICAL_ORIGIN);
+  // An unusable value falls through instead of producing a broken destination.
+  assert.equal(canonicalOrigin({ CANONICAL_ORIGIN: 'not a url', APP_BASE_URL: 'https://ours.test' }), 'https://ours.test');
+  assert.equal(canonicalOrigin({ CANONICAL_ORIGIN: '   ' }), DEFAULT_CANONICAL_ORIGIN);
+});
+
+test('legacy hosts: the host list is overridable, and the destination follows it', () => {
+  const env = { LEGACY_REDIRECT_HOSTS: 'old.mine.test, old2.mine.test ,', CANONICAL_ORIGIN: 'https://mine.test' };
+  assert.deepEqual(legacyHosts(env), ['old.mine.test', 'old2.mine.test']);
+  const rules = legacyHostRedirects(env);
+  assert.equal(rules.length, 2);
+  assert.deepEqual(rules.map((rule) => rule.has?.[0]?.value), ['old\\.mine\\.test', 'old2\\.mine\\.test']);
+  for (const rule of rules) assert.equal(rule.destination, 'https://mine.test/:path');
+});
+
+test('legacy hosts: LEGACY_REDIRECTS=off removes every rule', () => {
+  assert.equal(legacyRedirectsEnabled({ LEGACY_REDIRECTS: 'off' }), false);
+  assert.equal(legacyRedirectsEnabled({ LEGACY_REDIRECTS: 'OFF' }), false);
+  assert.equal(legacyRedirectsEnabled({ LEGACY_REDIRECTS: 'on' }), true);
+  assert.equal(legacyRedirectsEnabled({}), true, 'unset keeps the release behaviour');
+  assert.deepEqual(legacyHostRedirects({ LEGACY_REDIRECTS: 'off' }), []);
+});
+
+test('legacy hosts: an empty host list yields no rules, not a broken one', () => {
+  assert.deepEqual(legacyHosts({ LEGACY_REDIRECT_HOSTS: '' }), []);
+  assert.deepEqual(legacyHostRedirects({ LEGACY_REDIRECT_HOSTS: '' }), []);
 });

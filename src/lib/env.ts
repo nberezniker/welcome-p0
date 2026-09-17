@@ -45,6 +45,28 @@ export function requireEncryptionKey(): string {
 }
 
 /**
+ * Operator contact address published on the landing page and the legal pages.
+ *
+ * Deliberately NOT defaulted to the upstream author's inbox. This repository is
+ * public and meant to be self-hosted: a deployment that never configures a
+ * contact must publish none, rather than quietly routing a stranger's mail to
+ * somebody else's mailbox. Unset → `''` (see SELF_HOSTING.md «Operator contact»).
+ */
+export function operatorContactEmail(): string {
+  return (process.env.OPERATOR_CONTACT_EMAIL ?? '').trim();
+}
+
+/**
+ * `mailto:` for the pilot CTAs, or `null` when no operator contact is
+ * configured — in which case the CTAs are not rendered at all. A pilot button
+ * pointing nowhere (or at the upstream author) would be worse than no button.
+ */
+export function pilotMailto(): string | null {
+  const email = operatorContactEmail();
+  return email.length > 0 ? `mailto:${email}?subject=WELCOME%20pilot` : null;
+}
+
+/**
  * Dev-only helper: expose OTP in the verify response.
  * Only when APP_ENV=development AND AUTH_DEV_EXPOSE_OTP=true. Never in production.
  */

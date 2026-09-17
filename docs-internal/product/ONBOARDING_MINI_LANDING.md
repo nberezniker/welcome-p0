@@ -75,7 +75,9 @@ Sections (mobile-first, EN/RU/ES):
 ## Enrichment provider: Google Vertex AI (Gemini + Google Search grounding) — DECISION
 
 **Verified 2026-09-12 (live):** with the machine's existing gcloud credentials
-(`nberezniker@gmail.com`, project `colmobeat-content-factory`, `aiplatform.googleapis.com` enabled),
+(operator's own Google account, operator's own GCP project with `aiplatform.googleapis.com` enabled
+— the concrete account/project are deliberately not recorded here: this repository is public and
+enrichment runs on the operator's credentials, configured via `GCP_*`; see SELF_HOSTING.md),
 a grounded `gemini-2.5-flash` call returned a sourced answer (5 sources). Model id note:
 `gemini-3.1-flash` → 404 in this project; `gemini-2.5-flash` works (choose model via env).
 

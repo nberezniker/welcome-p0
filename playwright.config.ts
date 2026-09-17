@@ -1,4 +1,5 @@
 import { defineConfig } from '@playwright/test';
+import { E2E_CANONICAL_ORIGIN, E2E_OPERATOR_CONTACT_EMAIL } from './tests/e2e/e2e-env';
 
 const PORT = Number(process.env.E2E_PORT ?? 3111);
 const baseURL = `http://127.0.0.1:${PORT}`;
@@ -44,6 +45,13 @@ export default defineConfig({
       HASH_PEPPER: 'e2e-pepper-0123456789abcdef',
       ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64'),
       APP_BASE_URL: baseURL,
+      // Deployment-coupled values, pinned to synthetic .test fixtures here so
+      // the suite never encodes the upstream author's domain or inbox. Both are
+      // read at server boot: CANONICAL_ORIGIN by next.config.ts
+      // (src/lib/legacy-host-redirect.ts) and OPERATOR_CONTACT_EMAIL by the
+      // landing page and the legal pages (src/lib/env.ts).
+      CANONICAL_ORIGIN: E2E_CANONICAL_ORIGIN,
+      OPERATOR_CONTACT_EMAIL: E2E_OPERATOR_CONTACT_EMAIL,
       TELEGRAM_WEBHOOK_SECRET: 'e2e-telegram-webhook-secret',
       TELEGRAM_BOT_USERNAME: 'WELCOME_e2e_bot',
       // Phase 2 (tests/e2e/connections.spec.ts): the two Google rows are LIVE on

@@ -5,10 +5,11 @@
 // mutual event-context introduction between them (reveal both ways).
 //
 // It also seeds a synthetic demo partner (Marta Ruiz, is_demo) whose membership
-// tags match the REAL owner profile ("Nikita Berezniker") two-way, so the owner
-// account has a genuine explainable match + intro to demo. The owner's own
-// profile/membership is only READ + verified here — never written: the script
-// fails loudly if that real membership is missing or not match-eligible.
+// tags match the OPERATOR's own profile two-way, so the operator account has a
+// genuine explainable match + intro to demo. That half is opt-in and
+// deployment-specific: set SEED_OWNER_NAME=<your profile display name> to
+// enable it (the name is never hardcoded — see OWNER_DISPLAY_NAME below). The
+// operator's profile/membership is only READ + verified, never written.
 //
 // All seeded rows are demo data (is_demo accounts, synthetic guests under
 // demo-csv-N@welcome.test, synthetic partner under marta.demo@welcome.test).
@@ -115,8 +116,17 @@ const PARTNER = {
   ],
 } as const;
 
-// The real owner profile the demo partner must match with (never modified).
-const OWNER_DISPLAY_NAME = 'Nikita Berezniker';
+/**
+ * The real owner profile the demo partner must match with (never modified).
+ *
+ * This part of the seeder is specific to the ORIGINAL deployment: it links the
+ * demo partner to the operator's own account so the live demo has a realistic
+ * counterpart. A clone has no such account, so the name is configuration, not a
+ * literal — `SEED_OWNER_NAME=<your display name>` — and when it resolves to
+ * nothing the owner-intro half is SKIPPED (not refused): everything above is
+ * already seeded and usable.
+ */
+const OWNER_DISPLAY_NAME = process.env.SEED_OWNER_NAME ?? '';
 const OWNER_EXPECTED_OFFERS = [
   'ai-transformation',
   'applied-ai',
@@ -514,8 +524,11 @@ async function verifyAndUpsertIntro(
       [demo1, demo2],
       [demo2, demo1],
     ] as const) {
+      // recommendForEvent returns the whole result envelope (items + mode +
+      // exclusion reason) since the v4 modes landed — read `.items`, not the
+      // envelope, or every seeder run dies on a stale call shape.
       const recs = await recommendForEvent(sql, { accountId: viewer.id, profileId: viewer.profile.id }, eventId);
-      const hit = recs.find((r) => r.profile_id === other.profile.id);
+      const hit = recs.items.find((r) => r.profile_id === other.profile.id);
       if (!hit || hit.score !== 100) {
         throw new Error(`recommendation check failed for ${viewer.profile.display_name}: expected demo2 score 100`);
       }
@@ -602,11 +615,11 @@ async function verifyAndUpsertOwnerIntro(
   `;
   if (!existingIntro[0]) {
     const recs = await recommendForEvent(sql, { accountId: owner.account_id, profileId: owner.profile_id }, eventId);
-    const hit = recs.find((r) => r.profile_id === partnerProfileId);
+    const hit = recs.items.find((r) => r.profile_id === partnerProfileId);
     if (!hit) {
       throw new Error(
         `recommendForEvent did not return ${PARTNER.display_name} for ${owner.display_name}; ` +
-          `got: ${recs.map((r) => `${r.display_name}=${r.score}`).join(', ') || '(none)'}`,
+          `got: ${recs.items.map((r) => `${r.display_name}=${r.score}`).join(', ') || '(none)'}`,
       );
     }
     if (
@@ -693,11 +706,17 @@ console.log(
 
 const ownerProfile = await findOwnerProfile();
 if (!ownerProfile) {
-  console.error(
-    `REFUSED: real owner profile "${OWNER_DISPLAY_NAME}" not found (is_demo = false). The demo partner exists only ` +
-      `to match the real owner account — create/rename it first, or set the expected name in this seeder.`,
+  // A clone has no operator account, so this is the NORMAL outcome there, not a
+  // failure: say so plainly and leave everything already seeded in place. The
+  // demo partner stays a member of the demo event and is usable on its own.
+  console.log(
+    OWNER_DISPLAY_NAME
+      ? `SKIPPED: no non-demo profile named "${OWNER_DISPLAY_NAME}" — the owner<->partner intro is not seeded. ` +
+          `Check SEED_OWNER_NAME, or leave it unset to skip this half deliberately.`
+      : 'SKIPPED: owner<->partner intro not seeded (set SEED_OWNER_NAME=<your profile display name> to enable it). ' +
+          'Everything else above is seeded and usable.',
   );
-  process.exit(1);
+  process.exit(0);
 }
 const ownerMembership = await readMembershipView(eventId, ownerProfile.id);
 if (!ownerMembership) {

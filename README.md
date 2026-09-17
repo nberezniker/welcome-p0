@@ -17,6 +17,10 @@ event directory, consent-gated mutual contact reveal, Telegram as one of the
 notice channels, organizer funnel. Growth/marketing surfaces stay behind the
 honesty rules in `spec/` §7 (no invented customers, logos or benchmarks).
 
+> That live instance is the author's own demonstration of this code, not a
+> service you can sign up for: there is no hosted WELCOME, and nothing here talks
+> to it. To get your own, see [SELF_HOSTING.md](SELF_HOSTING.md).
+
 ## Architecture
 
 ```
@@ -37,37 +41,43 @@ Key invariants: public projection is explicit (`public_enabled`), contacts are
 AES-256-GCM encrypted at rest, consent is purpose-scoped, outbox jobs are
 suppressed (never silently dropped) when consent/transport/blocking says no.
 
-## Run locally
+## Run it yourself
 
-Requirements: Node ≥20.9 (built on 22.x), pnpm 10.x, PostgreSQL 16.
+Requirements: Node ≥20.9 (built on 22.x), pnpm 10.x, PostgreSQL 16+. **No
+account on any external service is required** — the app runs with a local
+database and two locally generated secrets.
 
 ```bash
 pnpm install
-cp .env.example .env.local        # fill values; never commit .env.local
-pnpm db:migrate                   # apply db/migrations (welcome_dev)
-pnpm db:seed                      # optional: demo data (is_demo=true)
+createdb welcome_dev
+cp .env.example .env.local        # 5 REQUIRED vars; every entry is labelled
+openssl rand -base64 32           # → ENCRYPTION_KEY
+openssl rand -base64 24           # → HASH_PEPPER
+pnpm db:migrate                   # apply db/migrations
+pnpm db:seed                      # optional: synthetic demo data (never in production)
 pnpm dev                          # http://localhost:3000
 pnpm worker                       # outbox worker (separate terminal)
 ```
 
-Env vars (`cp .env.example .env.local`, names only in git):
+Sign in with any address; the one-time code is appended to the gitignored
+`.runtime/otp.log`. With no external keys, Telegram and email report
+`disabled`/`not_configured` in `GET /api/providers` (naming the missing
+variables), enrichment answers `503 enrichment_disabled`, and outbox jobs end as
+`suppressed:no_channel` — nothing is mocked behind your back.
 
-- Core: `APP_ENV` (`development`|`production`), `APP_BASE_URL`, `DATABASE_URL`,
-  `AUTH_BASE_URL`, `ENCRYPTION_KEY` (base64 of 32 bytes), `HASH_PEPPER`, `LOG_LEVEL`
-- Dev-only: `AUTH_DEV_EXPOSE_OTP=true` returns the OTP in the verify response
-  when `APP_ENV=development`; otherwise codes go to `.runtime/otp.log` (gitignored)
-- Channels (all optional; absent = disabled, never mocked in production):
-  `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_BOT_USERNAME`,
-  `LUMA_API_KEY`, `LUMA_WEBHOOK_SECRET`, `WHATSAPP_*`, `LINKEDIN_*`
+**Full walkthrough — your own Telegram bot, Resend, Google and Vertex
+credentials, a custom domain, free-tier notes, and what this repo is *not*:
+[SELF_HOSTING.md](SELF_HOSTING.md).** `.env.example` is the complete, labelled
+list of variables the code reads; a unit test keeps the two in sync.
 
 ## Gates (all green at release; evidence/final-gates.log)
 
 ```bash
 pnpm typecheck && pnpm lint        # tsc --noEmit, eslint (flat config)
-pnpm test:unit                     # 163 tests (node --test + tsx)
-pnpm test:integration              # 166 tests, resets welcome_test DB
-pnpm test:e2e                      # Playwright chromium smoke on welcome_e2e DB (port 3111)
-pnpm build                         # next build (62 routes)
+pnpm test:unit                     # 602 tests (node --test + tsx)
+pnpm test:integration              # 379 tests, resets welcome_test DB
+pnpm test:e2e                      # 42 Playwright chromium tests on welcome_e2e DB (port 3111)
+pnpm build                         # next build
 pnpm scan:secrets                  # fails on secrets in tracked files (spec/ excluded)
 pnpm audit:deps                    # pnpm audit --prod --audit-level high
 pnpm drill:defect                  # injects a leak → gate must FAIL → revert → PASS (needs clean tree)
@@ -75,10 +85,20 @@ pnpm load:smoke                    # AC-53 local-only load numbers → evidence/
 node --test spec/tests/core.test.mjs   # archive's 24 core contract tests
 ```
 
-## Deploy (Vercel + managed EU Postgres)
+## Deploy
 
 > First deploy = **staging-test only**. Production permission is still false per
 > the Phase 6 preflight — see [RELEASE_REPORT.md §6](RELEASE_REPORT.md).
+>
+> **Self-hosting your own instance?** Follow
+> [SELF_HOSTING.md](SELF_HOSTING.md) instead: it covers any host (not just
+> Vercel), your own credentials for every optional feature, and the two settings
+> a clone must change — `LEGACY_REDIRECTS=off` (the shipped legacy redirects
+> point at the *upstream author's* domain) and `OPERATOR_CONTACT_EMAIL` (the
+> address your landing and legal pages publish). The steps below are the
+> original deployment's own recipe, kept for the record.
+
+Deploy (Vercel + managed EU Postgres):
 
 1. **Managed Postgres (EU).** Create a Neon or Supabase database in an EU
    region; copy the connection string (`sslmode=require`).
@@ -96,8 +116,8 @@ node --test spec/tests/core.test.mjs   # archive's 24 core contract tests
 4. **Deploy** (push to `main` or `vercel deploy --prod`). `vercel.json` pins
    the function region to `fra1` (EU) and schedules the worker-tick cron
    (`*/1 * * * *`).
-5. **Verify.** `GET /api/health` must show `"status":"ok"`, `"db":"up"` and the
-   applied `migration_version`; `"worker":"up"` requires a tick within 60s.
+5. **Verify.** `GET /api/health` must show `"status":"ok"` and `"db":"up"`;
+   `"worker":"up"` requires a tick within 60s.
 
 **Worker on serverless.** The long-running `pnpm worker` process is not
 available on Vercel functions. Instead `POST|GET /api/internal/worker-tick`
@@ -124,13 +144,15 @@ the route verifies the bot's `x-telegram-bot-api-secret-token` constant-time.
 | `src/integrations/telegram/` | Transport selection (real/mock[dev]/disabled), webhook parsing |
 | `src/lib/` | http (CSRF/errors), auth, crypto, db, env, ratelimit, public-profile |
 | `src/i18n/` | en/ru/es dictionaries (fallback: en) |
-| `db/migrations/` | SQL migrations 001–004, runner `scripts/migrate.mjs` (`schema_migrations`) |
+| `db/migrations/` | SQL migrations 001–014, runner `scripts/migrate.mjs` (`schema_migrations`) |
 | `scripts/` | Migrate, seed, worker, scan-secrets, defect-drill, load-smoke, validate-release-report |
 | `tests/` | `unit/`, `integration/` (DB), `e2e/` (Playwright) |
 | `evidence/` | Gates, drill, load smoke, screenshots, release report + index |
 | `spec/` | **Protected baseline** — requirements, contracts, test plans. Do not modify |
 | `reference-landing/` | **Protected** design reference only |
 | `docs-internal/adr/` | Decision log (ADR-0001…0006) |
+| `SELF_HOSTING.md` | Self-hosting guide: prerequisites, quickstart, your own bot/keys, custom domain, what this repo is not |
+| `.env.example` | Every env var the code reads, each labelled REQUIRED / OPTIONAL (gate: `tests/unit/env-example-coverage.test.ts`) |
 
 ## Handoff
 
@@ -144,7 +166,7 @@ the route verifies the bot's `x-telegram-bot-api-secret-token` constant-time.
 
 ## What is deliberately NOT done
 
-No staging/production deploy (no host/credentials; production permission false),
-no real Telegram round trip (no bot token/public webhook URL), no contest
-submission (rules unresolved), no real-device QR / backup / rollback rehearsals.
+No contest submission (rules unresolved), no real-device QR / backup / rollback
+rehearsals, and no Telegram round trip from a clean clone (it needs *your* bot
+token and a public HTTPS URL — see [SELF_HOSTING.md §4.1](SELF_HOSTING.md)).
 Exact blockers: [RELEASE_REPORT.md §6](RELEASE_REPORT.md).
