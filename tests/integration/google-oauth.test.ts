@@ -42,7 +42,9 @@ import { accountIdFromCookie, loginViaOtp, makeRequest, uniqueEmail, assertStatu
 
 const CLIENT_ID = 'integration-client-id.apps.googleusercontent.com';
 const CLIENT_SECRET = 'integration-client-secret-value';
-const ACCESS_TOKEN = 'ya29.integration-access-token-sentinel';
+// The `ACCESS_TOKEN` name is what the scanner's `access_token = '…'` rule keys
+// on; the value is a synthetic sentinel that never leaves this process.
+const ACCESS_TOKEN = 'ya29.integration-access-token-sentinel'; // secret-scan:allow synthetic fixture for the in-file fake Google, not a credential
 const REFRESH_TOKEN = '1//integration-refresh-token-sentinel';
 
 before(() => {

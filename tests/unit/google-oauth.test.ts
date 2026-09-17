@@ -290,7 +290,10 @@ test('oauth-state: the MAC key is derived, not the encryption key itself', () =>
 test('google-oauth: a token response is parsed into an absolute expiry and a scope list', () => {
   const tokens = parseGoogleTokenResponse(
     {
-      access_token: 'ya29.access',
+      // The scanner's Google-token-name-plus-literal rule is aimed at committed
+      // credentials; this is an invented value proving the parser accepts the
+      // Google-shaped fields, so the line below carries a documented exemption.
+      access_token: 'ya29.access', // secret-scan:allow invented parser fixture, never sent to any Google endpoint
       refresh_token: '1//refresh',
       expires_in: 3599,
       scope: `${GOOGLE_CONTACTS_SCOPE} openid`,
@@ -306,8 +309,9 @@ test('google-oauth: a token response is parsed into an absolute expiry and a sco
   assert.equal(tokens.expiresAt?.toISOString(), new Date(NOW.getTime() + 3_599_000).toISOString());
 
   // A refresh response carries no refresh token: null means "unchanged", and the
-  // sql layer keeps the stored one.
-  const refreshed = parseGoogleTokenResponse({ access_token: 'ya29.new', expires_in: 3599 }, NOW);
+  // sql layer keeps the stored one. The value below is invented; its line carries
+  // a documented exemption because the scanner's rule is aimed at real tokens.
+  const refreshed = parseGoogleTokenResponse({ access_token: 'ya29.new', expires_in: 3599 }, NOW); // secret-scan:allow invented parser fixture, never sent to Google
   assert.equal(refreshed?.refreshToken, null);
 
   // No access token is a failure, not a grant with an empty string in it.
