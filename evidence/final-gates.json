@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-09-20T20:10:57.399Z",
-  "head_sha_at_gate_run": "e08a01ddc6acfa9bd1e8339a2115a41bdff229d7",
+  "generated_at": "2026-09-20T21:13:36.197Z",
+  "head_sha_at_gate_run": "aa0f1815923728e1744bfe42ea3fac82413e8d7d",
   "note": "The seven release gates run fresh and sequentially on the working tree; the combined output is evidence/final-gates.log.",
   "previous_run": {
-    "generated_at": "2026-09-20T20:06:51.494Z",
-    "head_sha_at_gate_run": "e08a01ddc6acfa9bd1e8339a2115a41bdff229d7"
+    "generated_at": "2026-09-20T21:07:16.789Z",
+    "head_sha_at_gate_run": "aa0f1815923728e1744bfe42ea3fac82413e8d7d"
   },
   "gates": [
     {
       "command": "pnpm typecheck",
       "exit_code": 0,
-      "duration_s": 4,
+      "duration_s": 2,
       "summary_lines": [
         "> welcome-p0@0.1.0 typecheck /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> tsc --noEmit"
@@ -19,7 +19,7 @@
     {
       "command": "pnpm lint",
       "exit_code": 0,
-      "duration_s": 11,
+      "duration_s": 9,
       "summary_lines": [
         "> welcome-p0@0.1.0 lint /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> eslint ."
@@ -28,20 +28,20 @@
     {
       "command": "pnpm test:unit",
       "exit_code": 0,
-      "duration_s": 12,
+      "duration_s": 11,
       "summary_lines": [
-        "# tests 624",
-        "# pass 624",
+        "# tests 644",
+        "# pass 644",
         "# fail 0"
       ]
     },
     {
       "command": "pnpm test:integration",
       "exit_code": 0,
-      "duration_s": 24,
+      "duration_s": 22,
       "summary_lines": [
-        "# tests 385",
-        "# pass 384",
+        "# tests 397",
+        "# pass 396",
         "# fail 0",
         "# skipped 1"
       ]
@@ -57,14 +57,14 @@
     {
       "command": "pnpm build",
       "exit_code": 0,
-      "duration_s": 8,
+      "duration_s": 5,
       "summary_lines": [
-        "✓ Compiled successfully in 1277ms",
+        "✓ Compiled successfully in 1058ms",
         "  Generating static pages using 9 workers (0/39) ...",
         "  Generating static pages using 9 workers (9/39) \r",
         "  Generating static pages using 9 workers (19/39) \r",
         "  Generating static pages using 9 workers (29/39) \r",
-        "✓ Generating static pages using 9 workers (39/39) in 196ms",
+        "✓ Generating static pages using 9 workers (39/39) in 232ms",
         "Route (app)"
       ]
     },
@@ -82,11 +82,11 @@
     "gates_total": 7,
     "gates_exit_zero": 7,
     "unit": {
-      "pass": 624,
+      "pass": 644,
       "fail": 0
     },
     "integration": {
-      "pass": 384,
+      "pass": 396,
       "fail": 0,
       "skipped": 1
     },
