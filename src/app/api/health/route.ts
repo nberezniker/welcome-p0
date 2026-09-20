@@ -36,10 +36,11 @@ interface DetailedHealthPayload extends PublicHealthPayload {
 }
 
 /**
- * Health check: DB read, DB write (real worker_heartbeat beat update), applied
- * migrations, worker heartbeat freshness, and outbox delivery lag. Returns 200
- * only when the DB is up and migrations are applied; worker status is reported
- * separately.
+ * Health check: DB read, a DB write probe, applied migrations, worker heartbeat
+ * freshness, and outbox delivery lag. Returns 200 only when the DB is up and
+ * migrations are applied; worker status is reported separately, and it is the
+ * WORKER's own beat that decides it — the probe below deliberately cannot
+ * refresh that signal (see step 2).
  * F-16: `migration_version` is no longer public — it is included ONLY when the
  * request carries `x-health-details: <WORKER_TICK_SECRET>` (constant-time
  * compare; unset secret → details are never exposed).
@@ -58,10 +59,22 @@ export async function GET(req: NextRequest) {
     await sql`SELECT 1`;
     db = 'up';
 
-    // 2. DB write — real beat update (proves write access, keeps heartbeat fresh)
+    // 2. DB write probe (spec 16 «safe DB write/rollback probe»). It must prove
+    //    write access WITHOUT moving the signal step 4 reads — the beat write
+    //    that used to live here (`… DO UPDATE SET beat_at = now()`) made the
+    //    probe forge the worker's own heartbeat: every health call refreshed it,
+    //    so `worker` read 'up' on a deployment whose worker had been dead for
+    //    hours. That is exactly what README §3 step 5 forbids ("`worker":"up"`
+    //    requires a tick within 60s) and what an uptime monitor is meant to
+    //    catch (AC-56).
+    //
+    //    Both branches are real writes (privileges checked, WAL, a new row
+    //    version) that commit no semantic change: the INSERT creates a missing
+    //    row with beat_at NULL — "no worker has ever ticked", the honest reading
+    //    on a fresh deployment — and the conflict branch touches only `id`.
     await sql`
-      INSERT INTO worker_heartbeat (id, beat_at) VALUES (true, now())
-      ON CONFLICT (id) DO UPDATE SET beat_at = now()
+      INSERT INTO worker_heartbeat (id, beat_at) VALUES (true, NULL)
+      ON CONFLICT (id) DO UPDATE SET id = true
     `;
 
     // 3. Applied migrations
