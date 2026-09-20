@@ -1,7 +1,8 @@
 import { after } from 'next/server';
 import { selectTransport } from '../integrations/telegram';
 import type { ChannelTransport } from '../integrations/telegram/transport';
-import { tickOnce } from './worker';
+import { appEnv } from '../lib/env';
+import { tickOnce, type JobErrorReporter } from './worker';
 
 /**
  * Post-response processing for the Telegram webhook (latency fix).
@@ -33,8 +34,15 @@ export const POST_RESPONSE_MAX_ROUNDS = 3;
 /** Claim batch per round — much smaller than the cron worker's 10. */
 export const POST_RESPONSE_BATCH_LIMIT = 5;
 
-/** Runs the bounded post-response drain. Never throws. */
-export async function runPostResponseTick(deps: { transport?: ChannelTransport } = {}): Promise<void> {
+/** Runs the bounded post-response drain. Never throws.
+ *
+ * `reportJobError` is the worker's injectable reporter (see JobErrorReporter in
+ * infra/worker.ts): omitted in production — where the default console.error is
+ * what an operator needs — and supplied by the one test that breaks a transport
+ * on purpose, so that expected stack trace does not bury the gate output. */
+export async function runPostResponseTick(
+  deps: { transport?: ChannelTransport; reportJobError?: JobErrorReporter } = {},
+): Promise<void> {
   try {
     const transport = deps.transport ?? (await selectTransport());
     for (let round = 0; round < POST_RESPONSE_MAX_ROUNDS; round++) {
@@ -48,6 +56,7 @@ export async function runPostResponseTick(deps: { transport?: ChannelTransport }
         // of answering the user who just wrote to the bot. The scheduled tick
         // owns it, and until then the scan's own flags keep it inert anyway.
         followupScan: false,
+        reportJobError: deps.reportJobError,
       });
       if (report.claimed === 0) break;
     }
@@ -68,9 +77,18 @@ export function schedulePostResponseTick(): void {
   try {
     after(() => runPostResponseTick());
   } catch (err) {
-    console.warn(
-      '[webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop:',
-      err instanceof Error ? err.message : err,
-    );
+    // `after()` throws precisely when there is no request scope — a script, or
+    // any integration test driving this route handler directly (the same
+    // situation `captureAfter()` in tests/integration/telegram-webhook-after.test.ts
+    // emulates). There the worker-tick backstop is the documented, expected
+    // answer rather than an anomaly, and the note was printed dozens of times
+    // per gate run. In production it means a real misconfiguration — this route
+    // is always invoked in a request scope — so it stays loud exactly there.
+    if (appEnv() === 'production') {
+      console.warn(
+        '[webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop:',
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
 }

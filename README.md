@@ -117,7 +117,10 @@ Deploy (Vercel + managed EU Postgres):
    the function region to `fra1` (EU) and schedules the worker-tick cron
    (`*/1 * * * *`).
 5. **Verify.** `GET /api/health` must show `"status":"ok"` and `"db":"up"`;
-   `"worker":"up"` requires a tick within 60s.
+   `"worker":"up"` requires a tick within 60s. The same payload carries the
+   outbox delivery lag — `"pending_jobs"` (non-terminal jobs: pending + leased)
+   and `"oldest_pending_job_age_seconds"` (`null` when the queue is empty) — so a
+   monitor can alert on a queue that stops draining, not only on a dead process.
 
 **Worker on serverless.** The long-running `pnpm worker` process is not
 available on Vercel functions. Instead `POST|GET /api/internal/worker-tick`

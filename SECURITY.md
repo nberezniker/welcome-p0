@@ -52,3 +52,17 @@ history does not un-leak it.
 - In-memory rate limiter (single process) — see `docs-internal/adr/0005-*`.
 - Serverless deployments drive the outbox via `/api/internal/worker-tick`
   (secret-protected) or the `pnpm worker` long-running process.
+- **`ENCRYPTION_KEY` cannot be rotated.** One AES-256-GCM key encrypts every
+  value at rest that has a key: contact values, the emails imported from a
+  registration CSV, the OAuth PKCE code verifier, and Google grant access /
+  refresh tokens. A rotation path would need a keyring — a key-id inside each
+  ciphertext, and a decryptor that selects the key by that id so old rows can be
+  read and re-encrypted under the new key. The format already carries a version
+  slot (`v1.<iv>.<ciphertext>.<tag>`, `VALUE_PREFIX` in `src/lib/crypto.ts`), so
+  the natural shape is a key-id in that slot (`v1:<key-id>.…`), but it is NOT
+  implemented: `decryptValue` reads the single env key, and a payload with any
+  other prefix is rejected. Consequence today: the key is a one-way door. It must
+  be backed up with the database, and a leaked or lost key has no remedy except
+  the data it decrypts. Not a P0 defect — but not a rotation story either.
+  (The single-operator note for self-hosters is in
+  [SELF_HOSTING.md §3.3](SELF_HOSTING.md).)

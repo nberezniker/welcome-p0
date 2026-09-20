@@ -70,10 +70,14 @@ export async function GET(req: NextRequest) {
   // provider word is only used when the state itself could not be trusted.
   let providerWord = 'google-contacts';
   try {
-    const params = req.nextUrl.searchParams;
-    const errorParam = params.get('error');
-    const code = params.get('code');
-    const state = params.get('state');
+    // Named `query`, not `params`: this is a URLSearchParams, and a local called
+    // `params` here would read like the route's (Promise-valued) `params` — the
+    // distinction the static-safety gate (`tests/unit/static-safety.test.ts`)
+    // keeps unambiguous for the whole of src/app.
+    const query = req.nextUrl.searchParams;
+    const errorParam = query.get('error');
+    const code = query.get('code');
+    const state = query.get('state');
 
     // Both Google registry rows are gated by the SAME two variables
     // (GOOGLE_OAUTH_CLIENT_ID / _SECRET, src/domain/providers.ts), so one

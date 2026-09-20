@@ -103,7 +103,11 @@ HASH_PEPPER=<paste the random pepper>
 
 > **`ENCRYPTION_KEY` is not rotatable.** It is the AES-256-GCM key for contact
 > fields at rest. Lose it and existing contacts cannot be decrypted. Back it up
-> the way you back up the database.
+> the way you back up the database. It is one key for everything the app
+> encrypts — contacts, imported emails, OAuth code verifiers and Google grant
+> tokens — and no rotation path exists: the *Known limitations* entry in
+> [SECURITY.md](SECURITY.md) says what a keyring would take. Choose it as though
+> it were permanent, because today it is.
 
 ### 3.4 Apply the migrations
 
@@ -180,7 +184,8 @@ development-only and off by default).
      outbox_jobs → intro_requested_notice:suppressed, intro_mutual_notice:suppressed
 [15] GET /api/providers → telegram/email/google-contacts: disabled + not_configured + missing_env
      POST /api/me/enrich → 503 {"code":"enrichment_disabled","retryable":false}
-     GET  /api/health    → {"status":"ok","db":"up","worker":"up"}
+     GET  /api/health    → {"status":"ok","db":"up","worker":"up","pending_jobs":3,
+                            "oldest_pending_job_age_seconds":12}
 ```
 
 </details>

@@ -1,13 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { after } from 'node:test';
+import { randomUUID } from 'node:crypto';
 import { GET as health } from '../../src/app/api/health/route';
 import { makeRequest, assertStatus } from './helpers';
-import { closeSql } from '../../src/lib/db';
+import { getSql, closeSql } from '../../src/lib/db';
 
-// F-16: the public health payload exposes {status, db, worker} ONLY — the
-// migration version (deployment fingerprint) requires the shared secret via
-// the x-health-details header.
+// F-16: the public health payload exposes {status, db, worker} + the two outbox
+// lag aggregates and NOTHING else — the migration version (deployment
+// fingerprint) requires the shared secret via the x-health-details header.
 
 after(async () => {
   await closeSql();
@@ -17,12 +18,54 @@ test('F-16: public health payload has no migration details', async () => {
   const res = await health(makeRequest('/api/health'));
   assertStatus(res, 200);
   const body = (await res.json()) as Record<string, unknown>;
-  assert.deepEqual(Object.keys(body).sort(), ['db', 'status', 'worker']);
+  assert.deepEqual(
+    Object.keys(body).sort(),
+    ['db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker'],
+  );
   assert.equal(body.status, 'ok');
   assert.equal(body.db, 'up');
   assert.ok(body.worker === 'up' || body.worker === 'down');
   assert.equal(body.migration_version, undefined);
   assert.equal(body.migrations, undefined);
+});
+
+// Delivery lag (health as a monitor, not just a liveness ping): the age of the
+// OLDEST non-terminal outbox job, and how many there are. The queue in this
+// shared test DB is never empty (other suites leave retry-scheduled jobs behind),
+// so the assertion seeds a job with a known age and requires the metric to be at
+// least that old — "oldest" is a minimum by construction, not an equality.
+test('health: reports outbox delivery lag and counts only non-terminal jobs', async () => {
+  const sql = getSql();
+  const seeded = await sql<{ id: string }[]>`
+    INSERT INTO outbox_jobs (dedupe_key, kind, channel, purpose, payload, status, created_at)
+    VALUES (${'health-lag:' + randomUUID()}, 'telegram_reply', 'telegram', 'service_channel', '{}'::jsonb,
+            'pending', now() - interval '5 minutes')
+    RETURNING id
+  `;
+
+  const res = await health(makeRequest('/api/health'));
+  assertStatus(res, 200);
+  const body = (await res.json()) as {
+    pending_jobs: number;
+    oldest_pending_job_age_seconds: number | null;
+  };
+  assert.equal(typeof body.pending_jobs, 'number');
+  assert.ok(body.pending_jobs >= 1, 'the seeded non-terminal job is counted');
+  assert.ok(
+    (body.oldest_pending_job_age_seconds ?? 0) >= 300,
+    `the oldest non-terminal job is at least the seeded 5 minutes old, got ${body.oldest_pending_job_age_seconds}s`,
+  );
+  // The two fields cannot disagree: an empty queue has no age, a non-empty one
+  // does. A null age next to a non-zero count would be a silent lie.
+  assert.equal(body.oldest_pending_job_age_seconds === null, body.pending_jobs === 0);
+
+  // …and it is the LIVE queue, not a history: a job that reaches a terminal
+  // state leaves the count (and stops contributing its age).
+  await sql`UPDATE outbox_jobs SET status = 'sent' WHERE id = ${seeded[0]!.id}`;
+  const second = await health(makeRequest('/api/health'));
+  assertStatus(second, 200);
+  const after2 = (await second.json()) as { pending_jobs: number };
+  assert.equal(after2.pending_jobs, body.pending_jobs - 1, 'a terminal job is no longer counted as lag');
 });
 
 test('F-16: x-health-details with the worker secret → full payload; wrong secret → public payload', async () => {

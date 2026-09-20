@@ -8,12 +8,25 @@ export const dynamic = 'force-dynamic';
 const EXPECTED_MIGRATIONS = ['001'];
 const WORKER_FRESHNESS_SECONDS = 60;
 
+/** Outbox statuses that are NOT terminal (spec 04 §7): a job in one of these has
+ * not been handed over / given up on yet, so its created_at is delivery lag. */
+const NON_TERMINAL_OUTBOX_STATUSES = ['pending', 'leased'] as const;
+
 /** Public payload (F-16): no stack-layout details, no migration version —
- * exactly what uptime monitors need. */
+ * exactly what uptime monitors need.
+ *
+ * `pending_jobs` / `oldest_pending_job_age_seconds` are the one addition since
+ * F-16, and they are aggregates of WORK, not of infrastructure: how many
+ * non-terminal outbox jobs exist and how old the oldest one is. They carry no
+ * job id, kind, channel, recipient or payload, so unlike `migration_version`
+ * they are not a deployment fingerprint — they are the number a monitor needs to
+ * say "the queue is not draining". */
 interface PublicHealthPayload {
   status: 'ok' | 'error';
   db: 'up' | 'down';
   worker: 'up' | 'down';
+  pending_jobs: number;
+  oldest_pending_job_age_seconds: number | null;
 }
 
 /** Detailed payload — only for callers presenting the shared worker secret. */
@@ -24,8 +37,9 @@ interface DetailedHealthPayload extends PublicHealthPayload {
 
 /**
  * Health check: DB read, DB write (real worker_heartbeat beat update), applied
- * migrations, and worker heartbeat freshness. Returns 200 only when the DB is
- * up and migrations are applied; worker status is reported separately.
+ * migrations, worker heartbeat freshness, and outbox delivery lag. Returns 200
+ * only when the DB is up and migrations are applied; worker status is reported
+ * separately.
  * F-16: `migration_version` is no longer public — it is included ONLY when the
  * request carries `x-health-details: <WORKER_TICK_SECRET>` (constant-time
  * compare; unset secret → details are never exposed).
@@ -36,6 +50,8 @@ export async function GET(req: NextRequest) {
   let migrations: 'applied' | 'missing' = 'missing';
   let migrationVersion: string | null = null;
   let worker: 'up' | 'down' = 'down';
+  let pendingJobs = 0;
+  let oldestPendingJobAgeSeconds: number | null = null;
 
   try {
     // 1. DB read
@@ -62,6 +78,27 @@ export async function GET(req: NextRequest) {
       const ageMs = Date.now() - new Date(beatAt).getTime();
       worker = ageMs >= 0 && ageMs <= WORKER_FRESHNESS_SECONDS * 1000 ? 'up' : 'down';
     }
+
+    // 5. Outbox delivery lag — one read-only aggregate over the non-terminal
+    //    rows (outbox_ready_idx covers status). `min(created_at)` of an empty
+    //    queue is NULL, which is exactly the honest answer: no lag.
+    //
+    //    Deliberately in its own try: this is a METRIC, and a metric must never
+    //    be able to turn a healthy deployment into a 503. A failure here is
+    //    reported (loudly, to the server log — the payload just has no number)
+    //    while liveness keeps its own, independent verdict.
+    try {
+      const lag = await sql<{ pending: number; oldest_age_seconds: number | null }[]>`
+        SELECT count(*)::int AS pending,
+               EXTRACT(EPOCH FROM now() - min(created_at))::int AS oldest_age_seconds
+        FROM outbox_jobs
+        WHERE status IN ${sql([...NON_TERMINAL_OUTBOX_STATUSES])}
+      `;
+      pendingJobs = lag[0]?.pending ?? 0;
+      oldestPendingJobAgeSeconds = lag[0]?.oldest_age_seconds ?? null;
+    } catch (err) {
+      console.warn('[health] outbox lag unavailable (liveness is unaffected):', err);
+    }
   } catch (err) {
     console.error('[health] check failed', err);
   }
@@ -73,8 +110,22 @@ export async function GET(req: NextRequest) {
     !!secret && secureSecretEqual(req.headers.get('x-health-details') ?? '', secret);
 
   const payload: PublicHealthPayload | DetailedHealthPayload = detailsAuthorized
-    ? { status, db, migrations, migration_version: migrationVersion, worker }
-    : { status, db, worker };
+    ? {
+        status,
+        db,
+        migrations,
+        migration_version: migrationVersion,
+        worker,
+        pending_jobs: pendingJobs,
+        oldest_pending_job_age_seconds: oldestPendingJobAgeSeconds,
+      }
+    : {
+        status,
+        db,
+        worker,
+        pending_jobs: pendingJobs,
+        oldest_pending_job_age_seconds: oldestPendingJobAgeSeconds,
+      };
 
   return NextResponse.json(payload, {
     status: status === 'ok' ? 200 : 503,

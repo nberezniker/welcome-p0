@@ -20,8 +20,11 @@ export default async function LoginPage({
   const { locale, t } = await getT();
   const accountId = await getOptionalAccountId();
   if (accountId) redirect('/me');
-  const params = await searchParams;
-  const rawNext = typeof params.next === 'string' ? params.next : null;
+  // `searchParams`, awaited: this is NOT the route's Promise-valued `params`, and
+  // it is deliberately not named `params` so the static-safety gate's
+  // "no sync route-param read" rule stays an absolute one.
+  const { next } = await searchParams;
+  const rawNext = typeof next === 'string' ? next : null;
   // F-10: shared validator also rejects backslash protocol-relative bypasses.
   const nextPath = safeNextPath(rawNext);
 

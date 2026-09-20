@@ -237,14 +237,31 @@ test('after(): a transport error inside the drain is contained — the tick neve
     },
   };
 
+  // This failure is the SUBJECT of the test, so it is declared here instead of
+  // printed: the drain reports a job-level error to the reporter it is given
+  // (infra/worker.ts JobErrorReporter), and the default reporter — console.error
+  // with the stack — is what production keeps. Asserting the report does more
+  // than the bare log line did, and it keeps an EXPECTED stack trace out of the
+  // gate output, where every remaining line is then real signal.
+  const reported: { jobId: string; message: string }[] = [];
   // Must resolve: the post-response path swallows its own failures.
-  await runPostResponseTick({ transport: exploding });
+  await runPostResponseTick({
+    transport: exploding,
+    reportJobError: (job, err) => {
+      reported.push({ jobId: job.id, message: err instanceof Error ? err.message : String(err) });
+    },
+  });
 
   assert.equal((await jobRow(await updateJobId(updateId))).status, 'delivered', 'the update itself was processed');
 
   const replies = await replyJobs(chatId);
   assert.equal(replies.length, 1);
   const reply = await jobRow(replies[0]!.id);
+  assert.deepEqual(
+    reported.filter((r) => r.jobId === reply.id).map((r) => r.message),
+    ['socket hang up'],
+    'the expected transport failure was reported once, with its cause',
+  );
   assert.equal(reply.status, 'pending', 'transport failure requeues with backoff — never lost, never stuck leased');
   assert.equal(reply.attempt, 1);
   assert.ok(reply.due_at.getTime() > Date.now(), 'retry scheduled in the future');

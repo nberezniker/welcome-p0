@@ -68,7 +68,27 @@ export interface WorkerDeps {
    * tick, not in front of an interactive reply. Omitted → the scan runs (and
    * returns immediately while its flags are off). */
   followupScan?: boolean;
+  /** Where a job-level processing failure is reported. See JobErrorReporter. */
+  reportJobError?: JobErrorReporter;
 }
+
+/**
+ * How a job that threw while being processed is reported.
+ *
+ * The default is the loud, production behaviour: console.error carrying the job
+ * id/kind and the error with its stack. It is injectable ONLY so a test that
+ * breaks a transport on purpose can declare the failure it is asserting and
+ * keep the expected stack trace out of the gate output — the error is still
+ * reported, just to that recorder. Nothing in production sets it, and no other
+ * test does either, so every genuinely unexpected error stays exactly as loud as
+ * before. This is deliberately a seam, not a log-level switch: a level would
+ * silence unexpected errors too.
+ */
+export type JobErrorReporter = (job: OutboxJobRow, err: unknown) => void;
+
+const reportJobErrorToConsole: JobErrorReporter = (job, err) => {
+  console.error(`[worker] job ${job.id} (${job.kind}) failed:`, err);
+};
 
 export interface TickReport {
   heartbeat: boolean;
@@ -111,6 +131,7 @@ interface TickTransports {
  * without a single query — while both flags are off (phase 4 §1). */
 export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   const sql = deps.sql ?? getSql();
+  const reportJobError = deps.reportJobError ?? reportJobErrorToConsole;
   const transports: TickTransports = {
     telegram: deps.transport ?? null,
     // Resolved per tick (not at module load) so env changes stay observable, and
@@ -133,7 +154,7 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   const jobs = await claimJobs(sql, deps.batchLimit ?? BATCH_LIMIT);
   const results: TickReport['results'] = [];
   for (const job of jobs) {
-    const outcome = await processJob(sql, transports, job);
+    const outcome = await processJob(sql, transports, job, reportJobError);
     results.push({ job_id: job.id, kind: job.kind, outcome });
   }
 
@@ -144,7 +165,12 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
   return { heartbeat: true, requeuedLeases, claimed: jobs.length, results, cleanup, followup };
 }
 
-async function processJob(sql: Sql, transports: TickTransports, job: OutboxJobRow): Promise<string> {
+async function processJob(
+  sql: Sql,
+  transports: TickTransports,
+  job: OutboxJobRow,
+  reportJobError: JobErrorReporter,
+): Promise<string> {
   try {
     if (job.kind === 'telegram_update') {
       const outcome = await handleTelegramUpdate(sql, job.payload as unknown as TelegramUpdatePayload);
@@ -166,7 +192,7 @@ async function processJob(sql: Sql, transports: TickTransports, job: OutboxJobRo
   } catch (err) {
     // Unexpected processing error (not a transport outcome): requeue with
     // backoff, respecting the unknown cap so a poison job cannot loop forever.
-    console.error(`[worker] job ${job.id} (${job.kind}) failed:`, err);
+    reportJobError(job, err);
     return await requeueWithErrorCap(sql, job);
   }
 }
@@ -399,7 +425,12 @@ export async function runWorker(deps: WorkerDeps = {}): Promise<void> {
   console.log(`[worker] started transport=${transport.name} email=${emailTransport?.name ?? 'none'}`);
   try {
     while (running) {
-      const report = await tickOnce({ sql: deps.sql, transport, emailTransport });
+      const report = await tickOnce({
+        sql: deps.sql,
+        transport,
+        emailTransport,
+        reportJobError: deps.reportJobError,
+      });
       if (report.claimed > 0 || report.requeuedLeases > 0) {
         console.log(`[worker] claimed=${report.claimed} requeued=${report.requeuedLeases}`, report.results);
       }
