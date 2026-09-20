@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { clientIp, consumeIpToken, type TokenVerdict } from './ratelimit';
 import { appEnv, type AppEnv } from './env';
+import { log } from './logger';
 
 /** Unified JSON error model: {code, message, correlation_id, retryable}.
  * Never include SQL, stack traces or secrets in the payload. */
@@ -54,7 +55,11 @@ export async function readJsonBody(req: Request): Promise<unknown> {
 /** Logs an unexpected error server-side and returns a sanitized 500 response. */
 export function internalError(err: unknown): NextResponse {
   const correlationId = randomUUID();
-  console.error(`[internal_error] correlation_id=${correlationId}`, err);
+  // The correlation id is the one value here that the caller also holds (it is
+  // returned in the body below), so a user's "it said correlation_id …" resolves
+  // to this exact record. The cause stays server-side either way: the response
+  // carries a generic message, and the stack is written to the log, not to it.
+  log.error('[internal_error]', { correlation_id: correlationId, event: 'internal_error', err });
   return jsonError(500, 'internal_error', 'Unexpected error. Please retry later.', {
     retryable: true,
     correlationId,

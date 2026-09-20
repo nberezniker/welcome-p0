@@ -254,6 +254,11 @@ export const en = {
   'login.demoLoginHint': 'Fills in the seeded demo account and shows its code.',
 
   // ── /me shell & nav ───────────────────────────────────────────────────────
+  // Shown by src/app/me/loading.tsx while a cabinet route is being fetched — the
+  // only place in the app where a person waits on a slow query, so it is the one
+  // segment with a loading surface (see that file).
+  'me.loading.title': 'Opening your dashboard…',
+  'me.loading.text': 'Fetching your profile and event data.',
   'me.nav.dashboard': 'Dashboard',
   'me.nav.profile': 'Profile',
   'me.nav.contacts': 'Contacts',
@@ -837,6 +842,14 @@ export const en = {
   'errors.403.home': 'To the dashboard',
   'errors.404.title': 'Page not found',
   'errors.404.text': 'This address does not exist or was moved.',
+  // Used by the client error boundaries (src/app/error.tsx, global-error.tsx).
+  // Those files cannot reach this dictionary — a client boundary has no server
+  // parent to pass strings from — so the same three strings are mirrored in
+  // src/i18n/surface-copy.ts, and tests/unit/surface-copy.test.ts asserts the
+  // mirror equals this dictionary. Change both together.
+  'errors.500.title': 'Something went wrong on our side',
+  'errors.500.text': 'The page could not be shown. Your data is untouched — nothing you saved was lost.',
+  'errors.500.retry': 'Try again',
 
   // ══ Pass B (UI): taxonomy picker, onboarding, mini-landing, reasons ══════
   // ── Reason codes (see src/domain/reasons.ts) ──

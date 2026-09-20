@@ -1,6 +1,7 @@
 import type { Sql, TransactionSql } from 'postgres';
 import { decryptValue } from '../lib/crypto';
 import { requireEncryptionKey } from '../lib/env';
+import { log } from '../lib/logger';
 
 /**
  * Recipient channel selection (ADR 0011).
@@ -113,8 +114,13 @@ export async function resolveAccountEmail(
     return decryptValue(encrypted, requireEncryptionKey());
   } catch {
     // Deliberately silent about the value: a decryptable-on-a-different-key row
-    // is a data issue, not a reason to put an address (or its ciphertext) in a log.
-    console.warn('[notify] a stored account email could not be decrypted; falling back to no channel');
+    // is a data issue, not a reason to put an address (or its ciphertext) in a
+    // log. The event label carries the signal, and the caught error is NOT passed
+    // on — a decryption failure message is the one message that can quote the
+    // input it failed on.
+    log.warn('[notify] a stored account email could not be decrypted; falling back to no channel', {
+      event: 'account_email_undecryptable',
+    });
     return null;
   }
 }

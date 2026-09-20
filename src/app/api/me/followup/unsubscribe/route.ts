@@ -6,6 +6,7 @@ import { setOptIn } from '../../../../../infra/followup-preferences';
 import { suppressJobsForAccountKinds } from '../../../../../infra/outbox';
 import { getSql } from '../../../../../lib/db';
 import { requireHashPepper } from '../../../../../lib/env';
+import { log } from '../../../../../lib/logger';
 import { withApi } from '../../../../../lib/http';
 
 /**
@@ -100,7 +101,9 @@ async function getRoute(req: NextRequest) {
     );
   } catch (err) {
     // A failure must still be a page: the recipient clicked a link, not an API.
-    console.error('[followup-unsubscribe] failed:', err);
+    // The token from that link is deliberately NOT part of the line — it is a
+    // bearer value, and it is exactly what a debug-by-log reflex would add.
+    log.error('[followup-unsubscribe] failed', { event: 'followup_unsubscribe_failed', err });
     return html(locale, 500, page(title, t(locale, 'followup.unsubscribe.failed'), t(locale, 'followup.unsubscribe.failedHint'), null));
   }
 }

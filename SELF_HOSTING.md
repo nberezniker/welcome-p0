@@ -40,7 +40,7 @@ will see `suppressed:no_channel` next to each job.
 
 | Need | Version / note |
 |---|---|
-| Node.js | **≥ 20.9** (built and verified on 22.x) |
+| Node.js | **≥ 22** (`.nvmrc` and `engines` pin the floor; every gate runs on 22.x) |
 | pnpm | **10.x** (`corepack enable pnpm` is the simplest way) |
 | PostgreSQL | **16+**. No extensions required — the schema is plain SQL. |
 | A GCP project | **Only** for AI enrichment. Optional. |
@@ -319,7 +319,25 @@ your URL:
 * Running on Vercel: `vercel.json` pins the function region to `fra1` (EU) and
   schedules `/api/internal/worker-tick`. Set `WORKER_TICK_SECRET` **and**
   `CRON_SECRET` (same value) so the cron invocation authenticates. On a
-  long-running host, ignore the cron and run `pnpm worker` instead.
+  long-running host, ignore the cron and run `pnpm worker` instead. The project's
+  Node.js setting on Vercel must satisfy the `engines` floor from §2 — this
+  project builds on 24.x there, while every gate runs on 22.x.
+* HTTPS headers where you terminate TLS. `next.config.ts` sends
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, a CSP, a
+  `Referrer-Policy` and a `Permissions-Policy` itself. It deliberately does
+  **not** send `Strict-Transport-Security`: on Vercel the platform already adds
+  one to every HTTPS response (`max-age=63072000`, plus
+  `includeSubDomains; preload` on `*.vercel.app`), and a second copy with
+  different parameters would leave the enforced value up to the browser. So if
+  you front the app with nginx, Caddy or your own load balancer, set it there:
+
+  ```nginx
+  add_header Strict-Transport-Security "max-age=63072000" always;
+  ```
+
+  Add `includeSubDomains` only once every subdomain of your domain is HTTPS (and
+  `preload` only if you really intend to submit to the preload list — it is hard
+  to undo).
 
 Also set `OPERATOR_CONTACT_EMAIL` to *your* address — see §5.
 

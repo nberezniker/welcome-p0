@@ -4,6 +4,7 @@ import { requireAccount } from '../../../../lib/auth';
 import { decryptValue } from '../../../../lib/crypto';
 import { requireEncryptionKey } from '../../../../lib/env';
 import { internalError, jsonError, jsonOk, privateCacheHeaders, withApi } from '../../../../lib/http';
+import { log } from '../../../../lib/logger';
 import { checkRateLimit } from '../../../../lib/ratelimit';
 import { degradedEnrichmentDraft, selectEnrichmentProvider } from '../../../../integrations/enrichment';
 import {
@@ -179,13 +180,22 @@ async function postRoute(req: NextRequest) {
     // provider result while the UI always gets confirmable rows. Nothing is
     // persisted either way, and no catalogue id or link is ever invented.
     if (NO_DRAFT_CODES.has(result.code ?? '')) {
-      // BUG-4: the provider's own code must leave a server-side trace. The
-      // client is never told why (no provider internals leak), which is exactly
-      // why the diagnosis has to be possible from the logs: code + status only,
-      // no PII, no secrets, no request/response bodies.
-      console.error(
-        `[enrich] degraded fallback provider=${provider.name} state=${result.state} code=${result.code ?? 'none'} retryable=${String(result.retryable ?? 'n/a')}`,
-      );
+      // BUG-4: the provider's own code must leave a server-side trace. The client
+      // is never told why (no provider internals leak), which is exactly why the
+      // diagnosis has to be possible from the logs. What travels: the registry id,
+      // the transport state, the provider's own code enum and the retryable flag.
+      // What never travels: the access token, the GCP project, the model name, the
+      // profile or anything the provider returned — asserted by
+      // tests/integration/enrichment.test.ts, which greps this line for each of
+      // them. The message keeps its `[enrich]` prefix, so the line stays findable
+      // by the same grep operators already use.
+      log.warn('[enrich] degraded fallback', {
+        event: 'enrichment_degraded',
+        provider: provider.name,
+        outcome: result.state,
+        code: result.code ?? 'none',
+        retryable: result.retryable ?? true,
+      });
       const locale = await getLocale().catch(() => 'en' as Locale);
       const draft = degradedEnrichmentDraft({
         displayName: profile.display_name,
@@ -200,10 +210,16 @@ async function postRoute(req: NextRequest) {
     }
 
     // Real provider failure (auth, network, timeout, upstream 4xx/5xx): reported
-    // as a retryable 502 — with the same non-PII server-side trace.
-    console.error(
-      `[enrich] provider failed provider=${provider.name} state=${result.state} code=${result.code ?? 'none'} retryable=${String(result.retryable ?? 'n/a')}`,
-    );
+    // as a retryable 502 — with the same non-PII server-side trace. The message
+    // must keep starting with `[enrich]`: tests/integration/enrichment.test.ts
+    // finds the trace by exactly that prefix.
+    log.error('[enrich] provider failed', {
+      event: 'enrichment_provider_failed',
+      provider: provider.name,
+      outcome: result.state,
+      code: result.code ?? 'none',
+      retryable: result.retryable ?? true,
+    });
     return jsonError(502, 'enrichment_failed', 'Enrichment provider did not return a draft.', {
       retryable: result.retryable ?? true,
       headers: privateCacheHeaders(),

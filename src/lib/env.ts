@@ -2,6 +2,7 @@
  * (and print a clear error) even with an incomplete .env. */
 
 import { parseEmailAllowlist } from './crypto';
+import { log } from './logger';
 
 export type AppEnv = 'development' | 'test' | 'production';
 
@@ -122,9 +123,15 @@ export function otpExposureWarningMessage(
  * is a no-op when the message is `null`, and marks itself as warned only when
  * it actually logged — so a warm instance that boots in development and later
  * flips to production (tests, staged rollouts) still warns.
+ *
+ * The emitter is a parameter (not a hard call to `log.warn`) so that the
+ * once-only contract can be asserted without capturing global console state —
+ * tests/unit/otp-exposure-warning.test.ts injects a recorder. The DEFAULT is the
+ * logger: the message text is unchanged (operators grep for
+ * OTP_EXPOSURE_WARNING), and it stays a single `warn` call per process.
  */
 export function createOtpExposureWarner(
-  log: (message: string) => void = (message) => console.warn(message),
+  emit: (message: string) => void = (message) => log.warn(message, { event: 'otp_exposure_enabled' }),
 ): (env: AppEnv, flag: boolean, allowlistCount: number) => void {
   let warned = false;
   return (env, flag, allowlistCount) => {
@@ -132,7 +139,7 @@ export function createOtpExposureWarner(
     const message = otpExposureWarningMessage(env, flag, allowlistCount);
     if (!message) return;
     warned = true;
-    log(`[otp-exposure] ${message}`);
+    emit(`[otp-exposure] ${message}`);
   };
 }
 

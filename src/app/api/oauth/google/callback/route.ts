@@ -9,6 +9,7 @@ import { consumeFlowState } from '../../../../../lib/oauth-flow';
 import { upsertGrant } from '../../../../../lib/oauth-grants';
 import { recordAudit } from '../../../../../lib/audit';
 import { resolveProviderStatus } from '../../../../../lib/provider-status';
+import { log } from '../../../../../lib/logger';
 import { providerById } from '../../../../../domain/providers';
 import {
   CONNECTIONS_PATH,
@@ -175,9 +176,14 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     if (err instanceof GoogleApiError) {
       // Typed and token-free: the message is the CODE.
-      console.error(`[oauth.google.callback] ${err.code} status=${err.status ?? 'none'}`);
+      log.error('[oauth.google.callback] provider rejected the exchange', {
+        event: 'oauth_exchange_failed',
+        provider: 'google',
+        code: err.code,
+        status: err.status ?? undefined,
+      });
     } else {
-      console.error('[oauth.google.callback] failed', err instanceof Error ? err.message : 'unknown_error');
+      log.error('[oauth.google.callback] failed', { event: 'oauth_exchange_error', provider: 'google', err });
     }
     return backTo('exchange_failed', providerWord);
   }

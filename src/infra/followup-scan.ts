@@ -24,6 +24,7 @@ import { DEFAULT_LOCALE } from '../i18n/locale';
 import { reasonV4Templates } from '../i18n/reason-templates';
 import { appBaseUrl, digestEnabled, followupReminderDays, followupRemindersEnabled, requireHashPepper } from '../lib/env';
 import { getSql } from '../lib/db';
+import { log } from '../lib/logger';
 import { enqueueOutbox } from './outbox';
 import { decideRecipientChannel, loadTelegramBindingState, resolveAccountEmail } from './recipient-channel';
 
@@ -103,7 +104,7 @@ export async function runFollowupScan(sql: Sql = getSql(), now: Date = new Date(
     // A broken scan must never take the deliveries down with it: the outbox
     // batch of this tick is still claimed and processed by the caller.
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[followup-scan] failed:', err);
+    log.error('[followup-scan] failed', { event: 'followup_scan_failed', err });
     return { enabled, reminders: EMPTY, digest: EMPTY, error: message };
   }
 }

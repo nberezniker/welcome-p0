@@ -22,6 +22,7 @@ import {
   type EmailTransport,
 } from '../integrations/email';
 import { appBaseUrl } from '../lib/env';
+import { log } from '../lib/logger';
 import { DEFAULT_LOCALE } from '../i18n/locale';
 import {
   campaignEmailSubject,
@@ -75,7 +76,7 @@ export interface WorkerDeps {
 /**
  * How a job that threw while being processed is reported.
  *
- * The default is the loud, production behaviour: console.error carrying the job
+ * The default is the loud, production behaviour: an error log carrying the job
  * id/kind and the error with its stack. It is injectable ONLY so a test that
  * breaks a transport on purpose can declare the failure it is asserting and
  * keep the expected stack trace out of the gate output — the error is still
@@ -87,7 +88,10 @@ export interface WorkerDeps {
 export type JobErrorReporter = (job: OutboxJobRow, err: unknown) => void;
 
 const reportJobErrorToConsole: JobErrorReporter = (job, err) => {
-  console.error(`[worker] job ${job.id} (${job.kind}) failed:`, err);
+  // The job id and kind are opaque identifiers, not content: they are what the
+  // runbook needs to find the row. Nothing from the payload is logged — for an
+  // outbound job that payload is the message, recipient included.
+  log.error('[worker] job failed', { event: 'job_failed', job_id: job.id, job_kind: job.kind, err });
 };
 
 export interface TickReport {
@@ -422,7 +426,11 @@ export async function runWorker(deps: WorkerDeps = {}): Promise<void> {
   process.on('SIGTERM', stop);
   process.on('SIGINT', stop);
 
-  console.log(`[worker] started transport=${transport.name} email=${emailTransport?.name ?? 'none'}`);
+  log.info('[worker] started', {
+    event: 'worker_started',
+    provider: transport.name,
+    email_provider: emailTransport?.name ?? 'none',
+  });
   try {
     while (running) {
       const report = await tickOnce({
@@ -432,13 +440,32 @@ export async function runWorker(deps: WorkerDeps = {}): Promise<void> {
         reportJobError: deps.reportJobError,
       });
       if (report.claimed > 0 || report.requeuedLeases > 0) {
-        console.log(`[worker] claimed=${report.claimed} requeued=${report.requeuedLeases}`, report.results);
+        // A summary line plus one line per job that did NOT succeed. The tick used
+        // to print `report.results` as an array argument, which is unqueryable (an
+        // operator cannot filter "everything that was suppressed" out of a console
+        // dump) and puts a success row on every tick — noise that hides the rows
+        // worth reading. The full array is unchanged in the tick's JSON response
+        // (/api/internal/worker-tick), so nothing is lost for the HTTP path.
+        log.info('[worker] tick', {
+          event: 'worker_tick',
+          count: report.claimed,
+          requeued: report.requeuedLeases,
+        });
+        for (const result of report.results) {
+          if (!/^(error|suppressed):/.test(result.outcome)) continue;
+          log.warn('[worker] job outcome', {
+            event: 'job_outcome',
+            job_id: result.job_id,
+            job_kind: result.kind,
+            outcome: result.outcome,
+          });
+        }
       }
       if (running) await new Promise((resolve) => setTimeout(resolve, 2000));
     }
   } finally {
     process.off('SIGTERM', stop);
     process.off('SIGINT', stop);
-    console.log('[worker] drained, exiting');
+    log.info('[worker] drained, exiting', { event: 'worker_drained' });
   }
 }

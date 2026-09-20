@@ -2,6 +2,7 @@ import { after } from 'next/server';
 import { selectTransport } from '../integrations/telegram';
 import type { ChannelTransport } from '../integrations/telegram/transport';
 import { appEnv } from '../lib/env';
+import { log } from '../lib/logger';
 import { tickOnce, type JobErrorReporter } from './worker';
 
 /**
@@ -62,8 +63,13 @@ export async function runPostResponseTick(
     }
   } catch (err) {
     // Webhook responses are already sent; a failed fast path is logged and the
-    // pending job is picked up by the backstop on its next run.
-    console.error('[webhook/telegram] post-response tick failed (backstop will retry):', err);
+    // pending job is picked up by the backstop on its next run. No recipient,
+    // chat or payload travels with the line — the outbox row id is enough to
+    // find the job.
+    log.error('[webhook/telegram] post-response tick failed (backstop will retry)', {
+      event: 'post_response_tick_failed',
+      err,
+    });
   }
 }
 
@@ -85,10 +91,10 @@ export function schedulePostResponseTick(): void {
     // per gate run. In production it means a real misconfiguration — this route
     // is always invoked in a request scope — so it stays loud exactly there.
     if (appEnv() === 'production') {
-      console.warn(
-        '[webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop:',
-        err instanceof Error ? err.message : err,
-      );
+      log.warn('[webhook/telegram] after() unavailable (no request scope) — relying on the worker-tick backstop', {
+        event: 'after_unavailable',
+        err,
+      });
     }
   }
 }

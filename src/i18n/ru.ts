@@ -235,6 +235,8 @@ export const ru: Partial<Dictionary> = {
   'login.demoLoginHint': 'Подставит демо-аккаунт и покажет его код.',
 
   // ── /me shell & nav ───────────────────────────────────────────────────────
+  'me.loading.title': 'Открываем ваш кабинет…',
+  'me.loading.text': 'Загружаем профиль и данные мероприятий.',
   'me.nav.dashboard': 'Обзор',
   'me.nav.profile': 'Профиль',
   'me.nav.contacts': 'Контакты',
@@ -814,6 +816,11 @@ export const ru: Partial<Dictionary> = {
   'errors.403.home': 'К обзору',
   'errors.404.title': 'Страница не найдена',
   'errors.404.text': 'Такого адреса нет или он переехал.',
+  // Дублируется в src/i18n/surface-copy.ts для клиентских error-границ —
+  // см. комментарий у этих же ключей в en.ts.
+  'errors.500.title': 'Что-то пошло не так на нашей стороне',
+  'errors.500.text': 'Страницу не удалось показать. С вашими данными ничего не случилось — сохранённое не потеряно.',
+  'errors.500.retry': 'Попробовать снова',
 
   // ══ Pass B (UI): taxonomy picker, onboarding, mini-landing, reasons ══════
   // ── Reason codes (see src/domain/reasons.ts) ──

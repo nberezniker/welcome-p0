@@ -8,6 +8,7 @@ import { signOAuthState } from '../../../../../lib/oauth-state';
 import { purgeExpiredFlowStates, startFlowState } from '../../../../../lib/oauth-flow';
 import { recordAudit } from '../../../../../lib/audit';
 import { resolveProviderStatus } from '../../../../../lib/provider-status';
+import { log } from '../../../../../lib/logger';
 import { providerById, type ProviderId } from '../../../../../domain/providers';
 import {
   CONNECTIONS_PATH,
@@ -138,7 +139,9 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     // Even an unexpected failure answers with a flag, never a 500 page: the user
     // came here from a button and must land back on the page that explains.
-    console.error('[oauth.google.start] failed', err instanceof Error ? err.message : 'unknown_error');
+    // The error object is passed whole (name/message/stack) — it is this
+    // server's own failure, and no OAuth parameter reaches it.
+    log.error('[oauth.google.start] failed', { event: 'oauth_start_failed', provider: 'google', err });
     return backTo('unavailable', rawProvider);
   }
 }

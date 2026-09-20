@@ -4,7 +4,7 @@
   "private": true,
   "description": "WELCOME P0 — persistent personal networking profile + reusable QR product (Phase 1)",
   "engines": {
-    "node": ">=20.9"
+    "node": ">=22.0.0"
   },
   "scripts": {
     "dev": "next dev",

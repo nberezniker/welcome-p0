@@ -5,6 +5,7 @@ import { internalError, jsonError, jsonOk, privateCacheHeaders, withApi } from '
 import { GoogleApiError, revokeGoogleToken } from '../../../../../lib/google-api';
 import { deleteGrant, loadAccessTokenForRevocation } from '../../../../../lib/oauth-grants';
 import { recordAudit } from '../../../../../lib/audit';
+import { log } from '../../../../../lib/logger';
 import { isGoogleOAuthProvider } from '../../../../../domain/google-oauth';
 
 /**
@@ -53,11 +54,22 @@ async function deleteRoute(req: NextRequest) {
         await revokeGoogleToken(token);
         revokedAtGoogle = true;
       } catch (err) {
-        // Best-effort by design (see the header). Only the typed code is logged.
+        // Best-effort by design (see the header). Only the typed code is logged:
+        // the access token being revoked is the one value that must never appear
+        // here, which is also why the untyped branch logs no message of its own.
         if (err instanceof GoogleApiError) {
-          console.error(`[oauth.google.disconnect] revoke ${err.code} status=${err.status ?? 'none'}`);
+          log.error('[oauth.google.disconnect] provider refused the revoke', {
+            event: 'oauth_revoke_failed',
+            provider: 'google',
+            code: err.code,
+            status: err.status ?? undefined,
+          });
         } else {
-          console.error('[oauth.google.disconnect] revoke failed');
+          log.error('[oauth.google.disconnect] revoke failed', {
+            event: 'oauth_revoke_error',
+            provider: 'google',
+            err,
+          });
         }
       }
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../lib/db';
 import { secureSecretEqual } from '../../../lib/crypto';
+import { log } from '../../../lib/logger';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,10 +111,15 @@ export async function GET(req: NextRequest) {
       pendingJobs = lag[0]?.pending ?? 0;
       oldestPendingJobAgeSeconds = lag[0]?.oldest_age_seconds ?? null;
     } catch (err) {
-      console.warn('[health] outbox lag unavailable (liveness is unaffected):', err);
+      // Lag is a detail of the DETAILED payload: liveness is unaffected, so this
+      // stays a warning and the response still answers.
+      log.warn('[health] outbox lag unavailable (liveness is unaffected)', {
+        event: 'outbox_lag_unavailable',
+        err,
+      });
     }
   } catch (err) {
-    console.error('[health] check failed', err);
+    log.error('[health] check failed', { event: 'health_check_failed', err });
   }
 
   const status: PublicHealthPayload['status'] = db === 'up' && migrations === 'applied' ? 'ok' : 'error';

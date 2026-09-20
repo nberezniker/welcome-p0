@@ -275,6 +275,12 @@ test.describe('WELCOME P0 smoke', () => {
   // the smoke (hydration marker, locale switch, OTP flow) doubles as the proof
   // that the CSP does not break the Next.js client bootstrap.
   // F-15: the legal pages render and count as page routes.
+  // X-Content-Type-Options is asserted here rather than only in the config unit
+  // test (tests/unit/security-headers.test.ts) because that one proves what the
+  // app DECLARES; this proves the header survives the dev server and the
+  // streaming HTML response. Strict-Transport-Security is asserted there as a
+  // deliberate ABSENCE — the platform that terminates TLS owns it, see the
+  // comment in next.config.ts.
   test('security headers on /, /login and legal pages (F-04, F-15)', async ({ page }) => {
     for (const path of ['/', '/login', '/legal/privacy', '/legal/terms']) {
       const res = await page.goto(path);
@@ -286,6 +292,47 @@ test.describe('WELCOME P0 smoke', () => {
       expect(h['x-frame-options'], `XFO on ${path}`).toBe('DENY');
       expect(h['referrer-policy'], `Referrer-Policy on ${path}`).toBe('strict-origin-when-cross-origin');
       expect(h['permissions-policy'], `Permissions-Policy on ${path}`).toContain('camera=()');
+      expect(h['x-content-type-options'], `nosniff on ${path}`).toBe('nosniff');
+    }
+  });
+
+  // SEO surface: /robots.txt keeps crawlers out of the signed-in areas and the
+  // API, and points at the sitemap on the canonical origin — the same
+  // APP_BASE_URL the page metadata uses, so the file can never advertise a host
+  // this deployment does not serve. /sitemap.xml lists the public pages ONLY:
+  // a user card or an event URL in there would hand a crawler a page that is
+  // nobody else's business, which is the one thing this product promises not to
+  // do (landing, "no scraping").
+  test('robots.txt and sitemap.xml expose only the public surface (SEO)', async ({ request }) => {
+    const robotsRes = await request.get('/robots.txt');
+    expect(robotsRes.status(), 'GET /robots.txt').toBe(200);
+    const robots = await robotsRes.text();
+    // The origin the files claim is read off the answer itself rather than typed
+    // in: it is `APP_BASE_URL` as the running server resolved it, which is the
+    // whole point of building these URLs from the config (a hardcoded host would
+    // fail here, and would be wrong for every fork).
+    const origin = new URL(robotsRes.url()).origin;
+
+    expect(robots).toContain('User-Agent: *');
+    expect(robots).toContain('Allow: /');
+    for (const blocked of ['/me/', '/organizer/', '/api/']) {
+      expect(robots, `Disallow ${blocked}`).toContain(`Disallow: ${blocked}`);
+    }
+    expect(robots, 'the sitemap URL must come from the configured origin').toContain(
+      `Sitemap: ${origin}/sitemap.xml`,
+    );
+
+    const sitemapRes = await request.get('/sitemap.xml');
+    expect(sitemapRes.status(), 'GET /sitemap.xml').toBe(200);
+    const sitemap = await sitemapRes.text();
+    const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    expect(locs.sort(), 'only the landing and the two legal pages are public').toEqual(
+      [`${origin}/`, `${origin}/legal/privacy`, `${origin}/legal/terms`].sort(),
+    );
+    // Belt and braces: nothing private-shaped anywhere in the document, including
+    // in an attribute rather than a <loc>.
+    for (const forbidden of ['/me', '/organizer', '/api', '/p/', '/e/']) {
+      expect(sitemap, `${forbidden} must not be listed`).not.toContain(forbidden);
     }
   });
 });
