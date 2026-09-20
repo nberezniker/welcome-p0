@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-09-17T13:51:15.873Z",
-  "head_sha_at_gate_run": "223fdd0ac43df3d60cd5b1925b4a26d80218efd4",
+  "generated_at": "2026-09-20T15:08:38.871Z",
+  "head_sha_at_gate_run": "38f5737c4c6d30cf49bd569f8f2bcf91d8c17b8c",
   "note": "The seven release gates run fresh and sequentially on the working tree; the combined output is evidence/final-gates.log.",
   "previous_run": {
-    "generated_at": "2026-09-16T11:22:05.648Z",
-    "head_sha_at_gate_run": "4263fd8d58b375a1bc42e1631f4fbf4d1552ab54"
+    "generated_at": "2026-09-20T14:58:39.477Z",
+    "head_sha_at_gate_run": "38f5737c4c6d30cf49bd569f8f2bcf91d8c17b8c"
   },
   "gates": [
     {
       "command": "pnpm typecheck",
       "exit_code": 0,
-      "duration_s": 2,
+      "duration_s": 7,
       "summary_lines": [
         "> welcome-p0@0.1.0 typecheck /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> tsc --noEmit"
@@ -19,7 +19,7 @@
     {
       "command": "pnpm lint",
       "exit_code": 0,
-      "duration_s": 8,
+      "duration_s": 10,
       "summary_lines": [
         "> welcome-p0@0.1.0 lint /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> eslint ."
@@ -28,17 +28,17 @@
     {
       "command": "pnpm test:unit",
       "exit_code": 0,
-      "duration_s": 11,
+      "duration_s": 14,
       "summary_lines": [
         "ℹ skipped 0",
         "ℹ todo 0",
-        "ℹ duration_ms 10444.661667"
+        "ℹ duration_ms 13179.382167"
       ]
     },
     {
       "command": "pnpm test:integration",
       "exit_code": 0,
-      "duration_s": 23,
+      "duration_s": 30,
       "summary_lines": [
         "applied 012 012_followup_reminders_digest.sql",
         "applied 013 013_oauth_grants.sql",
@@ -48,32 +48,32 @@
     {
       "command": "pnpm test:e2e",
       "exit_code": 0,
-      "duration_s": 83,
+      "duration_s": 96,
       "summary_lines": [
-        "  42 passed (1.4m)"
+        "  42 passed (1.6m)"
       ]
     },
     {
       "command": "pnpm build",
       "exit_code": 0,
-      "duration_s": 6,
+      "duration_s": 7,
       "summary_lines": [
-        "✓ Compiled successfully in 1304ms",
+        "✓ Compiled successfully in 1587ms",
         "  Generating static pages using 9 workers (0/37) ...",
         "  Generating static pages using 9 workers (9/37) \r",
         "  Generating static pages using 9 workers (18/37) \r",
         "  Generating static pages using 9 workers (27/37) \r",
-        "✓ Generating static pages using 9 workers (37/37) in 147ms",
+        "✓ Generating static pages using 9 workers (37/37) in 214ms",
         "Route (app)"
       ]
     },
     {
       "command": "pnpm scan:secrets",
       "exit_code": 0,
-      "duration_s": 9,
+      "duration_s": 11,
       "summary_lines": [
         "> welcome-p0@0.1.0 scan:secrets /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
-        "scan:secrets ok — no secrets found in tracked files (4 documented exemption(s), 0 stale)"
+        "scan:secrets ok — no secrets found in tracked files (5 documented exemption(s), 0 stale)"
       ]
     }
   ],
