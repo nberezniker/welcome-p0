@@ -72,6 +72,62 @@ test('static safety: no eval( or new Function( anywhere in src/', () => {
   assert.deepEqual(functionFindings, []);
 });
 
+// ---------------------------------------------------------------------------
+// Next.js dynamic route params are a Promise
+// ---------------------------------------------------------------------------
+
+/**
+ * Next hands dynamic route parameters over as a Promise (`params: Promise<…>`).
+ * Reading one synchronously still works, but it is deprecated and dev-only
+ * visible as
+ *   "A param property was accessed directly with `params.x`. `params` is a
+ *    Promise and must be unwrapped with `await` or `React.use()` …"
+ * (https://nextjs.org/docs/messages/sync-dynamic-apis) — nothing fails, a
+ * warning is printed, and the access is gone from production logs entirely. The
+ * only reliable check is a static one, which is this test.
+ *
+ * Two zero-tolerance invariants over src/app:
+ *   1. no `params.<member>` access — route params are read only after
+ *      `const { … } = await params`. Nothing else under src/app may call a local
+ *      `params` either, which is why the search-param reader in the Google
+ *      callback is named `query` and the login page destructures `searchParams`:
+ *      the rule needs no allowlist to stay honest.
+ *   2. every `params: Promise<…>` declaration is matched by an `await` of that
+ *      promise, so a handler cannot take the promise and never unwrap it.
+ */
+function appSourceFiles(): { file: string; rel: string }[] {
+  return listSourceFiles(path.join(SRC_DIR, 'app')).map((file) => ({
+    file,
+    rel: path.relative(SRC_DIR, file).split(path.sep).join('/'),
+  }));
+}
+
+test('static safety: route params are never read before being awaited', () => {
+  const files = appSourceFiles();
+  const syncReads: Finding[] = [];
+  const unbalanced: { file: string; declared: number; awaited: number }[] = [];
+  let declarations = 0;
+
+  for (const { file, rel } of files) {
+    const source = readFileSync(file, 'utf8');
+    source.split('\n').forEach((text, i) => {
+      if (/\bparams\.[A-Za-z_$]/.test(text)) syncReads.push({ file: rel, line: i + 1, text: text.trim() });
+    });
+    // `\b` before `params` is what keeps `searchParams: Promise<…>` out of the
+    // count — a search-param promise is a different, separately awaited value.
+    const declared = source.match(/\bparams\s*:\s*Promise\s*</g)?.length ?? 0;
+    const awaited = source.match(/\bawait\s+params\b|\bawait\s+[A-Za-z_$][\w$]*\.params\b/g)?.length ?? 0;
+    declarations += declared;
+    if (declared !== awaited) unbalanced.push({ file: rel, declared, awaited });
+  }
+
+  assert.deepEqual(syncReads, []);
+  assert.deepEqual(unbalanced, []);
+  // Guards the scanner rather than the code: if a refactor moved the routes out
+  // of src/app, both assertions above would pass vacuously.
+  assert.ok(declarations >= 30, `expected the app's route params to be scanned, found ${declarations}`);
+});
+
 test('static safety: fetch( targets stay within the outbound allowlist', () => {
   // 1. Any fetch line carrying an absolute http(s) URL must live in an
   //    allowlisted transport file and reference that file's allowlisted host.

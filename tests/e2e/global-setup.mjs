@@ -69,6 +69,45 @@ async function warmup() {
   }
 }
 
+/**
+ * Route-manifest probe — the one check `warmup()` cannot make.
+ *
+ * The warmup deliberately accepts any status below 500, because several of its
+ * paths carry bogus ids and a 404 there is the CORRECT answer (a missing slug
+ * still proves its route compiled). That blindness has a cost: a `next dev`
+ * whose route manifest is missing or stale — observed under CPU starvation on
+ * a loaded machine, where every API route answered 404 for the whole run —
+ * sails through the warmup and then fails dozens of tests with unrelated-looking
+ * 404s, several minutes later, one assertion at a time.
+ *
+ * `GET /api/auth/otp/request` is the discriminator: the route exports POST only,
+ * so a healthy server answers 405 (the handler exists, the method does not).
+ * A 404 means NO handler — the manifest is broken, not the request. Fail here,
+ * at startup, with a message that says what to do.
+ */
+const MANIFEST_PROBE_PATH = '/api/auth/otp/request';
+
+async function assertRoutesServed() {
+  const deadline = Date.now() + 30_000;
+  let last = 'no response';
+  while (Date.now() < deadline) {
+    try {
+      const res = await fetch(`${baseURL}${MANIFEST_PROBE_PATH}`);
+      if (res.status !== 404 && res.status < 500) return; // 405 = the handler is there
+      last = `HTTP ${res.status}`;
+    } catch (err) {
+      last = err instanceof Error ? err.message : String(err);
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  throw new Error(
+    `the dev server answered ${MANIFEST_PROBE_PATH} with ${last} — it is not serving its API routes. ` +
+      'A 404 on this path means the route manifest is missing or stale (a starved `next dev` can come up ' +
+      'without its API routes), and an unreachable server reads the same way here. ' +
+      'Re-run the suite; if it repeats, stop the stray `next dev` / clear .next and try again.',
+  );
+}
+
 export default async function globalSetup() {
   const sql = postgres(databaseUrl, { max: 1 });
   try {
@@ -86,5 +125,6 @@ export default async function globalSetup() {
   if (result.status !== 0) {
     throw new Error(`E2E migrations failed with exit code ${result.status}`);
   }
+  await assertRoutesServed();
   await warmup();
 }

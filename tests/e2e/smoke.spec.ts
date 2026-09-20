@@ -64,6 +64,58 @@ async function newContext(browser: import('@playwright/test').Browser): Promise<
   return browser.newContext({ viewport: { width: 1280, height: 900 } });
 }
 
+/**
+ * Opt into the event directory and CONFIRM THE SERVER ACCEPTED IT.
+ *
+ * `event-directory-toggle` is an optimistic control: React flips the checkbox
+ * before the PATCH is answered (src/app/e/[slug]/member-panel.tsx). Asserting
+ * only the DOM therefore cannot tell "saved" from "dropped", and everything
+ * downstream depends on the row actually being `directory_visible = true`.
+ * The write is confirmed against its own response, so a lost PATCH fails HERE
+ * with the status that caused it instead of surfacing three steps later as an
+ * empty directory.
+ */
+async function joinDirectory(page: Page) {
+  const toggle = page.getByTestId('event-directory-toggle');
+  // Fresh membership: migration 001 defaults directory_visible to false.
+  await expect(toggle, 'the toggle starts unchecked for a new membership').not.toBeChecked();
+  const patched = page.waitForResponse(
+    (r) => r.request().method() === 'PATCH' && r.url().includes('/api/me/memberships/'),
+  );
+  await toggle.check();
+  const res = await patched;
+  expect(res.status(), 'directory_visible must be persisted server-side').toBe(200);
+  await expect(toggle).toBeChecked();
+}
+
+/**
+ * Switches the directory to "Everyone" and waits for the ANSWER, not for a
+ * clock: `member-list` only renders when the directory API returns at least one
+ * other visible member, and the panel renders `directory-empty` for any
+ * non-OK response. Asserting the visible list alone conflates "the request
+ * failed" (403/404/500) with "nobody is visible" and reports both as a DOM
+ * timeout. The response is asserted first, so the real cause is named; the DOM
+ * assertion then only covers the render, which is why it needs no fixed wait.
+ */
+async function openDirectoryAllMode(page: Page, eventId: string): Promise<string[]> {
+  const answered = page.waitForResponse(
+    (r) =>
+      r.request().method() === 'GET' &&
+      r.url().includes(`/api/events/${eventId}/directory`) &&
+      r.url().includes('mode=all'),
+    // Bounds the click taking effect (the effect refetches on the mode change),
+    // not the API call: the response itself is awaited below, unbounded.
+    { timeout: 30_000 },
+  );
+  await page.getByTestId('dir-mode-all').click();
+  const res = await answered;
+  expect(res.status(), 'GET directory?mode=all').toBe(200);
+  const body = (await res.json()) as { members?: { display_name: string }[] };
+  const names = (body.members ?? []).map((m) => m.display_name);
+  await expect(page.getByTestId('member-list')).toBeVisible();
+  return names;
+}
+
 test.describe('WELCOME P0 smoke', () => {
   test('landing, OTP login, profile, public card, event directory, mutual intro reveal', async ({ page, browser }) => {
     // ── 1. Landing renders; locale switch works ─────────────────────────────
@@ -130,8 +182,7 @@ test.describe('WELCOME P0 smoke', () => {
     await page.getByTestId('join-button').click();
     await expect(page.getByTestId('member-panel')).toBeVisible(); // reload after join
     await waitHydrated(page);
-    await page.getByTestId('event-directory-toggle').check();
-    await expect(page.getByTestId('event-directory-toggle')).toBeChecked();
+    await joinDirectory(page);
 
     // ── 6. Account B: login, profile, contact, join, directory ─────────────
     const ctxB = await newContext(browser);
@@ -145,16 +196,19 @@ test.describe('WELCOME P0 smoke', () => {
     await pageB.getByTestId('join-button').click();
     await expect(pageB.getByTestId('member-panel')).toBeVisible(); // reload after join
     await waitHydrated(pageB);
-    await pageB.getByTestId('event-directory-toggle').check();
-    await expect(pageB.getByTestId('event-directory-toggle')).toBeChecked();
+    // Confirms the PATCH before step 7 navigates this page away: `goto` aborts
+    // whatever is still in flight, so an unconfirmed optimistic write here is a
+    // write that can be silently lost.
+    await joinDirectory(pageB);
 
     // ── 7. B opens the directory and proposes an intro to A ────────────────
     await pageB.goto(`/me/events/${eventId}/directory`);
     // Pass B: the directory defaults to intent mode ("they seek what I offer"),
     // which is honestly empty for these tag-only profiles — switch to "Everyone".
     await waitHydrated(pageB);
-    await pageB.getByTestId('dir-mode-all').click();
-    await expect(pageB.getByTestId('member-list')).toBeVisible({ timeout: 15_000 });
+    const visible = await openDirectoryAllMode(pageB, eventId);
+    // The list is asserted against the API's own answer: A must be visible to B.
+    expect(visible).toContain('Alice Nova');
     const memberCard = pageB.getByTestId('member-list').locator('li').first();
     await memberCard.getByRole('button').first().click(); // propose intro
     await pageB.locator('input[type=checkbox]').first().check(); // reveal whatsapp
