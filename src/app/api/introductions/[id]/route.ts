@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../lib/http';
+import { withRequestContext, privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../lib/http';
 import { decryptValue } from '../../../../lib/crypto';
 import { requireEncryptionKey } from '../../../../lib/env';
 import type { RevealField } from '../../../../domain/introductions';
@@ -20,7 +20,11 @@ export const dynamic = 'force-dynamic';
  *   consent field sets (AC-34: empty consent → empty reveal), decrypted values
  *   of the OTHER party's contact fields.
  */
-export async function GET(
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withRequestContext } from '../../../../../lib/http';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
 import { appBaseUrl, requireEncryptionKey } from '../../../../../lib/env';
@@ -62,7 +63,11 @@ function backTo(status: GoogleFlowStatus, provider: string): Response {
   );
 }
 
-export async function GET(req: NextRequest) {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(req: NextRequest) {
   const rawProvider = req.nextUrl.searchParams.get('provider') ?? '';
   try {
     const auth = await requireAccount(req);

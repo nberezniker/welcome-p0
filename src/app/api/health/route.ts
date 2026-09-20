@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { withRequestContext } from '../../../lib/http';
 import { getSql } from '../../../lib/db';
 import { secureSecretEqual } from '../../../lib/crypto';
+import { buildId, healthVersionExposed } from '../../../lib/build-identity';
 import { log } from '../../../lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -30,6 +32,18 @@ interface PublicHealthPayload {
   oldest_pending_job_age_seconds: number | null;
 }
 
+/**
+ * Build/deployment identity — present ONLY when the operator set
+ * `HEALTH_EXPOSE_VERSION=true` (src/lib/build-identity.ts explains why it is
+ * opt-in). ABSENT, not null, while the flag is off: the JSON a default
+ * deployment serves here stays byte-identical to what it served before this
+ * field existed, which is what keeps F-16 — and the live check that pins it
+ * (usage-matrix P1) — exactly as they were.
+ */
+interface VersionedHealthPayload extends PublicHealthPayload {
+  build_id: string | null;
+}
+
 /** Detailed payload — only for callers presenting the shared worker secret. */
 interface DetailedHealthPayload extends PublicHealthPayload {
   migrations: 'applied' | 'missing';
@@ -46,7 +60,11 @@ interface DetailedHealthPayload extends PublicHealthPayload {
  * request carries `x-health-details: <WORKER_TICK_SECRET>` (constant-time
  * compare; unset secret → details are never exposed).
  */
-export async function GET(req: NextRequest) {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(req: NextRequest) {
   const sql = getSql();
   let db: 'up' | 'down' = 'down';
   let migrations: 'applied' | 'missing' = 'missing';
@@ -128,7 +146,12 @@ export async function GET(req: NextRequest) {
   const detailsAuthorized =
     !!secret && secureSecretEqual(req.headers.get('x-health-details') ?? '', secret);
 
-  const payload: PublicHealthPayload | DetailedHealthPayload = detailsAuthorized
+  // The flag is read per request, like every other env read in this app, so
+  // turning it on or off does not require a rebuild and the next request
+  // already honours it.
+  const exposeVersion = healthVersionExposed();
+
+  const payload: PublicHealthPayload | VersionedHealthPayload | DetailedHealthPayload = detailsAuthorized
     ? {
         status,
         db,
@@ -144,6 +167,11 @@ export async function GET(req: NextRequest) {
         worker,
         pending_jobs: pendingJobs,
         oldest_pending_job_age_seconds: oldestPendingJobAgeSeconds,
+        // Spread, not a null field: with the flag off the key does not exist at
+        // all, so the default payload is unchanged. A monitor that wants the
+        // identity opts in; a deployment that never asked keeps publishing
+        // exactly what it published before.
+        ...(exposeVersion ? { build_id: buildId() } : {}),
       };
 
   return NextResponse.json(payload, {

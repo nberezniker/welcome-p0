@@ -11,6 +11,14 @@
  *   HTTP 5xx / timeout / network error / no response → 'unknown'
  */
 
+import {
+  defaultFetch,
+  isTimeoutError,
+  timeoutSignal,
+  type FetchLike,
+  type OutboundTransportOptions,
+} from '../../lib/outbound';
+
 export interface EmailSendTask {
   /** Recipient address. The caller passes only what the provider needs. */
   to: string;
@@ -36,31 +44,47 @@ export interface EmailTransport {
   send(task: EmailSendTask): Promise<EmailSendResult>;
 }
 
+/**
+ * Per-call bound for one Resend request. A message that has not been accepted
+ * within this window is reported as a retryable `timeout` (the worker then
+ * applies its backoff) rather than holding the request or the tick — the
+ * mechanism and its rationale live in src/lib/outbound.ts.
+ */
 const REQUEST_TIMEOUT_MS = 10_000;
+
+/** The Resend endpoint. Kept as a constant so the host is pinned in one place
+ * (tests/unit/static-safety.test.ts asserts this file names it explicitly). */
+const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 
 export class ResendEmailTransport implements EmailTransport {
   readonly name = 'resend';
+  private readonly fetchImpl: FetchLike;
+  private readonly timeoutMs: number;
 
   constructor(
     private readonly apiKey: string,
     private readonly from: string,
-  ) {}
+    /** Test seam only — see OutboundTransportOptions. */
+    options: OutboundTransportOptions = {},
+  ) {
+    this.fetchImpl = options.fetchImpl ?? defaultFetch;
+    this.timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  }
 
   async send(task: EmailSendTask): Promise<EmailSendResult> {
     let res: Response;
     try {
-      res = await fetch('https://api.resend.com/emails', {
+      res = await this.fetchImpl(RESEND_ENDPOINT, {
         method: 'POST',
         headers: {
           authorization: `Bearer ${this.apiKey}`,
           'content-type': 'application/json',
         },
         body: JSON.stringify({ from: this.from, to: [task.to], subject: task.subject, text: task.text }),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: timeoutSignal(this.timeoutMs),
       });
     } catch (err) {
-      const timedOut = err instanceof Error && err.name === 'TimeoutError';
-      return { state: 'unknown', code: timedOut ? 'timeout' : 'network_error' };
+      return { state: 'unknown', code: isTimeoutError(err) ? 'timeout' : 'network_error' };
     }
 
     if (res.status === 429) {

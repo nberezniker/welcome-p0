@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { jsonError, internalError } from '../../../../../../lib/http';
+import { withRequestContext, jsonError, internalError } from '../../../../../../lib/http';
 import { requireEventRole } from '../../../../../../domain/organizer';
 import { neutralizeCsvCell } from '../../../../../../domain/csv';
 
@@ -27,7 +27,11 @@ function csvRow(cells: (string | number | null)[]): string {
   return cells.map((c) => csvCell(c === null ? '' : String(c))).join(',');
 }
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');

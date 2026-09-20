@@ -91,3 +91,85 @@ test('F-16: x-health-details with the worker secret → full payload; wrong secr
     else process.env.WORKER_TICK_SECRET = saved;
   }
 });
+
+// ---------------------------------------------------------------------------
+// Build identity — the F-16 principle kept, with one explicit opt-in.
+//
+// A public endpoint should not fingerprint a deployment, so the identity is
+// OFF by default and the default payload is asserted to be unchanged. The flag
+// exists for the legitimate case (an internal monitor asking "which build
+// answered?") without handing it WORKER_TICK_SECRET.
+// ---------------------------------------------------------------------------
+
+test('health: build identity is absent by default, whatever APP_BUILD_ID says', async () => {
+  const env = process.env as unknown as Record<string, string | undefined>;
+  const savedFlag = env.HEALTH_EXPOSE_VERSION;
+  const savedBuild = env.APP_BUILD_ID;
+  try {
+    delete env.HEALTH_EXPOSE_VERSION;
+    env.APP_BUILD_ID = 'sha-that-must-not-be-published';
+
+    const res = await health(makeRequest('/api/health'));
+    assertStatus(res, 200);
+    const body = (await res.json()) as Record<string, unknown>;
+
+    // The exact key set is the F-16 contract: no field may appear that a
+    // deployment fingerprint could ride in on.
+    assert.deepEqual(
+      Object.keys(body).sort(),
+      ['db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker'],
+    );
+    // Absent, not null: a `build_id: null` would still be a behaviour change on
+    // the live endpoint, and the live check (usage-matrix P1) asserts this shape.
+    assert.equal('build_id' in body, false);
+    assert.equal(JSON.stringify(body).includes('sha-that-must-not-be-published'), false);
+  } finally {
+    if (savedFlag === undefined) delete env.HEALTH_EXPOSE_VERSION;
+    else env.HEALTH_EXPOSE_VERSION = savedFlag;
+    if (savedBuild === undefined) delete env.APP_BUILD_ID;
+    else env.APP_BUILD_ID = savedBuild;
+  }
+});
+
+test('health: HEALTH_EXPOSE_VERSION=true publishes the build id — null when none is configured', async () => {
+  const env = process.env as unknown as Record<string, string | undefined>;
+  const savedFlag = env.HEALTH_EXPOSE_VERSION;
+  const savedBuild = env.APP_BUILD_ID;
+  try {
+    env.HEALTH_EXPOSE_VERSION = 'true';
+
+    // Configured → the operator's own value, verbatim.
+    env.APP_BUILD_ID = 'gitsha-deadbeef1234';
+    const withId = await health(makeRequest('/api/health'));
+    assertStatus(withId, 200);
+    const withIdBody = (await withId.json()) as Record<string, unknown>;
+    assert.equal(withIdBody.build_id, 'gitsha-deadbeef1234');
+    assert.deepEqual(
+      Object.keys(withIdBody).sort(),
+      ['build_id', 'db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker'],
+    );
+
+    // Enabled but unset → null, which is a different fact from "no identity was
+    // asked for" and must not be invented from the source tree or the host.
+    delete env.APP_BUILD_ID;
+    const noId = await health(makeRequest('/api/health'));
+    assertStatus(noId, 200);
+    const noIdBody = (await noId.json()) as Record<string, unknown>;
+    assert.equal('build_id' in noIdBody, true);
+    assert.equal(noIdBody.build_id, null);
+
+    // Anything other than exactly 'true' is off: a flag must not be talked into
+    // publishing by '1', 'yes' or 'TRUE'.
+    for (const value of ['1', 'yes', 'TRUE', '']) {
+      env.HEALTH_EXPOSE_VERSION = value;
+      const res = await health(makeRequest('/api/health'));
+      assertStatus(res, 200);
+      assert.equal('build_id' in ((await res.json()) as Record<string, unknown>), false, `HEALTH_EXPOSE_VERSION=${JSON.stringify(value)} must stay off`);
+    }
+  } finally {
+    if (savedFlag === undefined) delete env.HEALTH_EXPOSE_VERSION;
+    else env.HEALTH_EXPOSE_VERSION = savedFlag;
+    if (savedBuild === undefined) delete env.APP_BUILD_ID;
+    else env.APP_BUILD_ID = savedBuild;
+  }
+});

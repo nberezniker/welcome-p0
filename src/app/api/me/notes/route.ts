@@ -1,13 +1,17 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../lib/http';
+import { withRequestContext, privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../lib/http';
 
 export const dynamic = 'force-dynamic';
 
 /** GET /api/me/notes — the owner's private connection notes and next steps.
  * These records are NEVER exposed to the other party, organizers or exports. */
-export async function GET(req: NextRequest) {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');

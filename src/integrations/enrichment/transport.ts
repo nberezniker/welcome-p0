@@ -27,9 +27,24 @@ import {
   normalizeInterest,
   strictIntentForKind,
 } from '../../domain/taxonomy';
+import {
+  defaultFetch,
+  isTimeoutError,
+  timeoutSignal,
+  type FetchLike,
+  type OutboundTransportOptions,
+} from '../../lib/outbound';
 import type { TokenSource } from './auth';
 
 export const ENRICHMENT_REQUEST_TIMEOUT_MS = 30_000;
+/**
+ * PER-CALL DEADLINE, and the difference from the constant above is the point:
+ * `ENRICHMENT_REQUEST_TIMEOUT_MS` is the default budget for the whole transport
+ * call, and it is what the constructor's injectable `timeoutMs` overrides (tests
+ * only — and they must be able to, or proving the bound would cost 30 seconds of
+ * gate time per case). Every outbound call this file makes carries a signal built
+ * from the remaining budget, so no call can outlive the deadline.
+ */
 /**
  * Wall-clock budget for the WHOLE transport call, internal retry included. The
  * retry only runs while this budget still leaves room, so the endpoint's
@@ -279,8 +294,17 @@ export interface VertexOptions {
 export class VertexEnrichmentTransport implements EnrichmentProvider {
   readonly name = 'vertex_gemini';
   readonly enabled = true;
+  private readonly fetchImpl: FetchLike;
+  private readonly timeoutMs: number;
 
-  constructor(private readonly options: VertexOptions) {}
+  constructor(
+    private readonly options: VertexOptions,
+    /** Test seam only — see OutboundTransportOptions in src/lib/outbound.ts. */
+    transportOptions: OutboundTransportOptions = {},
+  ) {
+    this.fetchImpl = transportOptions.fetchImpl ?? defaultFetch;
+    this.timeoutMs = transportOptions.timeoutMs ?? ENRICHMENT_REQUEST_TIMEOUT_MS;
+  }
 
   private endpoint(): string {
     const { projectId, location, model } = this.options;
@@ -301,9 +325,20 @@ export class VertexEnrichmentTransport implements EnrichmentProvider {
     | { kind: 'no_answer'; code: 'no_draft' | 'bad_response' }
     | { kind: 'failure'; code: string; retryable: boolean }
   > {
+    // An already-spent budget is a TIMEOUT, reported as one and WITHOUT a call.
+    // Before this guard the exhausted case fell through to
+    // `AbortSignal.timeout(negative)`, which throws a RangeError from inside the
+    // try below and was caught by the same handler that classifies transport
+    // failures — so a call that was never made was blamed on the network
+    // ('network_error') instead of on the deadline. Nothing is sent here: the
+    // honest answer is that we ran out of time before asking.
+    if (!(timeoutMs > 0)) {
+      return { kind: 'failure', code: 'timeout', retryable: true };
+    }
+
     let res: Response;
     try {
-      res = await fetch(this.endpoint(), {
+      res = await this.fetchImpl(this.endpoint(), {
         method: 'POST',
         headers: {
           authorization: `Bearer ${token}`,
@@ -315,11 +350,10 @@ export class VertexEnrichmentTransport implements EnrichmentProvider {
           tools: [{ googleSearch: {} }],
           generationConfig: { temperature: 0.2, maxOutputTokens: ENRICHMENT_MAX_OUTPUT_TOKENS },
         }),
-        signal: AbortSignal.timeout(timeoutMs),
+        signal: timeoutSignal(timeoutMs),
       });
     } catch (err) {
-      const timedOut = err instanceof Error && err.name === 'TimeoutError';
-      return { kind: 'failure', code: timedOut ? 'timeout' : 'network_error', retryable: true };
+      return { kind: 'failure', code: isTimeoutError(err) ? 'timeout' : 'network_error', retryable: true };
     }
 
     if (res.status === 429 || res.status >= 500) {
@@ -362,7 +396,7 @@ export class VertexEnrichmentTransport implements EnrichmentProvider {
       return { state: 'failed', code: 'enrichment_auth_failed', retryable: false };
     }
 
-    const deadline = Date.now() + ENRICHMENT_REQUEST_TIMEOUT_MS;
+    const deadline = Date.now() + this.timeoutMs;
     let lastCode: 'no_draft' | 'bad_response' = 'no_draft';
     for (let attempt = 1; attempt <= 2; attempt++) {
       const remaining = deadline - Date.now();

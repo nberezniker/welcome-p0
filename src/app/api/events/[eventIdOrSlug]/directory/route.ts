@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { jsonError, internalError } from '../../../../../lib/http';
+import { withRequestContext, jsonError, internalError } from '../../../../../lib/http';
 import { isUuid } from '../../../../../domain/organizer';
 import { eventViewCacheHeaders } from '../../../../../lib/event-view';
 import {
@@ -35,7 +35,11 @@ export const dynamic = 'force-dynamic';
 const MODES = ['all', 'intent', 'interest'] as const;
 type Mode = (typeof MODES)[number];
 
-export async function GET(
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(
   req: NextRequest,
   { params }: { params: Promise<{ eventIdOrSlug: string }> },
 ) {

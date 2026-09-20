@@ -1,5 +1,6 @@
 import type { Sql, TransactionSql } from 'postgres';
 import { getSql } from '../lib/db';
+import { currentRequestId } from '../lib/request-context';
 
 /**
  * Outbox pattern (spec 04_ARCHITECTURE §7): business transactions enqueue jobs
@@ -88,6 +89,10 @@ export interface OutboxJobRow {
   lease_until: Date | null;
   attempt: number;
   created_at: Date;
+  /** The id of the HTTP request that enqueued this job, or null for a job the
+   * WORKER enqueued itself (migration 015). It is what joins a delivery failure
+   * back to a request a user can name: `SELECT … WHERE correlation_id = '<id>'`. */
+  correlation_id: string | null;
 }
 
 type SqlLike = Sql | TransactionSql;
@@ -99,23 +104,31 @@ type JsonParam = Parameters<Sql['json']>[0];
  * created=false — the caller must not repeat the business action (AC-32/37).
  * due_at defaults to the DB clock (now()) so freshly enqueued jobs are
  * immediately claimable regardless of app/DB clock skew.
+ *
+ * `correlation_id` is taken from the ambient request context (migration 015) and
+ * deliberately NOT a parameter: every call site already runs inside a route's
+ * request scope, so reading it here is what keeps the trace honest without
+ * asking ~10 business call sites to pass something they would eventually forget.
+ * Outside a request — the worker's own follow-up scan — it stays NULL, which is
+ * the truthful value: no HTTP request produced that job.
  */
 export async function enqueueOutbox(
   tx: SqlLike,
   input: OutboxJobInput,
 ): Promise<{ id: string; created: boolean }> {
+  const correlationId = currentRequestId() ?? null;
   const inserted = input.dueAt
     ? await tx<{ id: string }[]>`
-        INSERT INTO outbox_jobs (dedupe_key, kind, subject_id, channel, purpose, payload, due_at)
+        INSERT INTO outbox_jobs (dedupe_key, kind, subject_id, channel, purpose, payload, due_at, correlation_id)
         VALUES (${input.dedupeKey}, ${input.kind}, ${input.subjectId}, ${input.channel}, ${input.purpose},
-                ${tx.json(input.payload as JsonParam)}, ${input.dueAt})
+                ${tx.json(input.payload as JsonParam)}, ${input.dueAt}, ${correlationId})
         ON CONFLICT (dedupe_key) DO NOTHING
         RETURNING id
       `
     : await tx<{ id: string }[]>`
-        INSERT INTO outbox_jobs (dedupe_key, kind, subject_id, channel, purpose, payload)
+        INSERT INTO outbox_jobs (dedupe_key, kind, subject_id, channel, purpose, payload, correlation_id)
         VALUES (${input.dedupeKey}, ${input.kind}, ${input.subjectId}, ${input.channel}, ${input.purpose},
-                ${tx.json(input.payload as JsonParam)})
+                ${tx.json(input.payload as JsonParam)}, ${correlationId})
         ON CONFLICT (dedupe_key) DO NOTHING
         RETURNING id
       `;
@@ -144,7 +157,7 @@ export async function claimJobs(sql: Sql, limit = 10): Promise<OutboxJobRow[]> {
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
       )
-      RETURNING id, dedupe_key, kind, subject_id, channel, purpose, payload, due_at, status, lease_until, attempt, created_at
+      RETURNING id, dedupe_key, kind, subject_id, channel, purpose, payload, due_at, status, lease_until, attempt, created_at, correlation_id
     `;
     return claimed;
   });
@@ -310,6 +323,36 @@ export async function requeueExpiredLeases(sql: Sql): Promise<number> {
         due_at = CASE WHEN attempt + 1 >= ${MAX_UNKNOWN_ATTEMPTS} THEN due_at
                       ELSE now() + (${Math.ceil(computeBackoffMs(2) / 1000)} * interval '1 second') END
     WHERE status = 'leased' AND lease_until < now()
+    RETURNING id
+  `;
+  return rows.length;
+}
+
+/**
+ * Releases leases this worker took for jobs it never attempted.
+ *
+ * WHY THIS EXISTS. A shutdown signal can arrive between claiming a batch and
+ * sending the messages in it. Finishing the whole batch would mean the drain
+ * lasts `batch × per-call timeout` (10 jobs × 10s = 100s worst case), and any
+ * supervisor with a shorter grace period — Docker's default is 10 seconds —
+ * would SIGKILL long before the drain finished, turning a tidy shutdown into
+ * abandoned leases. Releasing the UNATTEMPTED ones keeps the drain bounded by the
+ * one call that is actually in flight, and the jobs are immediately claimable
+ * again.
+ *
+ * `attempt` is deliberately NOT incremented, and `due_at` is left alone: nothing
+ * was delivered and nothing was attempted, so this is not a try and not a
+ * failure. Incrementing would burn the retry budget on work that never happened
+ * (and, at MAX_UNKNOWN_ATTEMPTS, would push a job terminal for a signal we sent
+ * ourselves). Only rows this worker still holds — `status = 'leased'` — are
+ * touched, so a job another process already finalised is left as it is.
+ */
+export async function releaseUnattemptedJobs(sql: Sql, jobIds: readonly string[]): Promise<number> {
+  if (jobIds.length === 0) return 0;
+  const rows = await sql<{ id: string }[]>`
+    UPDATE outbox_jobs
+    SET status = 'pending', lease_until = NULL
+    WHERE id IN ${sql(jobIds)} AND status = 'leased'
     RETURNING id
   `;
   return rows.length;

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { withRequestContext } from '../../../../lib/http';
 
 /**
  * Demo-login discovery for the login page.
@@ -16,7 +17,11 @@ export const dynamic = 'force-dynamic';
 /** The synthetic account seeded by scripts/seed-demo.mts (is_demo = true). */
 const DEMO_EMAIL = 'demo1@welcome.test';
 
-export async function GET(): Promise<NextResponse> {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(): Promise<NextResponse> {
   const demoLoginEnabled = process.env.AUTH_EXPOSE_DEMO_OTP === 'true';
   return NextResponse.json(
     {

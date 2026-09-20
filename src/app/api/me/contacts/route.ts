@@ -3,10 +3,16 @@ import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
 import { requireEncryptionKey } from '../../../../lib/env';
 import { decryptValue, encryptValue } from '../../../../lib/crypto';
-import { privateCacheHeaders, internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
+import { withApi, privateCacheHeaders, internalError, jsonError, jsonOk, readJsonBody } from '../../../../lib/http';
 import { validateContactInput, CONTACT_KINDS } from '../../../../domain/profile';
 
-export async function GET(req: NextRequest) {
+/* Wrapped like this file's other handlers, for the request scope. On a GET the
+ * guards are inert — the CSRF check is method-gated and none of the rate-limit
+ * paths is this one — so what this read actually gains is the correlation id on
+ * its error bodies and log lines. */
+export const GET = withApi(get);
+
+async function get(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');

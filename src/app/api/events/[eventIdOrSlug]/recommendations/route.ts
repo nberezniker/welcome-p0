@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
-import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../lib/http';
+import { withRequestContext, privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../lib/http';
 import { isUuid } from '../../../../../domain/organizer';
 import { recommendForEvent } from '../../../../../domain/recommendations';
 import { DEFAULT_RECOMMENDATION_MODE, isRecommendationMode } from '../../../../../domain/networking-score';
@@ -21,7 +21,11 @@ export const dynamic = 'force-dynamic';
  * UI renders them in the viewer's language (src/domain/reasons.ts,
  * src/domain/reasons-v4.ts).
  */
-export async function GET(
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(
   req: NextRequest,
   { params }: { params: Promise<{ eventIdOrSlug: string }> },
 ) {

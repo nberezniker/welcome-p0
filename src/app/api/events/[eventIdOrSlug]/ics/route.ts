@@ -3,7 +3,7 @@ import { getSql } from '../../../../../lib/db';
 import { loadEventView, eventViewCacheHeaders } from '../../../../../lib/event-view';
 import { buildIcs, icsFilename } from '../../../../../domain/ics';
 import { appBaseUrl } from '../../../../../lib/env';
-import { jsonError, internalError } from '../../../../../lib/http';
+import { withRequestContext, jsonError, internalError } from '../../../../../lib/http';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,11 @@ export const dynamic = 'force-dynamic';
  * calendar file without a start time is worse than an honest error, because the
  * client would import it as "now".
  */
-export async function GET(
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(
   req: NextRequest,
   { params }: { params: Promise<{ eventIdOrSlug: string }> },
 ) {

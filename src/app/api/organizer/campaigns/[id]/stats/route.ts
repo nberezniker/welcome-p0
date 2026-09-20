@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../../lib/http';
+import { withRequestContext, privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../../lib/http';
 import { loadCampaignWithRole } from '../../../../../../domain/campaigns';
 import { campaignJobStats, OUTBOX_STATUSES, type OutboxStatus } from '../../../../../../infra/outbox';
 
@@ -11,7 +11,11 @@ import { campaignJobStats, OUTBOX_STATUSES, type OutboxStatus } from '../../../.
  * Bot API); it is NEVER reported as 'delivered' — actual recipient delivery is
  * not observable through the send API (spec S08).
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');

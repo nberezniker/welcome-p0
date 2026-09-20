@@ -10,6 +10,14 @@
  *   HTTP 5xx / timeout / network error / no response → 'unknown' (capped retries, AC-42)
  */
 
+import {
+  defaultFetch,
+  isTimeoutError,
+  timeoutSignal,
+  type FetchLike,
+  type OutboundTransportOptions,
+} from '../../lib/outbound';
+
 export interface TransportSendTask {
   jobId: string;
   /** Resolved external channel id (Telegram chat id as string). */
@@ -31,26 +39,40 @@ export interface ChannelTransport {
   send(task: TransportSendTask): Promise<TransportResult>;
 }
 
+/**
+ * Per-call bound for one sendMessage request. A message the Bot API has not
+ * accepted within this window is reported as a retryable `timeout` — the lease
+ * is released and the job retried with backoff rather than the tick blocking.
+ * Mechanism and rationale: src/lib/outbound.ts.
+ */
 const REQUEST_TIMEOUT_MS = 10_000;
 
 export class TelegramTransport implements ChannelTransport {
   readonly name = 'telegram_bot_api';
+  private readonly fetchImpl: FetchLike;
+  private readonly timeoutMs: number;
 
-  constructor(private readonly token: string) {}
+  constructor(
+    private readonly token: string,
+    /** Test seam only — see OutboundTransportOptions. */
+    options: OutboundTransportOptions = {},
+  ) {
+    this.fetchImpl = options.fetchImpl ?? defaultFetch;
+    this.timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  }
 
   async send(task: TransportSendTask): Promise<TransportResult> {
     const url = `https://api.telegram.org/bot${this.token}/sendMessage`;
     let res: Response;
     try {
-      res = await fetch(url, {
+      res = await this.fetchImpl(url, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ chat_id: task.chatId, text: task.text }),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal: timeoutSignal(this.timeoutMs),
       });
     } catch (err) {
-      const timedOut = err instanceof Error && err.name === 'TimeoutError';
-      return { state: 'unknown', code: timedOut ? 'timeout' : 'network_error' };
+      return { state: 'unknown', code: isTimeoutError(err) ? 'timeout' : 'network_error' };
     }
 
     if (res.status === 429) {

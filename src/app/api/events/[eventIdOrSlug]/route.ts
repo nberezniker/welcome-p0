@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { jsonError, internalError } from '../../../../lib/http';
+import { withRequestContext, jsonError, internalError } from '../../../../lib/http';
 import { loadEventView, eventViewCacheHeaders } from '../../../../lib/event-view';
 import { NextResponse } from 'next/server';
 
@@ -9,7 +9,11 @@ export const dynamic = 'force-dynamic';
 
 /** GET /api/events/[eventIdOrSlug] — public event projection.
  * online_link is included ONLY when the viewer is an active member. */
-export async function GET(
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(
   req: NextRequest,
   { params }: { params: Promise<{ eventIdOrSlug: string }> },
 ) {

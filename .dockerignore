@@ -1,0 +1,49 @@
+# Build context for the self-hosting image (SELF_HOSTING.md §4.7).
+#
+# The list is short on purpose: everything kept here is either needed by
+# `pnpm build`, or harmless. Everything excluded is either rebuildable
+# (node_modules, .next), or must never enter an image at all (secrets), or is
+# development-only material that would only make the context larger
+# (tests, evidence, frozen reference material).
+
+# --- rebuildable ----------------------------------------------------------
+node_modules
+**/node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+
+# --- never in an image ----------------------------------------------------
+# SECURITY: .env.local and .env.deploy.secrets in a developer's checkout hold the
+# real ENCRYPTION_KEY / HASH_PEPPER and provider keys. `COPY . .` would bake them
+# into a layer, and no later stage can un-bake a layer. Values reach the running
+# container from the operator's environment (docker-compose.yml `env_file`),
+# never from the build context.
+.env
+.env.*
+.secrets/
+client_secret_*.json
+*.pem
+.vercel/
+
+# --- development-only material -------------------------------------------
+tests/
+playwright.config.ts
+test-results/
+playwright-report/
+evidence/
+docs-internal/
+spec/
+reference-landing/
+.github/
+# Runtime artifact of `pnpm dev` (the dev OTP log) — not input to a build.
+.runtime/
+.DS_Store
+.vscode/
+.idea/
+
+# --- version control ------------------------------------------------------
+.git
+.gitignore
+.gitattributes

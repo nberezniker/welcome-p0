@@ -1,0 +1,134 @@
+# WELCOME — self-hosting stack: application + PostgreSQL.
+#
+# WHAT THIS IS FOR. One command that produces a running instance on a machine
+# that has Docker and nothing else: no pnpm, no Node, no source checkout. It is
+# the alternative path to the manual quickstart in SELF_HOSTING.md §3 — read
+# §4.7 for what it deliberately does NOT cover (TLS, reverse proxy, backups,
+# the outbox worker).
+#
+# WHERE THE VALUES COME FROM. Every value is the operator's own, supplied
+# through a `.env` file next to this file (`cp .env.example .env` and fill it in;
+# `.env` is gitignored). Nothing here names a domain, an operator address or a
+# key: this repository is public, and a compose file that shipped a working
+# value for any of those would be shipping somebody else's deployment.
+#
+# Start:  docker compose up -d --build
+# Logs:   docker compose logs -f app
+# Stop:   docker compose down          (add -v to also delete the database volume)
+
+name: welcome
+
+services:
+  # -------------------------------------------------------------------------
+  # PostgreSQL 16 — the only stateful service. Its data lives in the named
+  # volume below, so `docker compose down` (without -v) is not data loss.
+  # -------------------------------------------------------------------------
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-welcome}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env — see SELF_HOSTING.md §4.7}
+      POSTGRES_DB: ${POSTGRES_DB:-welcome}
+    volumes:
+      - welcome-db-data:/var/lib/postgresql/data
+    # No `ports:` on purpose. The app reaches this server over the compose
+    # network as `db:5432`, so the database never needs to be reachable from
+    # outside the stack. Publishing 5432 would also collide with any PostgreSQL
+    # already running on the host. To attach a client, either
+    # `docker compose exec db psql -U welcome -d welcome` or uncomment:
+    #   ports:
+    #     - "127.0.0.1:5432:5432"
+    healthcheck:
+      # Without this the app and the migration job would start against a socket
+      # that is listening but not yet accepting — the classic "connection
+      # refused on first boot" race. `depends_on` below keys off this check.
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-welcome} -d ${POSTGRES_DB:-welcome}']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  # -------------------------------------------------------------------------
+  # Migrations — one-shot, runs to completion before the app starts.
+  #
+  # A separate service rather than an entrypoint in the app image: an entrypoint
+  # would re-run migrations on EVERY start (including each replica and each
+  # restart), and would make the answer to "did the schema apply?" a log line
+  # instead of an exit code. Here it is an exit code, and the app's
+  # `service_completed_successfully` dependency refuses to start without it.
+  #
+  # NO `build:` HERE, deliberately: it is the SAME image as `app`, and two
+  # services naming one tag cannot both build it — `docker compose build` runs
+  # them concurrently and the loser dies with "image … already exists". This
+  # service therefore only references the tag, which `up --build` has just built
+  # (that is also the documented start command).
+  # -------------------------------------------------------------------------
+  migrate:
+    image: welcome-app:local
+    restart: 'no'
+    command: ['node', 'scripts/migrate.mjs']
+    env_file:
+      - .env
+    environment:
+      # Set explicitly, and AFTER env_file, because an .env copied from
+      # .env.example carries DATABASE_URL=…@localhost:5432/… — inside this stack
+      # "localhost" is the container itself, not the database. Compose lets
+      # `environment` win over `env_file`, so the internal address is not
+      # something the operator has to remember to change.
+      DATABASE_URL: postgres://${POSTGRES_USER:-welcome}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-welcome}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # -------------------------------------------------------------------------
+  # The application. `next start`, non-root, on the port the operator chooses.
+  # -------------------------------------------------------------------------
+  app:
+    build: .
+    image: welcome-app:local
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # APP_ENV defaults to production, NOT development: this stack may be
+      # exposed to the internet, and development semantics (dev-OTP exposure,
+      # readable logs, relaxed CSP) are the wrong fail-safe for that. A local
+      # trial sets APP_ENV=development + AUTH_DEV_EXPOSE_OTP=true in .env — see
+      # SELF_HOSTING.md §4.7.
+      APP_ENV: ${APP_ENV:-production}
+      # See the migrate service: an .env copied from .env.example points at
+      # localhost, which is the wrong host inside the compose network.
+      DATABASE_URL: postgres://${POSTGRES_USER:-welcome}:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-welcome}
+      # Optional build identity for GET /api/health. Off unless the operator both
+      # sets APP_BUILD_ID and turns the flag on — see .env.example.
+      APP_BUILD_ID: ${APP_BUILD_ID:-}
+      HEALTH_EXPOSE_VERSION: ${HEALTH_EXPOSE_VERSION:-false}
+    ports:
+      # Bind to every interface inside the host by default; put this stack
+      # behind a TLS-terminating reverse proxy (SELF_HOSTING.md §4.5).
+      - '${APP_PORT:-3000}:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # `node -e` rather than wget/curl: the runtime image is node:22-alpine and
+      # node is the one HTTP client guaranteed to be present. 200 is the only
+      # healthy answer — /api/health returns 503 when the database is down or the
+      # migrations are missing, which would make a "container is up" claim false.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+volumes:
+  # Named, not anonymous: `docker compose down && up` must not silently start
+  # over with an empty database.
+  welcome-db-data:

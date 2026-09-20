@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { withRequestContext } from '../../../../../lib/http';
 import { getSql } from '../../../../../lib/db';
 import { requireAccount } from '../../../../../lib/auth';
 import { appBaseUrl, requireEncryptionKey } from '../../../../../lib/env';
@@ -66,7 +67,11 @@ function backTo(status: GoogleFlowStatus, provider: string): Response {
   );
 }
 
-export async function GET(req: NextRequest) {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(req: NextRequest) {
   // Whatever happens, the user ends up back on the connections page; the default
   // provider word is only used when the state itself could not be trusted.
   let providerWord = 'google-contacts';

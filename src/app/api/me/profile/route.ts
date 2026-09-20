@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { privateCacheHeaders, internalError, jsonError, jsonOk, readJsonBody, withApi } from '../../../../lib/http';
+import { withApi, privateCacheHeaders, internalError, jsonError, jsonOk, readJsonBody } from '../../../../lib/http';
 import { checkRevision, validateProfileInput } from '../../../../domain/profile';
 import { generatePublicSlug } from '../../../../lib/crypto';
 
@@ -25,7 +25,13 @@ interface ProfileRow {
   revision: number;
 }
 
-export async function GET(req: NextRequest) {
+/* Wrapped like this file's other handlers, for the request scope. On a GET the
+ * guards are inert — the CSRF check is method-gated and none of the rate-limit
+ * paths is this one — so what this read actually gains is the correlation id on
+ * its error bodies and log lines. */
+export const GET = withApi(get);
+
+async function get(req: NextRequest) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');

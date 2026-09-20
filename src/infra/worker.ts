@@ -9,6 +9,7 @@ import {
   computeBackoffMs,
   isFlaggedKind,
   MAX_UNKNOWN_ATTEMPTS,
+  releaseUnattemptedJobs,
   requeueExpiredLeases,
   type OutboxJobRow,
   type TransportOutcome,
@@ -71,6 +72,15 @@ export interface WorkerDeps {
   followupScan?: boolean;
   /** Where a job-level processing failure is reported. See JobErrorReporter. */
   reportJobError?: JobErrorReporter;
+  /**
+   * Asked before each claimed job: "should this tick stop claiming further work?"
+   * Set by `runWorker` to read its shutdown flag, so a SIGTERM releases the
+   * claimed-but-unattempted remainder of the batch instead of sending it (see
+   * releaseUnattemptedJobs). Left undefined — the HTTP tick and every test — the
+   * batch is always processed in full, which is the behaviour everywhere except a
+   * process that has been asked to stop.
+   */
+  shouldStop?: () => boolean;
 }
 
 /**
@@ -91,14 +101,32 @@ const reportJobErrorToConsole: JobErrorReporter = (job, err) => {
   // The job id and kind are opaque identifiers, not content: they are what the
   // runbook needs to find the row. Nothing from the payload is logged — for an
   // outbound job that payload is the message, recipient included.
-  log.error('[worker] job failed', { event: 'job_failed', job_id: job.id, job_kind: job.kind, err });
+  //
+  // `correlation_id` is the id of the HTTP REQUEST that enqueued the job
+  // (migration 015), so this line joins the delivery failure to the request that
+  // caused it: the same value the caller received in an error body or response
+  // header. NULL for worker-enqueued jobs, and then the field is simply absent.
+  log.error('[worker] job failed', {
+    event: 'job_failed',
+    job_id: job.id,
+    job_kind: job.kind,
+    correlation_id: job.correlation_id ?? undefined,
+    err,
+  });
 };
 
 export interface TickReport {
   heartbeat: boolean;
   requeuedLeases: number;
   claimed: number;
-  results: { job_id: string; kind: string; outcome: string }[];
+  /** Jobs whose lease this tick released WITHOUT attempting them, because a
+   *  shutdown was requested after they had been claimed (see
+   *  releaseUnattemptedJobs). Non-zero only during a drain. */
+  released: number;
+  /** `correlation_id` is the enqueuing request, when there was one — see
+   *  `reportJobErrorToConsole`. It is carried here so the tick summary can name
+   *  the request behind a job that did not succeed. */
+  results: { job_id: string; kind: string; outcome: string; correlation_id: string | null }[];
   /** F-06: retention pass result — null when not due this tick. */
   cleanup: CleanupReport | null;
   /** Phase 4: what the follow-up scan did this tick. Both mechanics report
@@ -157,16 +185,33 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
 
   const jobs = await claimJobs(sql, deps.batchLimit ?? BATCH_LIMIT);
   const results: TickReport['results'] = [];
-  for (const job of jobs) {
+  let released = 0;
+  for (let i = 0; i < jobs.length; i += 1) {
+    const job = jobs[i]!;
+    // Checked BEFORE the job is attempted, so a signal that arrived while the
+    // previous job was in flight releases the untouched remainder instead of
+    // sending it. The job already in flight is never cut off — it finishes and
+    // is finalised, which is what makes the drain graceful rather than abortive.
+    if (deps.shouldStop?.()) {
+      const leftover = jobs.slice(i).map((j) => j.id);
+      released = await releaseUnattemptedJobs(sql, leftover);
+      if (released > 0) {
+        log.info('[worker] shutdown requested — released claimed jobs without attempting them', {
+          event: 'worker_released_unattempted',
+          count: released,
+        });
+      }
+      break;
+    }
     const outcome = await processJob(sql, transports, job, reportJobError);
-    results.push({ job_id: job.id, kind: job.kind, outcome });
+    results.push({ job_id: job.id, kind: job.kind, outcome, correlation_id: job.correlation_id });
   }
 
   // F-06: retention + minimization, due-gated (>= 6h between runs), after the
   // job batch so a busy tick is never delayed by housekeeping.
   const cleanup = deps.cleanup === false ? null : await runCleanupIfDue({ sql });
 
-  return { heartbeat: true, requeuedLeases, claimed: jobs.length, results, cleanup, followup };
+  return { heartbeat: true, requeuedLeases, claimed: jobs.length, released, results, cleanup, followup };
 }
 
 async function processJob(
@@ -438,6 +483,9 @@ export async function runWorker(deps: WorkerDeps = {}): Promise<void> {
         transport,
         emailTransport,
         reportJobError: deps.reportJobError,
+        // Read per job, so a signal that lands mid-tick is honoured before the
+        // next job in the claimed batch is attempted.
+        shouldStop: () => !running,
       });
       if (report.claimed > 0 || report.requeuedLeases > 0) {
         // A summary line plus one line per job that did NOT succeed. The tick used
@@ -458,6 +506,7 @@ export async function runWorker(deps: WorkerDeps = {}): Promise<void> {
             job_id: result.job_id,
             job_kind: result.kind,
             outcome: result.outcome,
+            correlation_id: result.correlation_id ?? undefined,
           });
         }
       }

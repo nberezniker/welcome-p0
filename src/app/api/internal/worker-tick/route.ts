@@ -49,6 +49,10 @@ async function tickRoute(req: NextRequest) {
     ok: true,
     processed: report.claimed,
     requeued_leases: report.requeuedLeases,
+    // Always 0 on this path: this endpoint runs one tick with no shutdown flag,
+    // so it never releases an unattempted claim (that is a long-running-worker
+    // drain). Reported anyway so the field means the same thing on both paths.
+    released: report.released,
     results: report.results,
     // Phase 4 visibility: both mechanics report enabled=false while their flag is
     // off, so an operator can tell "the flag is not set" from "the flag is set

@@ -2819,16 +2819,26 @@ async function modeP(): Promise<void> {
     return { actual: `200 migrations=applied, migration_version=${body.migration_version}`, evidence: ev(res, 'status', 'db', 'migrations', 'migration_version', 'worker') };
   });
 
-  await check('P3', 'P', 'security-заголовки на / и /login (4 заголовка)', 'CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy', async () => {
-    const wanted = ['content-security-policy', 'x-frame-options', 'referrer-policy', 'permissions-policy'];
+  await check('P3', 'P', 'security-заголовки на / и /login (5 заголовков)', 'CSP, X-Frame-Options, Referrer-Policy, Permissions-Policy, X-Content-Type-Options: nosniff', async () => {
+    // X-Content-Type-Options joined this list when the header was actually
+    // deployed on the host: it used to be pinned statically only
+    // (tests/unit/security-headers.test.ts), so asserting it here would have
+    // failed against the running deployment — a live check may only demand what
+    // is live.
+    //
+    // Its VALUE is asserted as well, unlike the other four. `nosniff` is the only
+    // token that header may carry, and a presence-only check passes on a value no
+    // browser honours — a formality rather than a check.
+    const wanted = ['content-security-policy', 'x-frame-options', 'referrer-policy', 'permissions-policy', 'x-content-type-options'];
     const results: string[] = [];
     for (const path of ['/', '/login']) {
       const res = await anon.get(path);
       equals(res.status, 200, `${path} status`);
       for (const h of wanted) must(res.headers.get(h) !== null, `${path} missing ${h}`);
-      results.push(`${path}: ${wanted.length}/4`);
+      equals(res.headers.get('x-content-type-options'), 'nosniff', `${path} x-content-type-options`);
+      results.push(`${path}: ${wanted.length}/${wanted.length}`);
     }
-    return { actual: `4/4 на / и /login (${wanted.join(', ')})`, evidence: results.join(' | ') };
+    return { actual: `${wanted.length}/${wanted.length} на / и /login (${wanted.join(', ')})`, evidence: results.join(' | ') };
   });
 
   await check('P4', 'P', 'rate limit на OTP: per-IP bucket (10/мин)', '11-й запрос с одного IP → 429 + X-RateLimit-Limit', async () => {

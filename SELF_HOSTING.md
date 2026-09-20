@@ -57,6 +57,11 @@ No account on any service is required to run the app.
 
 Every command is run from the repository root.
 
+> **Prefer containers?** §4.7 runs the app, PostgreSQL and the migrations with
+> `docker compose up -d --build`, no Node or pnpm on the host. This section is the
+> manual path, and it is the one to follow if you want to read what each step does
+> before it happens.
+
 ### 3.1 Install
 
 ```bash
@@ -359,6 +364,114 @@ not a promise of price.
 
 The app is deliberately boring about infrastructure: one Node process, one
 PostgreSQL database, no queue service, no cache service, no object storage.
+
+### 4.7 Docker: the whole stack in one command
+
+An alternative to §3 for a machine that has Docker and nothing else — no Node, no
+pnpm, nothing beyond the repository checkout. It brings up the app, a PostgreSQL
+16 server and a one-shot migration job:
+
+```bash
+cp .env.example .env       # then edit it — see below
+docker compose up -d --build
+```
+
+What you get:
+
+| Service | What it is | Notes |
+|---|---|---|
+| `db` | `postgres:16-alpine` | Data in the named volume `welcome-db-data`, so `docker compose down` is not data loss. No host port is published — the app reaches it as `db:5432` over the compose network, and publishing 5432 would collide with a PostgreSQL already on your machine. |
+| `migrate` | The same image, `node scripts/migrate.mjs` | Runs to completion **before** the app starts (`service_completed_successfully`), so "did the schema apply?" is an exit code rather than a log line. |
+| `app` | `next start`, non-root (uid 1001) | Health-checked on `/api/health`; only `200` counts as healthy, and the endpoint answers `503` whenever the database is down or the migrations are missing. Measured: stopping the database turns the container `unhealthy` after ~40s (`interval` × `retries`), and starting it again turns it `healthy` within ~20s. |
+
+`.env` is yours and is gitignored. It needs the five variables from §3.3
+(`APP_ENV`, `APP_BASE_URL`, `DATABASE_URL`, `ENCRYPTION_KEY`, `HASH_PEPPER`) plus
+three that create the container database: `POSTGRES_USER`, `POSTGRES_PASSWORD`,
+`POSTGRES_DB`. The compose file overrides `DATABASE_URL` on purpose and points
+the app at `db` — a value copied from `.env.example` says `localhost`, which
+inside a container is the container itself. Optional: `APP_PORT` (default 3000)
+to move the published port.
+
+Useful commands:
+
+```bash
+docker compose logs -f app                            # what the app is saying
+docker compose exec app id                            # → uid=1001(nextjs) gid=1001(nodejs)
+docker compose exec db psql -U welcome -d welcome     # open the database
+docker compose down                                   # stop, keep the data volume
+docker compose down -v                                # stop and delete the data
+```
+
+**`APP_ENV` defaults to `production`** inside this stack: the safe default for
+something you may expose. It also means sign-in needs an email provider — with no
+`RESEND_API_KEY`, `POST /api/auth/otp/request` answers `503
+email_channel_disabled` (deliberate, §8). For a throwaway local trial put
+`APP_ENV=development` and `AUTH_DEV_EXPOSE_OTP=true` in `.env` and read the codes
+out of the container log; do not do that on a host anyone else can reach.
+
+**What this path does NOT do.** It is a container runner, not a platform:
+
+* no TLS termination and no reverse proxy — put one in front of it (§4.5), and set
+  HSTS there, because the app deliberately does not set it itself;
+* no monitoring integration beyond the health endpoint itself — the optional
+  build/deployment identity that endpoint can publish (`HEALTH_EXPOSE_VERSION`,
+  off by default) is documented in `.env.example`;
+* **no backups.** The named volume is a volume, not a backup.
+  `scripts/backup-rehearsal.mjs` (deployment-specific, §7) rehearses a restore
+  against a Neon-style provider and is not wired into this stack;
+* **no outbox worker process.** The stack runs the web app only — §4.8 explains
+  what that means and how to drain the queue.
+
+### 4.8 The outbox worker: running it, stopping it, and what a stop costs
+
+Notifications (introduction notices, campaign messages, reminders, digests) are
+not sent inside the request that triggers them. The request writes a row into
+`outbox_jobs` in the same transaction as the business change, and a worker
+delivers it afterwards. That is what keeps "the request succeeded" and "the
+message was sent" two separate, separately observable facts. Two ways to drain the
+queue:
+
+| Path | When | How |
+|---|---|---|
+| Long-running worker | Any host that keeps a process alive (VPS, Fly.io, Docker) | `pnpm worker` |
+| One-tick endpoint | Serverless — nothing keeps a process alive | `GET`/`POST /api/internal/worker-tick` with `WORKER_TICK_SECRET` (Vercel Cron sends it as `Authorization: Bearer $CRON_SECRET`) |
+
+The Docker stack in §4.7 deliberately has **no worker service**: the runtime image
+carries production dependencies only, while the worker entry point is TypeScript
+run through `tsx` (a devDependency). With that stack, either run `pnpm worker` on
+the host against the same `DATABASE_URL`, or schedule the one-tick endpoint with
+`WORKER_TICK_SECRET` set. With neither, jobs stay `pending` — visible as
+`pending_jobs` / `oldest_pending_job_age_seconds` in `/api/health` — and nothing
+is sent. Nothing is lost, and nothing pretends otherwise.
+
+**Shutdown, precisely.** `SIGTERM`/`SIGINT` set a flag that is read *between*
+jobs, so:
+
+* a job **already in flight completes** — it is finalised, its lease is released,
+  and the delivery is not cut off half-way. Measured by running the real worker
+  against a real database with a transport that takes 3 seconds: the signal
+  arrived 1.2s into the send, the send finished, the row ended `sent` with
+  `lease_until = NULL`, nothing was left `leased`, and the process exited `0`
+  after printing `worker_drained`;
+* jobs **claimed by the same tick but not yet attempted are released**, not sent
+  and not counted as attempts (`status = 'pending'`, `lease_until = NULL`,
+  `attempt` unchanged, logged as `worker_released_unattempted`). Without this the
+  drain lasted `batch × per-call timeout` — up to 10 × 10s — which any supervisor
+  with a shorter grace period (Docker's default is 10 seconds) would cut short
+  with a `SIGKILL`;
+* a `SIGKILL` (or a host power loss) that skips the handler leaves the lease
+  behind, and it is **not** lost: `lease_until` expires after 60 seconds, the next
+  tick re-queues the job with `attempt + 1` and a backoff, and it is delivered.
+  The honest consequence of that recovery is **at-least-once delivery**: if the
+  message had in fact reached the provider before the kill, it is sent a second
+  time. Neither provider is sent a dedupe key, so a duplicate is possible after a
+  crash — possible, not prevented, and worth knowing if you run reminders.
+
+Both halves are asserted in `tests/integration/worker-shutdown.test.ts` (in-flight
+completion plus released neighbours; expired-lease recovery with its backoff and
+incremented attempt). Under Docker, give the worker container a
+`stop_grace_period` longer than your transports' timeout (10s) so the in-flight
+call finishes rather than being killed.
 
 ---
 

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
-import { internalError, jsonError, jsonOk, privateCacheHeaders } from '../../../../../../lib/http';
+import { withRequestContext, internalError, jsonError, jsonOk, privateCacheHeaders } from '../../../../../../lib/http';
 import { requireEventRole } from '../../../../../../domain/organizer';
 import { loadEventAnalytics } from '../../../../../../domain/event-analytics';
 
@@ -14,7 +14,11 @@ import { loadEventAnalytics } from '../../../../../../domain/event-analytics';
  * up to 30 days of daily counters; it never contains a participant, a contact
  * value, an introduction pair or a note.
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get(req: NextRequest, { params }: { params: Promise<{ eventId: string }> }) {
   try {
     const auth = await requireAccount(req);
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');

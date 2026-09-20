@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { internalError } from '../../../lib/http';
+import { withRequestContext, internalError } from '../../../lib/http';
 import { resolveProviders } from '../../../lib/provider-status';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,11 @@ export const dynamic = 'force-dynamic';
  * `no-store`: the answer depends on this instance's environment, so it must not
  * be cached by a shared cache and served to a differently-configured one.
  */
-export async function GET() {
+/* Request scope only — a read-only GET takes no CSRF/rate-limit guard, but its
+ * error bodies and log lines must still carry the request's correlation id. */
+export const GET = withRequestContext(get);
+
+async function get() {
   try {
     return NextResponse.json(
       { ok: true, providers: resolveProviders() },

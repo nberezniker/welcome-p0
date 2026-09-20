@@ -70,6 +70,13 @@ credentials, a custom domain, free-tier notes, and what this repo is *not*:
 [SELF_HOSTING.md](SELF_HOSTING.md).** `.env.example` is the complete, labelled
 list of variables the code reads; a unit test keeps the two in sync.
 
+**Prefer containers?** `cp .env.example .env` (fill in the five required values
+plus `POSTGRES_*`), then `docker compose up -d --build` brings up the app,
+PostgreSQL and the migration job in one command — no Node or pnpm needed on the
+host — with `/api/health` as the container healthcheck.
+[SELF_HOSTING.md §4.7](SELF_HOSTING.md) states what that path deliberately does
+not do (no TLS, no reverse proxy, no backups, and no worker process).
+
 ## Gates (all green at release; evidence/final-gates.log)
 
 ```bash
@@ -121,13 +128,17 @@ Deploy (Vercel + managed EU Postgres):
    outbox delivery lag — `"pending_jobs"` (non-terminal jobs: pending + leased)
    and `"oldest_pending_job_age_seconds"` (`null` when the queue is empty) — so a
    monitor can alert on a queue that stops draining, not only on a dead process.
+   A build/deployment identity is published **only** when the operator asks for
+   it (`HEALTH_EXPOSE_VERSION=true`, plus `APP_BUILD_ID`); by default the payload
+   fingerprints nothing, and the migration version stays behind the worker secret.
+   See `.env.example` and [SELF_HOSTING.md §4.8](SELF_HOSTING.md).
 
 **Worker on serverless.** The long-running `pnpm worker` process is not
 available on Vercel functions. Instead `POST|GET /api/internal/worker-tick`
 runs exactly one outbox tick (batch 10) and returns `{processed: n}`. Auth is
 one shared secret (`WORKER_TICK_SECRET`), compared constant-time, accepted as
-`x-worker-tick-secret` header, `Authorization: Bearer <secret>`, or
-`?secret=<secret>`. Unset secret → 401 in production (fail-closed).
+the `x-worker-tick-secret` header or as `Authorization: Bearer <secret>`. Unset
+secret → 401 in production (fail-closed).
 `*/1` cron frequency is plan-dependent — check the limits for your account
 plan at deploy time per [Vercel Cron Jobs docs](https://vercel.com/docs/cron-jobs/manage-cron-jobs)
 (usage & limits); if every-minute is not allowed on the plan, relax the
@@ -147,14 +158,15 @@ the route verifies the bot's `x-telegram-bot-api-secret-token` constant-time.
 | `src/integrations/telegram/` | Transport selection (real/mock[dev]/disabled), webhook parsing |
 | `src/lib/` | http (CSRF/errors), auth, crypto, db, env, ratelimit, public-profile |
 | `src/i18n/` | en/ru/es dictionaries (fallback: en) |
-| `db/migrations/` | SQL migrations 001–014, runner `scripts/migrate.mjs` (`schema_migrations`) |
+| `db/migrations/` | SQL migrations 001–015, runner `scripts/migrate.mjs` (`schema_migrations`) |
 | `scripts/` | Migrate, seed, worker, scan-secrets, defect-drill, load-smoke, validate-release-report |
 | `tests/` | `unit/`, `integration/` (DB), `e2e/` (Playwright) |
 | `evidence/` | Gates, drill, load smoke, screenshots, release report + index |
 | `spec/` | **Protected baseline** — requirements, contracts, test plans. Do not modify |
 | `reference-landing/` | **Protected** design reference only |
 | `docs-internal/adr/` | Decision log (ADR-0001…0006) |
-| `SELF_HOSTING.md` | Self-hosting guide: prerequisites, quickstart, your own bot/keys, custom domain, what this repo is not |
+| `SELF_HOSTING.md` | Self-hosting guide: prerequisites, quickstart, your own bot/keys, custom domain, the Docker stack (§4.7), worker shutdown semantics (§4.8), what this repo is not |
+| `Dockerfile`, `.dockerignore`, `docker-compose.yml` | Container path: multi-stage build (production dependencies only, non-root uid 1001), app + PostgreSQL + migration job. See SELF_HOSTING.md §4.7 |
 | `.env.example` | Every env var the code reads, each labelled REQUIRED / OPTIONAL (gate: `tests/unit/env-example-coverage.test.ts`) |
 
 ## Handoff

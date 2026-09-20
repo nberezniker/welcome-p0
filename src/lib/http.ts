@@ -1,9 +1,10 @@
-import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { clientIp, consumeIpToken, type TokenVerdict } from './ratelimit';
 import { appEnv, type AppEnv } from './env';
 import { log } from './logger';
+import { REQUEST_ID_HEADER, newRequestId } from './request-id';
+import { currentRequestId, requestIdFor, runWithRequestId } from './request-context';
 
 /** Unified JSON error model: {code, message, correlation_id, retryable}.
  * Never include SQL, stack traces or secrets in the payload. */
@@ -26,19 +27,45 @@ export function jsonOk(data: Record<string, unknown>, init?: { status?: number }
   return NextResponse.json(data, { status: init?.status ?? 200, headers: init?.headers });
 }
 
+/**
+ * The one error-response builder, and the one place an error response is LOGGED.
+ *
+ * WHY THE ID IS RESOLVED HERE. `correlation_id` used to be a fresh uuid per
+ * ERROR RESPONSE, which made it a property of a body rather than of a request:
+ * two errors in one request carried two different ids, and no other log line of
+ * that request could carry it at all. It now comes from the ambient request
+ * context (src/lib/request-context.ts) — the same value that src/proxy.ts puts
+ * in the `x-request-id` header and that `withRequestContext` returns on the
+ * response. Only when there is no request behind the call (a worker tick, a
+ * script) is a fresh id minted, and then it is still the id of this response's
+ * log line, so the promise "the body's id finds the log line" holds either way.
+ *
+ * WHY THIS FUNCTION LOGS. The id is only useful if a user's report ("it said
+ * correlation_id 4f2c…") can be found in the logs, and every error response in
+ * this app is built here — 4xx included. Narrowing this to 5xx would leave a
+ * reported 409/429/403 untraceable, which is the case that actually needs
+ * tracing, since it is the one a user can describe. The level follows the
+ * severity (`error` for 5xx, `warn` for 4xx) so a 5xx can still be alerted on
+ * without excluding the rest from the log.
+ *
+ * `init.err` carries a caught value into that same line: it exists so
+ * `internalError` can hand over the cause and have ONE line, with the stack,
+ * bearing the id — rather than a summary line plus a second line without it.
+ */
 export function jsonError(
   status: number,
   code: string,
   message: string,
-  init?: { retryable?: boolean; correlationId?: string } & JsonHeaders,
+  init?: { retryable?: boolean; correlationId?: string; err?: unknown } & JsonHeaders,
 ): NextResponse {
+  const retryable = init?.retryable ?? false;
+  const correlationId = init?.correlationId ?? currentRequestId() ?? newRequestId();
+  const fields = { event: 'api_error_response', correlation_id: correlationId, code, status, retryable };
+  if (status >= 500) log.error('[api] error response', { ...fields, err: init?.err });
+  else log.warn('[api] error response', fields);
+
   return NextResponse.json(
-    {
-      code,
-      message,
-      correlation_id: init?.correlationId ?? randomUUID(),
-      retryable: init?.retryable ?? false,
-    },
+    { code, message, correlation_id: correlationId, retryable },
     { status, headers: init?.headers },
   );
 }
@@ -52,17 +79,24 @@ export async function readJsonBody(req: Request): Promise<unknown> {
   }
 }
 
-/** Logs an unexpected error server-side and returns a sanitized 500 response. */
+/**
+ * Logs an unexpected error server-side and returns a sanitized 500 response.
+ *
+ * The id is NOT minted here any more. It comes from the ambient request context
+ * through `jsonError`, which also owns the log line — so this 500 produces
+ * exactly ONE record, and that record carries the same id the caller receives.
+ * The previous shape produced the id here, logged with it, and passed it down;
+ * that worked for this one path and left every other error response (4xx, the
+ * CSRF 403, the rate-limit 429) with an id that appeared in the body and
+ * nowhere else.
+ *
+ * The cause stays server-side either way: the response carries a generic
+ * message, and the stack is written to the log, not to it.
+ */
 export function internalError(err: unknown): NextResponse {
-  const correlationId = randomUUID();
-  // The correlation id is the one value here that the caller also holds (it is
-  // returned in the body below), so a user's "it said correlation_id …" resolves
-  // to this exact record. The cause stays server-side either way: the response
-  // carries a generic message, and the stack is written to the log, not to it.
-  log.error('[internal_error]', { correlation_id: correlationId, event: 'internal_error', err });
   return jsonError(500, 'internal_error', 'Unexpected error. Please retry later.', {
     retryable: true,
-    correlationId,
+    err,
   });
 }
 
@@ -195,10 +229,58 @@ export interface RouteContext<P> {
 }
 
 /**
+ * Runs one route handler inside its request scope, and stamps the id on the way
+ * out. Two effects, one reason:
+ *
+ *   1. `runWithRequestId` makes the id ambient, so every log line and error body
+ *      produced anywhere beneath the handler carries it without a single call
+ *      site passing it (`jsonError`, `internalError`, `enqueueOutbox`);
+ *   2. the `x-request-id` response header carries it back on EVERY response —
+ *      including 2xx, where there is no body field to hold it — so a caller
+ *      reporting a problem can quote something the server recognises even when
+ *      nothing failed on the wire.
+ *
+ * The id itself is settled once, in src/proxy.ts (well-formed inbound header
+ * reused, anything else replaced) and re-derived here for the paths where the
+ * proxy did not run — a direct handler invocation in a test, or a route outside
+ * the proxy matcher. `requestIdFor` implements exactly that rule, so the two
+ * layers cannot disagree.
+ *
+ * The REQUEST is optional in the returned type, for a reason that is about
+ * shapes rather than convenience: three routes in this app take no request at
+ * all (`GET()` on /api/taxonomy, /api/providers, /api/auth/demo-login-info), and
+ * their tests call them that way. Next always passes one, but a handler that
+ * ignores it has nothing to read an id from, so the honest result is a fresh one
+ * — an id that joins that call's log lines to each other and to nothing else.
+ *
+ * This is BEHAVIOUR-NEUTRAL: unlike `withApi` it adds no CSRF check and no rate
+ * limit. It exists so a route can have a request scope without also acquiring
+ * guards it was deliberately not given.
+ */
+export function withRequestContext<P = Record<string, string>>(
+  handler: (req: NextRequest, ctx: RouteContext<P>) => Promise<Response>,
+): (req?: NextRequest, ctx?: RouteContext<P>) => Promise<Response> {
+  return async (req, ctx) => {
+    const requestId = req ? requestIdFor(req) : newRequestId();
+    return runWithRequestId(requestId, async () => {
+      const res = await handler(req as NextRequest, ctx as RouteContext<P>);
+      res.headers.set(REQUEST_ID_HEADER, requestId);
+      return res;
+    });
+  };
+}
+
+/**
  * Wraps a route handler with the shared mutation guards: the CSRF origin check
  * (effective on POST/PATCH/PUT/DELETE) and the per-IP rate limit when the
  * request path is on the sensitive-route table. ALL mutating handlers must be
  * exported through this wrapper — no guard logic in individual routes.
+ *
+ * The guards run INSIDE the request scope (see `withRequestContext`), which is
+ * the order that matters for tracing: a rejected request — the CSRF 403 or the
+ * rate-limit 429 — is exactly the kind of error a user reports, and it now
+ * carries the same id in its body, its header, and its log line as any other
+ * response of that request.
  *
  * The input type requires the context (param-bearing handlers keep their exact
  * signature); the returned type makes it optional so 1-arg call sites (routes
@@ -207,7 +289,7 @@ export interface RouteContext<P> {
 export function withApi<P = Record<string, string>>(
   handler: (req: NextRequest, ctx: RouteContext<P>) => Promise<Response>,
 ): (req: NextRequest, ctx?: RouteContext<P>) => Promise<Response> {
-  return async (req, ctx) => {
+  return withRequestContext<P>(async (req, ctx) => {
     const csrf = csrfGuard(req);
     if (csrf) return csrf;
 
@@ -230,5 +312,5 @@ export function withApi<P = Record<string, string>>(
     const res = await handler(req, ctx as RouteContext<P>);
     for (const [k, v] of Object.entries(headers)) res.headers.set(k, v);
     return res;
-  };
+  });
 }
