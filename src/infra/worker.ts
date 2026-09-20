@@ -171,7 +171,10 @@ export async function tickOnce(deps: WorkerDeps = {}): Promise<TickReport> {
     email: 'emailTransport' in deps ? deps.emailTransport ?? null : selectNotificationEmailTransport(),
   };
 
-  // Liveness (worker_heartbeat, id=true) — every tick, well within the 10s SLA.
+  // Liveness (worker_heartbeat, id=true) — written on every tick, and this is
+  // the signal GET /api/health measures against its freshness window
+  // (WORKER_FRESHNESS_SECONDS; src/lib/env.ts argues both the default and why the
+  // window has to follow the deployment's cadence, not a fixed minute).
   await sql`
     INSERT INTO worker_heartbeat (id, beat_at) VALUES (true, now())
     ON CONFLICT (id) DO UPDATE SET beat_at = now()

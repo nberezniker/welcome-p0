@@ -193,6 +193,10 @@ development-only and off by default).
                             "oldest_pending_job_age_seconds":12}
 ```
 
+The health line is the payload as that run printed it; it predates
+`worker_last_tick_age_seconds` (the field list §4.8 documents is the current
+shape — the other lines of this transcript are unchanged by that addition).
+
 </details>
 
 ---
@@ -322,11 +326,19 @@ your URL:
 * Google OAuth: add the new `…/api/oauth/google/callback` redirect URI.
 * Telegram: re-run `setWebhook` with the new `APP_BASE_URL`.
 * Running on Vercel: `vercel.json` pins the function region to `fra1` (EU) and
-  schedules `/api/internal/worker-tick`. Set `WORKER_TICK_SECRET` **and**
-  `CRON_SECRET` (same value) so the cron invocation authenticates. On a
-  long-running host, ignore the cron and run `pnpm worker` instead. The project's
-  Node.js setting on Vercel must satisfy the `engines` floor from §2 — this
-  project builds on 24.x there, while every gate runs on 22.x.
+  schedules `/api/internal/worker-tick` **daily** (`17 3 * * *`) — that is the
+  fastest a free-plan cron may run, and it is normal, not a misconfiguration. It
+  is also not your delivery path: the Telegram webhook drains the outbox inline
+  after answering, so replies leave seconds after a message arrives; the cron is
+  the backstop that keeps a quiet deployment draining and keeps the worker
+  heartbeat alive. Do not delete it to quiet an alarm — set
+  `WORKER_FRESHNESS_SECONDS` to your own cadence (below) instead. Set
+  `WORKER_TICK_SECRET` **and** `CRON_SECRET` (same value) so the cron invocation
+  authenticates. On a long-running host, ignore the cron and run `pnpm worker`
+  instead, and set `WORKER_FRESHNESS_SECONDS=120` (the worker loops every 2s) so
+  `/api/health` reports a stopped worker within minutes rather than a day. The
+  project's Node.js setting on Vercel must satisfy the `engines` floor from §2 —
+  this project builds on 24.x there, while every gate runs on 22.x.
 * HTTPS headers where you terminate TLS. `next.config.ts` sends
   `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, a CSP, a
   `Referrer-Policy` and a `Permissions-Policy` itself. It deliberately does
@@ -443,6 +455,26 @@ the host against the same `DATABASE_URL`, or schedule the one-tick endpoint with
 `WORKER_TICK_SECRET` set. With neither, jobs stay `pending` — visible as
 `pending_jobs` / `oldest_pending_job_age_seconds` in `/api/health` — and nothing
 is sent. Nothing is lost, and nothing pretends otherwise.
+
+**What `/api/health` says about the worker, and what it does not.** Three fields,
+three different facts, deliberately not collapsed into one:
+
+| Field | Meaning |
+|---|---|
+| `worker` | The verdict: `up` when the last heartbeat is within the freshness window, `down` otherwise. A deployment with **no** worker at all (the Docker stack, or a serverless one with no cron and no pinger) honestly reads `down` — that is not a fault report, it is the absence of a worker. |
+| `worker_last_tick_age_seconds` | The measurement behind it: age of the last real tick in seconds, `null` when no tick was ever recorded. Threshold THIS if you need to alert within minutes. |
+| `WORKER_FRESHNESS_SECONDS` | The window the verdict uses. Default `93600` (26h = one daily cron period + slack), because the window has to exceed the deployment's tick cadence or a healthy worker reads `down` permanently. Set it to your cadence: `pnpm worker` (2s loop) → `120`, per-minute cron → `180`, the optional 5-minute pinger → `900`. |
+
+Two consequences worth knowing before you wire up a monitor:
+
+* the heartbeat is written by tick sources only. The DB write probe in the health
+  check itself cannot refresh it (that was a real defect: the probe used to forge
+  the signal it measured, so a monitor pinging `/api/health` kept a dead worker
+  looking alive), which is why `worker: down` can be true while `status: ok` and
+  `db: up` — the deployment serves fine and the queue is not moving;
+* the container healthcheck in §4.7 judges only HTTP 200, which depends on the
+  database and the migrations, never on `worker`. A workerless stack staying
+  `healthy` is therefore correct behaviour, not a blind spot.
 
 **Shutdown, precisely.** `SIGTERM`/`SIGINT` set a flag that is read *between*
 jobs, so:
@@ -564,3 +596,4 @@ Read this before you build on it.
 | No login codes anywhere | They are in `.runtime/otp.log` (development, no Resend key). The file is created on the first request. |
 | Migration ran against the wrong database | A `DATABASE_URL` exported in your shell overrides `.env.local`. Check it before running. |
 | Worker does nothing | Expected with no channel configured: jobs end as `suppressed:no_channel`. Run `pnpm worker` or hit `/api/internal/worker-tick`. |
+| `/api/health` shows `"worker":"down"` | Three real causes, and the payload tells them apart: (1) **no worker is running at all** — the Docker stack (§4.7) ships none, so `down` is the honest answer, and `pending_jobs` will be climbing; (2) **your cadence is slower than the window** — check `worker_last_tick_age_seconds` against `WORKER_FRESHNESS_SECONDS` (default 26h, sized for the daily free-plan cron; the 2s `pnpm worker` loop wants `120`); (3) the worker really is stopped — a healthy cadence would have beaten inside the window. Do NOT respond by removing the cron: see §4.5. |

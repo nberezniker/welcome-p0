@@ -122,12 +122,19 @@ Deploy (Vercel + managed EU Postgres):
    shell-set `DATABASE_URL` overrides `.env.local`.
 4. **Deploy** (push to `main` or `vercel deploy --prod`). `vercel.json` pins
    the function region to `fra1` (EU) and schedules the worker-tick cron
-   (`*/1 * * * *`).
+   (`17 3 * * *` — daily, which is the fastest the free plan allows).
 5. **Verify.** `GET /api/health` must show `"status":"ok"` and `"db":"up"`;
-   `"worker":"up"` requires a tick within 60s. The same payload carries the
-   outbox delivery lag — `"pending_jobs"` (non-terminal jobs: pending + leased)
-   and `"oldest_pending_job_age_seconds"` (`null` when the queue is empty) — so a
-   monitor can alert on a queue that stops draining, not only on a dead process.
+   `"worker":"up"` requires a tick within the freshness window
+   (`WORKER_FRESHNESS_SECONDS`, default `93600` = 26h: one daily cron period plus
+   slack for cron dispatch jitter — see the note on the daily cron below). The
+   same payload carries the outbox delivery lag — `"pending_jobs"` (non-terminal
+   jobs: pending + leased) and `"oldest_pending_job_age_seconds"` (`null` when the
+   queue is empty) — so a monitor can alert on a queue that stops draining, not
+   only on a dead process — plus `"worker_last_tick_age_seconds"`: the age of the
+   last real tick, or `null` when no tick was ever recorded. Prefer that number to
+   the boolean when your alert threshold differs from this deployment's window:
+   the age is the measurement, `worker` is only the verdict against the configured
+   one.
    A build/deployment identity is published **only** when the operator asks for
    it (`HEALTH_EXPOSE_VERSION=true`, plus `APP_BUILD_ID`); by default the payload
    fingerprints nothing, and the migration version stays behind the worker secret.
@@ -139,10 +146,20 @@ runs exactly one outbox tick (batch 10) and returns `{processed: n}`. Auth is
 one shared secret (`WORKER_TICK_SECRET`), compared constant-time, accepted as
 the `x-worker-tick-secret` header or as `Authorization: Bearer <secret>`. Unset
 secret → 401 in production (fail-closed).
-`*/1` cron frequency is plan-dependent — check the limits for your account
-plan at deploy time per [Vercel Cron Jobs docs](https://vercel.com/docs/cron-jobs/manage-cron-jobs)
-(usage & limits); if every-minute is not allowed on the plan, relax the
-schedule in `vercel.json` or ping the endpoint externally with the header.
+
+**A daily cron is normal here, and it is not the delivery path.** Vercel's free
+plan runs a cron at most once a day, which is why `vercel.json` ships
+`17 3 * * *`; paid plans allow faster schedules, and the one-tick endpoint can
+equally be pinged from anywhere else (this repo ships an optional 5-minute pinger
+at `.github/workflows/worker-tick.yml`).
+Messages do **not** wait for the cron: the Telegram webhook drains the outbox
+inline after it has answered, so a reply goes out seconds after the user writes
+to the bot (see `src/infra/post-response-tick.ts`). The cron is the backstop —
+it keeps the queue draining on a deployment nobody is writing to, and keeps the
+worker heartbeat alive. So if `/api/health` answers `"worker":"down"`, the fix is
+**never** to delete the cron: set `WORKER_FRESHNESS_SECONDS` to your actual
+cadence plus slack, and read `worker_last_tick_age_seconds` to see how old the
+last tick really is.
 
 **Telegram webhook.** Point the bot (setWebhook) at
 `APP_BASE_URL + /api/webhooks/telegram` with `TELEGRAM_WEBHOOK_SECRET` set —

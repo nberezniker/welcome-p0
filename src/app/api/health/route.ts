@@ -3,13 +3,13 @@ import { withRequestContext } from '../../../lib/http';
 import { getSql } from '../../../lib/db';
 import { secureSecretEqual } from '../../../lib/crypto';
 import { buildId, healthVersionExposed } from '../../../lib/build-identity';
+import { workerFreshnessSeconds } from '../../../lib/env';
 import { log } from '../../../lib/logger';
 
 export const dynamic = 'force-dynamic';
 
 /** Latest migration version that must be recorded in schema_migrations. */
 const EXPECTED_MIGRATIONS = ['001'];
-const WORKER_FRESHNESS_SECONDS = 60;
 
 /** Outbox statuses that are NOT terminal (spec 04 §7): a job in one of these has
  * not been handed over / given up on yet, so its created_at is delivery lag. */
@@ -23,11 +23,22 @@ const NON_TERMINAL_OUTBOX_STATUSES = ['pending', 'leased'] as const;
  * non-terminal outbox jobs exist and how old the oldest one is. They carry no
  * job id, kind, channel, recipient or payload, so unlike `migration_version`
  * they are not a deployment fingerprint — they are the number a monitor needs to
- * say "the queue is not draining". */
+ * say "the queue is not draining".
+ *
+ * `worker_last_tick_age_seconds` is the same kind of number, for the other half
+ * of the same question: how old the last REAL worker tick is, or `null` when no
+ * tick was ever recorded. It exists because `worker` is a verdict against a
+ * deployment SETTING (`WORKER_FRESHNESS_SECONDS`, a daily cadence by default)
+ * and a boolean hides both its window and its evidence: an operator seeing
+ * "down" could not tell a slow scheduler from a broken worker, and a monitor was
+ * forced to inherit this deployment's threshold. With the age published, anyone
+ * can threshold it themselves — and the age is not a fingerprint either: it is
+ * one duration, bearing no id, recipient, payload or build identity. */
 interface PublicHealthPayload {
   status: 'ok' | 'error';
   db: 'up' | 'down';
   worker: 'up' | 'down';
+  worker_last_tick_age_seconds: number | null;
   pending_jobs: number;
   oldest_pending_job_age_seconds: number | null;
 }
@@ -70,6 +81,7 @@ async function get(req: NextRequest) {
   let migrations: 'applied' | 'missing' = 'missing';
   let migrationVersion: string | null = null;
   let worker: 'up' | 'down' = 'down';
+  let workerLastTickAgeSeconds: number | null = null;
   let pendingJobs = 0;
   let oldestPendingJobAgeSeconds: number | null = null;
 
@@ -84,8 +96,8 @@ async function get(req: NextRequest) {
     //    probe forge the worker's own heartbeat: every health call refreshed it,
     //    so `worker` read 'up' on a deployment whose worker had been dead for
     //    hours. That is exactly what README §3 step 5 forbids ("`worker":"up"`
-    //    requires a tick within 60s) and what an uptime monitor is meant to
-    //    catch (AC-56).
+    //    requires a tick within the freshness window) and what an uptime monitor
+    //    is meant to catch (AC-56).
     //
     //    Both branches are real writes (privileges checked, WAL, a new row
     //    version) that commit no semantic change: the INSERT creates a missing
@@ -103,12 +115,27 @@ async function get(req: NextRequest) {
     migrations = allApplied ? 'applied' : 'missing';
     migrationVersion = appliedVersions.size > 0 ? [...appliedVersions].sort().pop() ?? null : null;
 
-    // 4. Worker heartbeat freshness
+    // 4. Worker heartbeat freshness. Two answers from one measurement, and they
+    //    stay independent on purpose: the AGE is a fact (`null` when no tick was
+    //    ever recorded, so "never seen" is distinguishable from "old"), and
+    //    `worker` is the verdict against the configured window. A monitor that
+    //    must alert within minutes thresholds the age; the boolean only ever
+    //    answers "is the cadence we configured being met".
+    //
+    //    The rule is unchanged and deliberately strict: a beat must be in the
+    //    PAST (a timestamp in the future is clock skew or a forged row, not
+    //    evidence of a live worker) and no older than the window. Such a beat is
+    //    published as what it is — a NEGATIVE age, which an operator reading the
+    //    payload can diagnose as skew — never clamped to a fresh-looking 0. The
+    //    window itself is configurable because a freshness window shorter than
+    //    the deployment's tick period reports a healthy worker as dead — see
+    //    workerFreshnessSeconds() in src/lib/env.ts for why the default is 26h.
     const beats = await sql<{ beat_at: Date | null }[]>`SELECT beat_at FROM worker_heartbeat WHERE id = true`;
     const beatAt = beats[0]?.beat_at;
     if (beatAt) {
       const ageMs = Date.now() - new Date(beatAt).getTime();
-      worker = ageMs >= 0 && ageMs <= WORKER_FRESHNESS_SECONDS * 1000 ? 'up' : 'down';
+      workerLastTickAgeSeconds = Math.round(ageMs / 1000);
+      worker = ageMs >= 0 && ageMs <= workerFreshnessSeconds() * 1000 ? 'up' : 'down';
     }
 
     // 5. Outbox delivery lag — one read-only aggregate over the non-terminal
@@ -158,6 +185,7 @@ async function get(req: NextRequest) {
         migrations,
         migration_version: migrationVersion,
         worker,
+        worker_last_tick_age_seconds: workerLastTickAgeSeconds,
         pending_jobs: pendingJobs,
         oldest_pending_job_age_seconds: oldestPendingJobAgeSeconds,
       }
@@ -165,6 +193,7 @@ async function get(req: NextRequest) {
         status,
         db,
         worker,
+        worker_last_tick_age_seconds: workerLastTickAgeSeconds,
         pending_jobs: pendingJobs,
         oldest_pending_job_age_seconds: oldestPendingJobAgeSeconds,
         // Spread, not a null field: with the flag off the key does not exist at

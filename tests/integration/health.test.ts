@@ -6,9 +6,12 @@ import { GET as health } from '../../src/app/api/health/route';
 import { makeRequest, assertStatus } from './helpers';
 import { getSql, closeSql } from '../../src/lib/db';
 
-// F-16: the public health payload exposes {status, db, worker} + the two outbox
-// lag aggregates and NOTHING else — the migration version (deployment
-// fingerprint) requires the shared secret via the x-health-details header.
+// F-16: the public health payload exposes {status, db, worker} + how old the last
+// worker tick is + the two outbox lag aggregates and NOTHING else — the migration
+// version (deployment fingerprint) requires the shared secret via the
+// x-health-details header. The age and the lag numbers are timing of WORK, not
+// identity: they say "the queue is not draining" and "the worker last ticked N
+// seconds ago" without naming a job, a recipient or a build.
 
 after(async () => {
   await closeSql();
@@ -20,11 +23,15 @@ test('F-16: public health payload has no migration details', async () => {
   const body = (await res.json()) as Record<string, unknown>;
   assert.deepEqual(
     Object.keys(body).sort(),
-    ['db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker'],
+    ['db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker', 'worker_last_tick_age_seconds'],
   );
   assert.equal(body.status, 'ok');
   assert.equal(body.db, 'up');
   assert.ok(body.worker === 'up' || body.worker === 'down');
+  assert.ok(
+    body.worker_last_tick_age_seconds === null || typeof body.worker_last_tick_age_seconds === 'number',
+    'the worker age is a number, or null for "no tick ever recorded"',
+  );
   assert.equal(body.migration_version, undefined);
   assert.equal(body.migrations, undefined);
 });
@@ -117,7 +124,7 @@ test('health: build identity is absent by default, whatever APP_BUILD_ID says', 
     // deployment fingerprint could ride in on.
     assert.deepEqual(
       Object.keys(body).sort(),
-      ['db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker'],
+      ['db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker', 'worker_last_tick_age_seconds'],
     );
     // Absent, not null: a `build_id: null` would still be a behaviour change on
     // the live endpoint, and the live check (usage-matrix P1) asserts this shape.
@@ -146,7 +153,7 @@ test('health: HEALTH_EXPOSE_VERSION=true publishes the build id — null when no
     assert.equal(withIdBody.build_id, 'gitsha-deadbeef1234');
     assert.deepEqual(
       Object.keys(withIdBody).sort(),
-      ['build_id', 'db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker'],
+      ['build_id', 'db', 'oldest_pending_job_age_seconds', 'pending_jobs', 'status', 'worker', 'worker_last_tick_age_seconds'],
     );
 
     // Enabled but unset → null, which is a different fact from "no identity was

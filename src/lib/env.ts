@@ -185,6 +185,61 @@ export function followupReminderDays(raw: string | undefined = process.env.FOLLO
   return parsed;
 }
 
+// ---------------------------------------------------------------------------
+// Worker-heartbeat freshness — the window GET /api/health judges `worker` by.
+// Read lazily at every call (same reason as the flags above: a deployment can
+// change its cadence and have the very next health call honour it).
+// ---------------------------------------------------------------------------
+
+/**
+ * Default freshness window for the worker heartbeat: 26 hours.
+ *
+ * WHY 26 HOURS AND NOT A MINUTE. A freshness window is only meaningful relative
+ * to the tick CADENCE of the deployment it runs in: a window shorter than one
+ * tick period reports a perfectly healthy worker as dead, permanently. This
+ * repo's serverless shape has exactly one unconditional tick source — the Vercel
+ * cron in `vercel.json` (`17 3 * * *`, daily, because the free plan allows
+ * nothing faster) — so the previous 60-second window was measuring a cadence the
+ * deployment never had: every uptime monitor got a standing false alarm and an
+ * operator looking at the payload could not tell "the scheduler is slow" from
+ * "the worker is broken". 24h + 2h absorbs cron dispatch jitter, and it stays
+ * below TWO cadences, so it still detects a real stop: a worker that misses a
+ * whole day reads `down` about 26h after its last tick, before the next cron
+ * would even have fired.
+ *
+ * The cost is stated plainly rather than hidden: on a daily-cron deployment the
+ * boolean cannot be more timely than its cadence. That is what
+ * `worker_last_tick_age_seconds` in the same payload is for — a monitor that
+ * needs to alert within minutes thresholds the AGE, not the boolean.
+ *
+ * SELF-HOSTING WITH A DIFFERENT CADENCE: set `WORKER_FRESHNESS_SECONDS` to your
+ * own tick period plus slack. `pnpm worker` ticks every 2s (120 is plenty), a
+ * per-minute cron wants ~180, the 5-minute GitHub-Actions pinger ~900.
+ */
+export const WORKER_FRESHNESS_SECONDS_DEFAULT = 24 * 60 * 60 + 2 * 60 * 60;
+
+/** Upper bound on a configured window: 30 days. Shared with `workerFreshnessSeconds`. */
+const WORKER_FRESHNESS_SECONDS_MAX = 30 * 24 * 60 * 60;
+
+/**
+ * Seconds a beat may age before the worker counts as down.
+ * `WORKER_FRESHNESS_SECONDS` overrides the default; anything that is not a whole
+ * number of seconds in `[1, 30 days]` falls back to the default instead of
+ * clamping. Both bounds exist because a bad number here is not a cosmetic bug:
+ *   - zero or negative makes EVERY deployment read `worker: down` forever — the
+ *     same class of permanent false alarm this setting exists to end;
+ *   - a plausible unit mix-up (`93600000` is 26h expressed in milliseconds,
+ *     ~1083 days) would otherwise disable the check for three years, while the
+ *     default is exactly the value that mistake was reaching for.
+ */
+export function workerFreshnessSeconds(raw: string | undefined = process.env.WORKER_FRESHNESS_SECONDS): number {
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > WORKER_FRESHNESS_SECONDS_MAX) {
+    return WORKER_FRESHNESS_SECONDS_DEFAULT;
+  }
+  return parsed;
+}
+
 const defaultExposureWarner = createOtpExposureWarner();
 
 /**

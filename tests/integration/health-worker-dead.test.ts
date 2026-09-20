@@ -6,6 +6,7 @@ import { GET as health } from '../../src/app/api/health/route';
 import { requeueExpiredLeases } from '../../src/infra/outbox';
 import { makeRequest, assertStatus } from './helpers';
 import { getSql, closeSql } from '../../src/lib/db';
+import { WORKER_FRESHNESS_SECONDS_DEFAULT } from '../../src/lib/env';
 
 /**
  * AC-56 — health when the WORKER is dead.
@@ -25,8 +26,9 @@ import { getSql, closeSql } from '../../src/lib/db';
  * measuring, so `worker` could never be 'down' while the DB accepted writes, and
  * an uptime monitor pinging /api/health was itself keeping a dead worker looking
  * alive. README §3 step 5 promises the opposite ("`worker":"up"` requires a tick
- * within 60s"); the probe now writes only what cannot move the beat, and the
- * "probe does not forge" assertions below pin that down.
+ * within the configured freshness window"); the probe now writes only what
+ * cannot move the beat, and the "probe does not forge" assertions below pin that
+ * down.
  *
  * The stalled-queue half of the criterion is what the two lag aggregates were
  * added for: with the worker dead nothing requeues expired leases and nothing
@@ -34,8 +36,20 @@ import { getSql, closeSql } from '../../src/lib/db';
  * `oldest_pending_job_age_seconds` keeps growing.
  */
 
-/** The route's own freshness window (src/app/api/health/route.ts: WORKER_FRESHNESS_SECONDS). */
-const WORKER_FRESHNESS_SECONDS = 60;
+/**
+ * The route's DEFAULT freshness window, imported so this suite cannot drift from
+ * the code (it used to duplicate `60`, the old hard-coded value).
+ *
+ * WHAT "DEAD" MEANS HERE CHANGED, AND ONLY IN SCALE. The default is now
+ * cadence-shaped — 26h, because this deployment's only unconditional tick source
+ * is a daily cron (src/lib/env.ts argues the number) — so a simulated dead worker
+ * has to be older than THAT to be dead at all. The criterion is untouched: no tick
+ * inside the window is `down`, and the probe still cannot manufacture one.
+ */
+const WORKER_FRESHNESS_SECONDS = WORKER_FRESHNESS_SECONDS_DEFAULT;
+
+/** Age of the simulated dead worker: outside the 26h default, comfortably. */
+const DEAD_SECONDS = 30 * 60 * 60;
 
 after(async () => {
   await closeSql();
@@ -45,6 +59,7 @@ interface HealthBody {
   status: string;
   db: string;
   worker: string;
+  worker_last_tick_age_seconds: number | null;
   pending_jobs: number;
   oldest_pending_job_age_seconds: number | null;
 }
@@ -75,8 +90,9 @@ async function setBeat(state: 'stale' | 'fresh' | 'never'): Promise<void> {
   const sql = getSql();
   if (state === 'stale') {
     await sql`
-      INSERT INTO worker_heartbeat (id, beat_at) VALUES (true, now() - interval '10 minutes')
-      ON CONFLICT (id) DO UPDATE SET beat_at = now() - interval '10 minutes'
+      INSERT INTO worker_heartbeat (id, beat_at)
+      VALUES (true, now() - (${DEAD_SECONDS}::double precision * interval '1 second'))
+      ON CONFLICT (id) DO UPDATE SET beat_at = now() - (${DEAD_SECONDS}::double precision * interval '1 second')
     `;
     return;
   }
@@ -88,7 +104,7 @@ async function setBeat(state: 'stale' | 'fresh' | 'never'): Promise<void> {
 }
 
 test('AC-56: a dead worker does not fail liveness, and the health probe does not forge its beat', async () => {
-  // The worker died ~10 minutes ago; the freshness window is 60s.
+  // The worker died ~30 hours ago; the default freshness window is 26h.
   await setBeat('stale');
   const age = await beatAgeSeconds();
   assert.ok(age !== null && age > WORKER_FRESHNESS_SECONDS, `simulated beat must be stale, got ${age}s`);
@@ -102,8 +118,12 @@ test('AC-56: a dead worker does not fail liveness, and the health probe does not
   assert.equal(body.status, 'ok');
   assert.equal(body.db, 'up');
 
-  // …and the dead worker is visible as such.
+  // …and the dead worker is visible as such, with the age that justifies it.
   assert.equal(body.worker, 'down', 'a beat older than the freshness window is down');
+  assert.ok(
+    (body.worker_last_tick_age_seconds ?? 0) >= DEAD_SECONDS,
+    `the payload must show why: an age past the window, got ${body.worker_last_tick_age_seconds}s`,
+  );
 
   // The regression guard: the DB write probe must not have moved the beat it
   // just read. If this fails, `worker` is unmeasurable — the probe refreshes its
@@ -115,11 +135,15 @@ test('AC-56: a dead worker does not fail liveness, and the health probe does not
   );
 
   // A worker that DID tick reads up, so the verdict above discriminates rather
-  // than being a constant.
+  // than being a constant — and the age field discards the staleness it reported.
   await setBeat('fresh');
   const live = await readHealth();
   assert.equal(live.status, 200);
   assert.equal(live.body.worker, 'up', 'a beat inside the window is up');
+  assert.ok(
+    live.body.worker_last_tick_age_seconds !== null && live.body.worker_last_tick_age_seconds < 60,
+    `a fresh beat reports a small age, got ${live.body.worker_last_tick_age_seconds}s`,
+  );
 });
 
 test('AC-56: never-ticked and never-seen workers read down without failing liveness', async () => {
