@@ -83,11 +83,11 @@ const report = {
   totals: {
     gates_total: gates.length,
     gates_exit_zero: gates.filter((g) => g.exit_code === 0).length,
-    unit: { pass: countOf(unitLog, /^# pass (\d+)/m), fail: countOf(unitLog, /^# fail (\d+)/m) },
+    unit: { pass: countOf(unitLog, /^(?:#|ℹ) pass (\d+)/m), fail: countOf(unitLog, /^(?:#|ℹ) fail (\d+)/m) },
     integration: {
-      pass: countOf(integrationLog, /^# pass (\d+)/m),
-      fail: countOf(integrationLog, /^# fail (\d+)/m),
-      skipped: countOf(integrationLog, /^# skipped (\d+)/m),
+      pass: countOf(integrationLog, /^(?:#|ℹ) pass (\d+)/m),
+      fail: countOf(integrationLog, /^(?:#|ℹ) fail (\d+)/m),
+      skipped: countOf(integrationLog, /^(?:#|ℹ) skipped (\d+)/m),
     },
     e2e: { pass: e2ePassed, fail: e2eFailed },
   },

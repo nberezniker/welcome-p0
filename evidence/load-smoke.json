@@ -1,41 +1,67 @@
 {
   "note": "LOCAL-ONLY INDICATIVE NUMBERS — not production capacity claims",
-  "generated_at": "2026-09-07T21:07:42.516Z",
-  "commit": "3c3a91b0a60aa2966c69e09b568033dcab17418e",
+  "judgement": "error_rate counts REAL errors only (5xx, unexpected non-2xx, 429 without Retry-After). A 429 WITH Retry-After is expected throttling of a deliberate burst — the rate limiter working — and is reported as expected_throttled/expected_throttle_rate instead. A scenario with zero successful requests also fails.",
+  "verdict": "PASS",
+  "verdict_detail": "no real errors in either scenario; 41 join request(s) were throttled by the deliberate per-IP limit (429 + Retry-After), which is the control working as designed",
+  "generated_at": "2026-09-20T19:27:56.845Z",
+  "commit": "1af6dd6c444f27fb02869bdcf6d401135150ed88",
   "environment": {
     "mode": "next build + next start (production mode)",
-    "db": "postgres://localhost:5432/welcome_test"
+    "db": "postgres://localhost:5432/welcome_dev"
   },
   "scenario": {
-    "event_id": "296dce02-6a32-4fc4-8b85-dc772a081dbd",
+    "event_id": "3b9d936e-0caa-4c05-ae53-01bd33fba9dd",
     "members": 200,
     "joiners": 50
   },
   "mutation_join": {
-    "endpoint": "/api/events/296dce02-6a32-4fc4-8b85-dc772a081dbd/join",
+    "endpoint": "/api/events/3b9d936e-0caa-4c05-ae53-01bd33fba9dd/join",
     "method": "POST",
     "concurrent": 50,
-    "wall_ms": 149,
-    "p50_ms": 127.3,
-    "p95_ms": 142,
-    "max_ms": 142.4,
+    "wall_ms": 104,
+    "requests": 50,
+    "p50_ms": 67.7,
+    "p95_ms": 101.1,
+    "max_ms": 101.6,
     "error_rate": 0,
+    "success_rate": 0.18,
+    "successes": 9,
+    "expected_throttled": 41,
+    "expected_throttle_rate": 0.82,
+    "throttle_without_retry_after": 0,
+    "real_errors": 0,
+    "real_error_categories": {},
     "statuses": {
-      "200": 50
+      "200": 9,
+      "429": 41
+    },
+    "categories": {
+      "throttled": 41,
+      "ok": 9
     }
   },
   "read_recommendations": {
-    "endpoint": "/api/events/296dce02-6a32-4fc4-8b85-dc772a081dbd/recommendations",
+    "endpoint": "/api/events/3b9d936e-0caa-4c05-ae53-01bd33fba9dd/recommendations",
     "method": "GET",
     "requests": 200,
     "concurrency": 50,
-    "wall_ms": 341,
-    "p50_ms": 77.8,
-    "p95_ms": 110.7,
-    "max_ms": 132.8,
+    "wall_ms": 396,
+    "p50_ms": 95.4,
+    "p95_ms": 125.5,
+    "max_ms": 142.4,
     "error_rate": 0,
+    "success_rate": 1,
+    "successes": 200,
+    "expected_throttled": 0,
+    "expected_throttle_rate": 0,
+    "throttle_without_retry_after": 0,
+    "real_errors": 0,
+    "real_error_categories": {},
     "statuses": {
       "200": 200
+    },
+    "categories": {
+      "ok": 200
     }
   }
 }

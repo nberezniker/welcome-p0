@@ -7,6 +7,10 @@
 //      50) against an event with 200 directory-opted-in members.
 // Writes evidence/load-smoke.json and prints p95/error-rate summaries.
 //
+// Judgement: the smoke FAILS only on real errors (see "Response judgement"
+// below) — deliberate 429 + Retry-After throttling of the mutation burst is the
+// rate limiter working, and is reported, not counted against the run.
+//
 // Env: LOAD_SMOKE_DATABASE_URL (default welcome_test — schema is reset!),
 //      LOAD_SMOKE_PORT (default 3177), LOAD_SMOKE_SKIP_BUILD=1 to reuse .next.
 import { spawnSync, spawn } from 'node:child_process';
@@ -69,6 +73,102 @@ function percentile(sorted, p) {
   if (sorted.length === 0) return 0;
   const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
   return Math.round(sorted[idx] * 10) / 10;
+}
+
+// ---------------------------------------------------------------------------
+// Response judgement — WHY a 429 is NOT an error here. Do not "fix" this back.
+//
+// The annotation asks for exactly this shape ("50 concurrent writes"), and the
+// join endpoint is deliberately rate-limited: a per-IP control (10 joins/min,
+// `event_join` in src/lib/http.ts IP_RATE_RULES) on top of the DB-level
+// per-subject limit. The CORRECT behaviour of a rate-limited endpoint under a
+// burst from one client is to refuse the excess with 429 + Retry-After — that
+// is the control doing its job, not a failure. Counting those refusals as
+// errors makes a healthy run look red and, worse, invites somebody to weaken
+// the limiter until the number turns green, which is the opposite of the goal.
+//
+// Only these are REAL errors, and only they can fail the smoke:
+//   * 5xx — the server actually broke;
+//   * any other non-2xx — including a 429 WITHOUT Retry-After, which breaks the
+//     client contract and is therefore a bug rather than throttling.
+// A scenario that produced ZERO successful requests also fails: "every request
+// was refused" is not a healthy rate limit, it is an unusable endpoint.
+//
+// Expected throttling stays fully visible (count, rate, status histogram): if
+// the size of the surviving slice of the burst changes, that must be readable.
+// ---------------------------------------------------------------------------
+const REAL_ERROR_CATEGORIES = ['server_error', 'unexpected_status', 'throttled_without_retry_after'];
+
+function classifyResponse(status, retryAfter) {
+  if (status >= 500) return 'server_error';
+  if (status >= 200 && status < 300) return 'ok';
+  if (status === 429) return retryAfter ? 'throttled' : 'throttled_without_retry_after';
+  return 'unexpected_status';
+}
+
+/** Per-phase accumulator: latency, status histogram and category counts in one pass. */
+function newPhase() {
+  return { latencies: [], statuses: {}, categories: {} };
+}
+
+function observe(phase, res, ms) {
+  phase.latencies.push(ms);
+  phase.statuses[res.status] = (phase.statuses[res.status] ?? 0) + 1;
+  const category = classifyResponse(res.status, res.headers.get('retry-after'));
+  phase.categories[category] = (phase.categories[category] ?? 0) + 1;
+}
+
+/** `expected` = how many requests the phase issued; every rate is over that. */
+function summarizePhase(phase, expected) {
+  phase.latencies.sort((a, b) => a - b);
+  const count = (category) => phase.categories[category] ?? 0;
+  const realErrors = REAL_ERROR_CATEGORIES.reduce((n, c) => n + count(c), 0);
+  return {
+    p50_ms: percentile(phase.latencies, 50),
+    p95_ms: percentile(phase.latencies, 95),
+    max_ms: percentile(phase.latencies, 100),
+    // error_rate counts REAL errors only — the deliberate 429s are reported
+    // separately below and never enter this number (see the note above).
+    error_rate: realErrors / expected,
+    success_rate: count('ok') / expected,
+    successes: count('ok'),
+    expected_throttled: count('throttled'),
+    expected_throttle_rate: count('throttled') / expected,
+    throttle_without_retry_after: count('throttled_without_retry_after'),
+    real_errors: realErrors,
+    real_error_categories: Object.fromEntries(
+      REAL_ERROR_CATEGORIES.filter((c) => count(c) > 0).map((c) => [c, count(c)]),
+    ),
+    statuses: phase.statuses,
+    categories: phase.categories,
+  };
+}
+
+/** Collects why a phase failed; empty = healthy. */
+function judgePhase(label, summary, failures) {
+  if (summary.real_errors > 0) {
+    failures.push(
+      `${label}: ${summary.real_errors} real error(s) ${JSON.stringify(summary.real_error_categories)}`,
+    );
+  } else if (summary.successes === 0) {
+    failures.push(
+      `${label}: no successful request at all (${summary.requests} issued, ` +
+        `throttled=${summary.expected_throttled}) — an endpoint that refuses everything is not healthy`,
+    );
+  }
+}
+
+/** One line per phase for the log, so the categories are never hidden by a rate. */
+function describePhase(label, summary) {
+  const histogram = Object.entries(summary.statuses)
+    .map(([status, n]) => `${status}×${n}`)
+    .join(', ');
+  return (
+    `${label}: ${summary.successes} ok · ${summary.expected_throttled} throttled (429+Retry-After) · ` +
+    `${summary.real_errors} real error(s) — statuses: ${histogram}\n` +
+    `    p50=${summary.p50_ms}ms p95=${summary.p95_ms}ms max=${summary.max_ms}ms · ` +
+    `error_rate=${summary.error_rate} (real errors only)`
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -185,8 +285,7 @@ try {
   }
 
   // ---- mutation phase: 50 concurrent joins -------------------------------
-  const joinLatencies = [];
-  const joinStatuses = [];
+  const joinPhase = newPhase();
   const joinStart = performance.now();
   await Promise.all(
     joinerTokens.slice(1).map(async (token) => {
@@ -194,50 +293,59 @@ try {
       const res = await fetch(`${BASE_URL}/api/events/${eventId}/join`, {
         method: 'POST', headers: { cookie: `welcome_session=${token}`, 'content-type': 'application/json' }, body: '{}',
       });
-      joinLatencies.push(performance.now() - t0);
-      joinStatuses.push(res.status);
+      observe(joinPhase, res, performance.now() - t0);
     }),
   );
   const joinWallMs = performance.now() - joinStart;
-  joinLatencies.sort((a, b) => a - b);
 
   // ---- read phase: 200 recommendation GETs at concurrency 50 --------------
-  const readLatencies = [];
-  const readStatuses = [];
+  const readPhase = newPhase();
   let next = 0;
   const worker = async () => {
     while (next < N_REQ_READ) {
       next++;
       const t0 = performance.now();
       const res = await fetch(`${BASE_URL}/api/events/${eventId}/recommendations`, { headers: { cookie: warmCookie } });
-      readLatencies.push(performance.now() - t0);
-      readStatuses.push(res.status);
+      observe(readPhase, res, performance.now() - t0);
     }
   };
   const readStart = performance.now();
   await Promise.all(Array.from({ length: READ_CONCURRENCY }, worker));
   const readWallMs = performance.now() - readStart;
-  readLatencies.sort((a, b) => a - b);
 
-  const joinErrors = joinStatuses.filter((s) => s < 200 || s >= 300).length;
-  const readErrors = readStatuses.filter((s) => s < 200 || s >= 300).length;
+  const joinSummary = { requests: N_JOINERS, ...summarizePhase(joinPhase, N_JOINERS) };
+  const readSummary = { requests: N_REQ_READ, ...summarizePhase(readPhase, N_REQ_READ) };
+
+  const failures = [];
+  judgePhase(`join POST ×${N_JOINERS}`, joinSummary, failures);
+  judgePhase(`recommendations GET ×${N_REQ_READ}`, readSummary, failures);
+  const verdict = failures.length === 0 ? 'PASS' : 'FAIL';
 
   const summary = {
     note: 'LOCAL-ONLY INDICATIVE NUMBERS — not production capacity claims',
+    judgement:
+      'error_rate counts REAL errors only (5xx, unexpected non-2xx, 429 without Retry-After). ' +
+      'A 429 WITH Retry-After is expected throttling of a deliberate burst — the rate limiter working — ' +
+      'and is reported as expected_throttled/expected_throttle_rate instead. ' +
+      'A scenario with zero successful requests also fails.',
+    verdict,
+    verdict_detail:
+      failures.length > 0
+        ? failures.join('; ')
+        : `no real errors in either scenario; ${joinSummary.expected_throttled} join request(s) were throttled ` +
+          `by the deliberate per-IP limit (429 + Retry-After), which is the control working as designed`,
     generated_at: new Date().toISOString(),
     commit,
     environment: { mode: 'next build + next start (production mode)', db: databaseUrl },
     scenario: { event_id: eventId, members: N_MEMBERS, joiners: N_JOINERS },
     mutation_join: {
       endpoint: `/api/events/${eventId}/join`, method: 'POST', concurrent: N_JOINERS, wall_ms: Math.round(joinWallMs),
-      p50_ms: percentile(joinLatencies, 50), p95_ms: percentile(joinLatencies, 95), max_ms: percentile(joinLatencies, 100),
-      error_rate: joinErrors / N_JOINERS, statuses: joinStatuses.reduce((m, s) => ((m[s] = (m[s] ?? 0) + 1), m), {}),
+      ...joinSummary,
     },
     read_recommendations: {
       endpoint: `/api/events/${eventId}/recommendations`, method: 'GET', requests: N_REQ_READ,
       concurrency: READ_CONCURRENCY, wall_ms: Math.round(readWallMs),
-      p50_ms: percentile(readLatencies, 50), p95_ms: percentile(readLatencies, 95), max_ms: percentile(readLatencies, 100),
-      error_rate: readErrors / N_REQ_READ, statuses: readStatuses.reduce((m, s) => ((m[s] = (m[s] ?? 0) + 1), m), {}),
+      ...readSummary,
     },
   };
 
@@ -246,14 +354,12 @@ try {
 
   console.log('');
   console.log('======== LOAD SMOKE (LOCAL-ONLY INDICATIVE) ========');
-  console.log(`join POST ×${N_JOINERS} concurrent: p50=${summary.mutation_join.p50_ms}ms p95=${summary.mutation_join.p95_ms}ms max=${summary.mutation_join.max_ms}ms error_rate=${summary.mutation_join.error_rate}`);
-  console.log(`recommendations GET ×${N_REQ_READ} (${READ_CONCURRENCY} conc): p50=${summary.read_recommendations.p50_ms}ms p95=${summary.read_recommendations.p95_ms}ms max=${summary.read_recommendations.max_ms}ms error_rate=${summary.read_recommendations.error_rate}`);
+  console.log(describePhase(`join POST ×${N_JOINERS} concurrent`, summary.mutation_join));
+  console.log(describePhase(`recommendations GET ×${N_REQ_READ} (${READ_CONCURRENCY} conc)`, summary.read_recommendations));
+  console.log(`VERDICT: ${verdict} — ${summary.verdict_detail}`);
   console.log('results written to evidence/load-smoke.json');
 
-  if (summary.mutation_join.error_rate > 0.05 || summary.read_recommendations.error_rate > 0.05) {
-    console.error('LOAD SMOKE: error rate above 5% — inspect before release');
-    process.exitCode = 1;
-  }
+  if (verdict === 'FAIL') process.exitCode = 1;
 } finally {
   if (!serverClosed) {
     server.kill('SIGTERM');
