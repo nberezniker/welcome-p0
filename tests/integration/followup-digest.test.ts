@@ -445,7 +445,10 @@ test('phase4: the one-click unsubscribe link stops the digest without a session'
   assert.deepEqual(await loadOptInState(sql, viewer.accountId), { reminders: false, digest: false });
 
   // A tampered link is a generic 400 and changes nothing.
-  const forged = await unsubscribeRoute(makeRequest(`/api/me/followup/unsubscribe?t=${token.slice(0, -1)}0`));
+  // The signature is hex: forcing the last character to '0' is a no-op whenever the real
+  // token already ends in '0' (measured ~6% of tokens), and the route then correctly
+  // answers 200 — a flake that looks like a security failure. Flip it instead.
+  const forged = await unsubscribeRoute(makeRequest(`/api/me/followup/unsubscribe?t=${token.slice(0, -1)}${token.at(-1) === '0' ? '1' : '0'}`));
   assert.equal(forged.status, 400);
   assert.match(await forged.text(), /not valid/i);
 });
