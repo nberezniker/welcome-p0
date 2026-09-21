@@ -14,6 +14,7 @@ import { taxonomyPayload } from '../../../domain/taxonomy';
 import { appBaseUrl } from '../../../lib/env';
 import { ShareLinks } from '../../../components/share-links';
 import { IntroCta, SignInCta } from './intro-cta';
+import { QrPanel } from './qr-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -178,6 +179,25 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
     whatsapp: t('contacts.kind.whatsapp'),
   };
 
+  /**
+   * The labels the contact ROWS show. Typed over `PublicContact['kind']` — every
+   * kind the projection can emit, `phone` included — and NOT over `LinkKind`,
+   * which has no `phone` and is what the map above is for (the intro dialog
+   * labels reveal fields with it). That mismatch is the exact shape of the bug
+   * this fixes: `phone` used to miss the map, and the row fell through to the
+   * generic `pubcard.contacts` word, so a phone number was labelled "Contacts"
+   * in every locale. Being exhaustive here makes the next contact kind a
+   * typecheck error instead of another silent fallback.
+   */
+  const contactLabels: Record<PublicContact['kind'], string> = {
+    linkedin_url: t('pubcard.contactLink.linkedin_url'),
+    github_url: t('pubcard.contactLink.github_url'),
+    website: t('pubcard.contactLink.website'),
+    telegram_username: t('pubcard.contactLink.telegram_username'),
+    whatsapp: t('pubcard.contactLink.whatsapp'),
+    phone: t('pubcard.contactLink.phone'),
+  };
+
   const contacts = [...profile.contacts].sort(
     (a, b) => CONTACT_ORDER.indexOf(a.kind) - CONTACT_ORDER.indexOf(b.kind),
   );
@@ -247,31 +267,75 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           testId="pubcard-interests"
         />
 
-        {/* Links — public contacts only, never a private value. */}
+        {/*
+          Links — public contacts only, never a private value.
+
+          THE VISIBLE TEXT IS THE HUMAN LABEL, and the stored value lives in
+          three other places instead of on the page:
+            · `href` — the link still goes where it always went, so "copy link
+              address" yields exactly the stored value;
+            · `title` — the value on hover, for a sighted mouse user;
+            · a `sr-only` span — which is what puts the value into the link's
+              accessible name AND keeps it in the row's text, so a screen reader
+              reads "Website https://…" and selecting the row still copies it.
+          An `aria-label` alone would have flattened the value out of a copy,
+          and `title` alone is mouse-only, so the span carries the contract.
+          Why not show the value: a real profile's URL wrapped mid-word and
+          competed with the QR block for the eye (see the owner's "premium, no
+          clutter" direction) — the label names the destination, the link opens
+          it. `min-h-11` + `min-w-11` make each row a 44px touch target in both
+          directions — the minimum WIDTH is what keeps a short label ("Сайт")
+          honest: the box grows to the right of the text, so it costs nothing
+          visually. It also replaces the `min-w-0` a truncating flex item
+          normally needs, because an explicit min-width is what stops the item
+          taking its content width as a floor; `truncate` therefore still holds
+          on a long localized label and the card cannot be pushed sideways at
+          360px.
+        */}
         {contacts.length > 0 ? (
           <section className="mt-6 border-t border-line pt-5" data-testid="pubcard-links">
             <h2 className="eyebrow">{t('pubcard.contacts')}</h2>
             <ul className="mt-3 flex flex-col gap-2">
               {contacts.map((contact) => {
                 const href = contactHref(contact);
-                const label = kindLabels[contact.kind as LinkKind] ?? t('pubcard.contacts');
+                const label = contactLabels[contact.kind];
+                const row = (
+                  <>
+                    <span className="truncate" data-testid="pubcard-contact-label">
+                      {label}
+                    </span>
+                    {/* The leading space keeps the announced/selected value from
+                        being glued to the label: "LinkedIn https://…". */}
+                    <span className="sr-only">{` ${contact.value}`}</span>
+                  </>
+                );
+                // One row shape for both branches, so the rare value that
+                // cannot become a link (contactHref returns null) still names
+                // its channel and still exposes the value to assistive tech —
+                // it just cannot be clicked. Sharing the fragment is what keeps
+                // the two branches from drifting apart.
+                // The 44px target and the truncation contract are explained in
+                // the block comment above; `rowClass` is shared by both branches
+                // so a row cannot be a 44px target in one state and not the other.
+                const rowClass =
+                  'inline-flex min-h-11 min-w-11 max-w-full items-center font-medium';
                 return (
-                  <li key={contact.kind} className="flex items-center gap-2 text-sm">
+                  <li key={contact.kind} className="flex min-w-0 items-center gap-2 text-sm">
                     <span className="text-muted">
                       <ContactIcon kind={contact.kind} />
                     </span>
-                    <span className="w-24 shrink-0 text-muted">{label}</span>
                     {href ? (
                       <a
-                        className="break-all font-medium underline underline-offset-2 hover:text-ink"
+                        className={`${rowClass} underline underline-offset-2 hover:text-ink`}
                         href={href}
+                        title={contact.value}
                         target={href.startsWith('tel:') ? undefined : '_blank'}
                         rel="noopener noreferrer nofollow"
                       >
-                        {contact.value}
+                        {row}
                       </a>
                     ) : (
-                      <span className="break-all font-medium">{contact.value}</span>
+                      <span className={rowClass}>{row}</span>
                     )}
                   </li>
                 );
@@ -288,7 +352,11 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             <Link href={vcardUrl} prefetch={false} className="btn-light" data-testid="pubcard-vcard">
               {t('pubcard.vcard')}
             </Link>
-            <Link href={qrUrl} prefetch={false} className="btn-light">
+            {/* The download path stays exactly where it was — always visible,
+                never inside the disclosure below. Hiding the code is a choice
+                about the page; losing the way to SAVE the code would be a
+                regression for someone who wants to show it later. */}
+            <Link href={qrUrl} prefetch={false} className="btn-light" data-testid="pubcard-qr-download">
               {t('pubcard.qr')}
             </Link>
           </div>
@@ -305,9 +373,22 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             shareLabel={t('share.native')}
             copiedLabel={t('share.copied')}
           />
+          <QrPanel
+            testId="pubcard-qr"
+            showLabel={t('pubcard.qrShow')}
+            hideLabel={t('pubcard.qrHide')}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- SVG endpoint, no optimizer pass-through needed */}
+            <img
+              src={qrUrl}
+              alt={t('pubcard.qr')}
+              width={160}
+              height={160}
+              className="rounded-xl border border-line bg-white p-2"
+              data-testid="pubcard-qr-image"
+            />
+          </QrPanel>
         </div>
-        {/* eslint-disable-next-line @next/next/no-img-element -- SVG endpoint, no optimizer pass-through needed */}
-        <img src={qrUrl} alt={t('pubcard.qr')} width={160} height={160} className="mt-4 rounded-xl border border-line bg-white p-2" />
 
         {sharedEvent ? (
           <IntroCta

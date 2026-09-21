@@ -161,7 +161,25 @@ test.describe('WELCOME P0 smoke', () => {
     const anonPage = await anon.newPage();
     await anonPage.goto(publicUrl!);
     await expect(anonPage.getByRole('heading', { level: 1 })).toContainText('Alice Nova');
-    await expect(anonPage.getByText('+34600111111')).toBeVisible(); // published contact visible
+    // PUBLISHED CONTACT REACHABLE, PRIVATE CONTACT ABSENT.
+    //
+    // This used to be `getByText('+34600111111').toBeVisible()`, and it kept
+    // passing after the card stopped showing the raw value as text: Playwright
+    // calls an element visible when it has a non-empty box and no
+    // `visibility:hidden`, and an `sr-only` node is a 1px CLIPPED box — so a
+    // value that a sighted visitor can no longer read still measured "visible".
+    // A test that passes for that reason is worse than no test, so the assertion
+    // now states the real contract in two halves: the row is reachable by the
+    // name assistive tech gets (label + value — the same name the card's own
+    // spec asserts), and the link still points at the published number.
+    await expect(
+      anonPage.getByRole('link', { name: /\+34600111111/ }),
+      'the published contact must be reachable by its accessible name (label + value)',
+    ).toBeVisible();
+    await expect(
+      anonPage.getByRole('link', { name: /\+34600111111/ }),
+      'the link must still point at the published number',
+    ).toHaveAttribute('href', 'https://wa.me/34600111111');
     await expect(anonPage.getByText('+34600222222')).toHaveCount(0); // private contact absent
     await anon.close();
 

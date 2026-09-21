@@ -785,6 +785,20 @@ export const en = {
   'pubcard.contactsEmpty': 'No published contacts.',
   'pubcard.vcard': 'Download vCard',
   'pubcard.qr': 'QR for this card',
+  // The card's contact link labels: the VISIBLE text of a contact row, kept
+  // deliberately shorter than the `contacts.kind.*` field labels the cabinet
+  // edits by ("LinkedIn" vs "LinkedIn profile URL"). The row no longer shows
+  // the stored value as text (src/app/p/[slug]/page.tsx explains where it
+  // went), so the word the visitor reads has to name the destination on its
+  // own. Brand names are proper nouns and stay untranslated in every locale.
+  'pubcard.contactLink.linkedin_url': 'LinkedIn',
+  'pubcard.contactLink.github_url': 'GitHub',
+  'pubcard.contactLink.website': 'Website',
+  'pubcard.contactLink.telegram_username': 'Telegram',
+  'pubcard.contactLink.whatsapp': 'WhatsApp',
+  'pubcard.contactLink.phone': 'Phone',
+  'pubcard.qrShow': 'Show QR',
+  'pubcard.qrHide': 'Hide QR',
   'pubcard.languages': 'Languages',
   'pubcard.buildNote': 'Public card. Only fields the owner published are shown.',
 

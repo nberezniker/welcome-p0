@@ -450,6 +450,16 @@ body {
   .no-print {
     display: none !important;
   }
+  /* The card's QR is collapsed behind a control on screen
+     (src/app/p/[slug]/qr-panel.tsx). Paper has nothing to press, and the QR is
+     the entire reason that block exists on a printed card, so it is always
+     shown here. `!important` is what beats the `hidden` utility the collapsed
+     state carries — and the collapsed state is deliberately that class rather
+     than the `hidden` attribute, which Tailwind's preflight hides with
+     `!important` of its own and which no print rule could win against. */
+  [data-qr-body] {
+    display: block !important;
+  }
   body {
     background: #fff;
   }

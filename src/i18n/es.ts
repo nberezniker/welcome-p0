@@ -763,6 +763,17 @@ export const es: Partial<Dictionary> = {
   'pubcard.contactsEmpty': 'No hay contactos publicados.',
   'pubcard.vcard': 'Descargar vCard',
   'pubcard.qr': 'QR de esta tarjeta',
+  // Texto visible de la fila de contacto (véase en.ts): más corto que las
+  // etiquetas de campo `contacts.kind.*`, porque el valor ya no se muestra.
+  // Los nombres de servicio son nombres propios y no se traducen.
+  'pubcard.contactLink.linkedin_url': 'LinkedIn',
+  'pubcard.contactLink.github_url': 'GitHub',
+  'pubcard.contactLink.website': 'Sitio web',
+  'pubcard.contactLink.telegram_username': 'Telegram',
+  'pubcard.contactLink.whatsapp': 'WhatsApp',
+  'pubcard.contactLink.phone': 'Teléfono',
+  'pubcard.qrShow': 'Mostrar QR',
+  'pubcard.qrHide': 'Ocultar QR',
   'pubcard.languages': 'Idiomas',
   'pubcard.buildNote': 'Tarjeta pública. Solo se muestran los campos que el propietario ha publicado.',
   'me.nav.security': 'Seguridad',

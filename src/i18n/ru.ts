@@ -761,6 +761,17 @@ export const ru: Partial<Dictionary> = {
   'pubcard.contactsEmpty': 'Опубликованных контактов нет.',
   'pubcard.vcard': 'Скачать vCard',
   'pubcard.qr': 'QR этой карточки',
+  // Видимый текст строки контакта (см. en.ts): короче полевых подписей
+  // `contacts.kind.*`, потому что значение в строке больше не показывается.
+  // Названия сервисов — имена собственные, не переводятся.
+  'pubcard.contactLink.linkedin_url': 'LinkedIn',
+  'pubcard.contactLink.github_url': 'GitHub',
+  'pubcard.contactLink.website': 'Сайт',
+  'pubcard.contactLink.telegram_username': 'Telegram',
+  'pubcard.contactLink.whatsapp': 'WhatsApp',
+  'pubcard.contactLink.phone': 'Телефон',
+  'pubcard.qrShow': 'Показать QR',
+  'pubcard.qrHide': 'Скрыть QR',
   'pubcard.languages': 'Языки',
   'pubcard.buildNote': 'Публичная карточка. Показаны только поля, которые владелец опубликовал.',
   'me.nav.security': 'Безопасность',
