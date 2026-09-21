@@ -1203,5 +1203,8 @@ export const es: Partial<Dictionary> = {
   'theme.soft': 'Suave',
   'theme.swiss': 'Suizo',
   'theme.poster': 'Póster',
+  // «Premium» es la forma correcta en español: no es una palabra inglesa sin
+  // traducir, sino el término que se usa. Las otras tres sí cambian de forma.
+  'theme.premium': 'Premium',
   'theme.exit': 'Salir de la revisión',
 };

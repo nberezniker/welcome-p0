@@ -8,29 +8,31 @@
  * TWO LAYERS, ONE SOURCE OF TRUTH.
  *
  * 1. `--t-*` are the THEME TOKENS (below the @theme block): the only place a
- *    colour, radius, shadow or type weight is written down. The three themes —
- *    `soft` (default), `swiss`, `poster` — are three value sets for the same
- *    names, selected by `html[data-theme="…"]` and by nothing else. `:root`
+ *    colour, radius, shadow or type weight is written down. The four themes —
+ *    `soft` (default), `swiss`, `poster`, `premium` — are four value sets for the
+ *    same names, selected by `html[data-theme="…"]` and by nothing else. `:root`
  *    carries `soft`, whose values ARE the pre-theme literals, so a page with no
  *    `data-theme` renders exactly as it did before themes existed; the e2e gate
  *    pins that by comparing the computed styles of the card and the event,
  *    un-themed vs `?theme=soft` (tests/e2e/design-themes.spec.ts).
  *
  * 2. `@theme` maps utility names onto those tokens — `bg-ink` →
- *    `var(--color-ink)` → `var(--t-ink)` — so ONE markup serves all three
+ *    `var(--color-ink)` → `var(--t-ink)` — so ONE markup serves all four
  *    themes. Deliberately NOT `@theme inline`: plain CSS here and the inline
  *    styles some components carry (`style={{ background: 'var(--color-pine)' }}`
  *    in the funnel legend) read `var(--color-*)` directly and must keep
  *    resolving; inlining would delete those variables.
  *
  * CONTRAST. Every value below is measured, not eyeballed; each theme's pairs and
- * ratios are tabulated in docs-internal/design/THEMES.md. The precedent that set
- * the rule is the coral: the reference coral (#d84932) measured 4.27:1 against
- * white — below WCAG AA (4.5:1) BOTH as accent text on paper and as white text
- * on an accent button — so themes ship #c93d26 (5.03:1 both ways), and every
- * other theme's accent was measured the same way instead of picked for looks.
- * Where a theme's own palette failed, the value was darkened until it cleared
- * the bar: no text colour here is below 4.5:1 on the surface it is used on. */
+ * ratios are tabulated in docs-internal/design/THEMES.md, and the AA pairs (body
+ * text, the chip ink, the primary action) are ASSERTED for all four themes by
+ * tests/unit/theme.test.ts. The precedent that set the rule is the coral: the
+ * reference coral (#d84932) measured 4.27:1 against white — below WCAG AA (4.5:1)
+ * BOTH as accent text on paper and as white text on an accent button — so themes
+ * ship #c93d26 (5.03:1 both ways), and every other theme's accent was measured
+ * the same way instead of picked for looks. Where a theme's own palette failed,
+ * the value was darkened until it cleared the bar: no text colour here is below
+ * 4.5:1 on the surface it is used on. */
 @theme {
   /* Surfaces and text */
   --color-paper: var(--t-canvas);
@@ -198,6 +200,82 @@ html[data-theme="poster"] {
   --t-heading-tracking: -0.03em;
 }
 
+/* ── premium — warm monochrome ─────────────────────────────────────────────
+   The quiet one. A warm stone ground, warm near-black type, hairline rules and
+   ONE burnished-bronze accent; nothing else in the theme carries hue. It is the
+   deliberate opposite of poster: where poster shouts in cobalt at 900 weight and
+   3px rules, premium whisper-reads as printed stationery at 700 and a 1px seam.
+
+   THE CHIPS ARE THE POINT, AND THEY CARRY NO HUE AT ALL. `--t-mint`,
+   `--t-offer` and `--t-need` are the SAME value here, and so are `--t-pine`,
+   `--t-offer-ink` and `--t-need-ink`: an offer chip and a need chip are
+   pixel-identical. That is only honest because colour was never the only carrier
+   — each group is introduced by its own localized heading and its chips say
+   different words (src/app/p/[slug]/page.tsx names each list with
+   `aria-labelledby`), and tests/unit/theme.test.ts pins that naming so a future
+   "cleanup" cannot strip it and leave position as the sole difference. A chip
+   field is also deliberately NOT pure white — 1.16:1 against the card — so a
+   chip is never invisible on the white surface it sits on.
+
+   TWO VALUES HERE WERE CHOSEN BY THE CONSTRAINTS, NOT BY EYE, and they are the
+   only two that could have failed:
+     · `--t-muted` is fixed at #6e6c65, and a chip-like language pill paints
+       muted text on the CANVAS (`chip !bg-paper !text-muted`), so the canvas is
+       the binding ground: #f7f2eb is the deepest warm step on which #6e6c65
+       still clears AA (4.72:1). A darker "richer" ground would have broken it.
+     · `--t-line-strong` / `--t-field-line` are a real UI boundary (an outline
+       button's frame, a form control's edge), so they clear 3:1 on the DARKER
+       of the two grounds — 3.20:1 on the canvas, 3.57:1 on the surface.
+   `--t-line` is the one line that stays a hairline (1.44:1 on the surface): it is
+   a card seam, not a boundary, and it is recorded here rather than darkened.
+
+   Measured (AA bar 4.5:1 for text, 3:1 for a UI boundary):
+     ink #1d1a16 on canvas #f7f2eb 15.56:1 · on surface #fff 17.33:1
+     muted #6e6c65 on canvas 4.72:1 · on surface 5.26:1 · on the chip field 4.52:1
+     accent #8a5a2b on surface 5.87:1 · on canvas 5.27:1 · on accent-pale 5.14:1
+     white on accent 5.87:1 · white on accent-hover #74491f 7.73:1
+     white on ink 17.33:1 · white on ink-hover #34312b 12.96:1
+     pine #3f3d37 on the chip field #f4ede4 9.35:1 (offer and need: identical)
+     line-strong #8b8782 on surface 3.57:1 · on canvas 3.20:1
+     recorded, below no bar: line #dcd6cf on surface 1.44:1, on canvas 1.29:1 */
+html[data-theme="premium"] {
+  --t-canvas: #f7f2eb;
+  --t-surface: #fff;
+  --t-ink: #1d1a16;
+  --t-muted: #6e6c65;
+  --t-line: #dcd6cf;
+  --t-line-strong: #8b8782;
+  --t-field-line: #8b8782;
+  --t-accent: #8a5a2b;
+  --t-accent-hover: #74491f;
+  --t-accent-pale: #f6efe3;
+  --t-ink-hover: #34312b;
+  --t-pine: #3f3d37;
+  --t-mint: #f4ede4;
+  --t-offer: #f4ede4;
+  --t-offer-ink: #3f3d37;
+  --t-need: #f4ede4;
+  --t-need-ink: #3f3d37;
+  /* A hairline, kept a hairline: the card is a printed sheet whose edge is a
+     seam. 1px here is the same value soft ships, so it is not a difference
+     between those two themes — the difference is the warmer, lighter seam. */
+  --t-rule-card: 1px;
+  /* Nearly square. 6px on `rounded-full` is what makes a chip a soft-cornered
+     plate rather than a pill, and it is harmless at the sizes actually used:
+     the smallest `rounded-full` element in play is a 24px-tall chip, so 6px is
+     well under half the box and the browser's automatic corner clamp never
+     engages (nothing distorts into a lens shape). */
+  --t-radius-md: 2px;
+  --t-radius-lg: 3px;
+  --t-radius-xl: 4px;
+  --t-radius-2xl: 6px;
+  --t-radius-3xl: 10px;
+  --t-radius-full: 6px;
+  --t-shadow-card: 0 1px 2px 0 rgb(29 26 22 / 0.05), 0 1px 3px -1px rgb(29 26 22 / 0.07);
+  --t-heading-weight: 700;
+  --t-heading-tracking: -0.015em;
+}
+
 html {
   scroll-padding-top: 96px;
 }
@@ -266,7 +344,7 @@ body {
 }
 
 /* Form controls. The placeholder keeps its literal grey on purpose: it is not
- * body text, axe does not read ::placeholder, and it measures 2.62:1 against
+ * body text, axe does not read ::placeholder, and it measures 2.53:1 against
  * white — a PRE-EXISTING shortfall recorded in docs-internal/design/THEMES.md
  * rather than quietly changed, because changing it would change today's look.
  * The border is themed (`--t-field-line`), so a poster/skiss input is a rule in

@@ -1237,8 +1237,9 @@ export const en = {
   // ── Design review (the theme switcher) ────────────────────────────────────
   // Rendered only while a theme is EXPLICIT (cookie or ?theme=), which is why
   // the copy says "review": a visitor without one never sees this bar at all.
-  // The three theme names are style names (International Typographic Style,
-  // poster/constructivist), so they are translated as the words they are.
+  // The FOUR theme names are style names (International Typographic Style,
+  // poster/constructivist, warm monochrome), so they are translated as the words
+  // they are.
   'theme.bar': 'Design review',
   'theme.group': 'Design theme',
   'theme.option': 'Design theme: {name}',
@@ -1246,6 +1247,7 @@ export const en = {
   'theme.soft': 'Soft',
   'theme.swiss': 'Swiss',
   'theme.poster': 'Poster',
+  'theme.premium': 'Premium',
   'theme.exit': 'Exit review',
 } as const;
 

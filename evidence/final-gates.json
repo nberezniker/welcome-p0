@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-09-21T11:38:18.965Z",
-  "head_sha_at_gate_run": "99b752ec9c19b73c356d57f3682dfeeba7ec235f",
+  "generated_at": "2026-09-21T13:52:45.228Z",
+  "head_sha_at_gate_run": "06fd6e107e86c8431fed11f1cacc69db7900aaf5",
   "note": "The seven release gates run fresh and sequentially on the working tree; the combined output is evidence/final-gates.log.",
   "previous_run": {
-    "generated_at": "2026-09-21T11:34:58.867Z",
-    "head_sha_at_gate_run": "99b752ec9c19b73c356d57f3682dfeeba7ec235f"
+    "generated_at": "2026-09-21T13:48:22.225Z",
+    "head_sha_at_gate_run": "06fd6e107e86c8431fed11f1cacc69db7900aaf5"
   },
   "gates": [
     {
       "command": "pnpm typecheck",
       "exit_code": 0,
-      "duration_s": 6,
+      "duration_s": 7,
       "summary_lines": [
         "> welcome-p0@0.1.0 typecheck /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> tsc --noEmit"
@@ -28,17 +28,17 @@
     {
       "command": "pnpm test:unit",
       "exit_code": 0,
-      "duration_s": 12,
+      "duration_s": 14,
       "summary_lines": [
-        "# tests 656",
-        "# pass 656",
+        "# tests 659",
+        "# pass 659",
         "# fail 0"
       ]
     },
     {
       "command": "pnpm test:integration",
       "exit_code": 0,
-      "duration_s": 29,
+      "duration_s": 25,
       "summary_lines": [
         "# tests 402",
         "# pass 401",
@@ -49,29 +49,29 @@
     {
       "command": "pnpm test:e2e",
       "exit_code": 0,
-      "duration_s": 119,
+      "duration_s": 123,
       "summary_lines": [
-        "  48 passed (2.0m)"
+        "  49 passed (2.0m)"
       ]
     },
     {
       "command": "pnpm build",
       "exit_code": 0,
-      "duration_s": 5,
+      "duration_s": 6,
       "summary_lines": [
-        "✓ Compiled successfully in 1228ms",
+        "✓ Compiled successfully in 1400ms",
         "  Generating static pages using 9 workers (0/40) ...",
         "  Generating static pages using 9 workers (10/40) \r",
         "  Generating static pages using 9 workers (20/40) \r",
         "  Generating static pages using 9 workers (30/40) \r",
-        "✓ Generating static pages using 9 workers (40/40) in 159ms",
+        "✓ Generating static pages using 9 workers (40/40) in 201ms",
         "Route (app)"
       ]
     },
     {
       "command": "pnpm scan:secrets",
       "exit_code": 0,
-      "duration_s": 10,
+      "duration_s": 12,
       "summary_lines": [
         "> welcome-p0@0.1.0 scan:secrets /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "scan:secrets ok — no secrets found in tracked files (5 documented exemption(s), 0 stale)"
@@ -82,7 +82,7 @@
     "gates_total": 7,
     "gates_exit_zero": 7,
     "unit": {
-      "pass": 656,
+      "pass": 659,
       "fail": 0
     },
     "integration": {
@@ -91,7 +91,7 @@
       "skipped": 1
     },
     "e2e": {
-      "pass": 48,
+      "pass": 49,
       "fail": 0
     }
   }

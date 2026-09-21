@@ -73,6 +73,65 @@ families are **deep-equal** between no theme and `?theme=soft`, and the geometry
 of card/title/primary action is equal to within 0.5px. The `:root` token values
 themselves are pinned to the pre-theme literals by `tests/unit/theme.test.ts`.
 
+## After `premium` was added
+
+`premium` is a fourth value set for the same token names, so it cannot touch the
+default look — but "cannot" is the kind of claim this document exists to replace,
+so it was re-measured by the same method as (a), against **one** database state:
+
+| Surface @390, no theme | HEAD (before `premium`) | Working tree (after) |
+|---|---|---|
+| Card `/p/<slug>` | `43224` B | `43224` B — identical bytes |
+| Event `/e/<slug>` | `36927` B | `36927` B — identical bytes |
+
+```
+sha256 3e88da6bc6365b7e8acf37b31d7494ea07dc720ac85a5c5f7c92d3c23674fe6d   (card)
+sha256 4d78f2201043e5b1a36bf6c87428d657fd8136c14f5ed6e7137ee3b421055fa8   (event)
+```
+
+Three things are worth noting about this run:
+
+* The event digest `4d78f2201043e5b1…` is **the same digest recorded in claim (a)
+  above**, from a different session, a different database state and the earlier
+  tree. That is the strongest form this document can offer: the event card has no
+  slug-dependent pixel, so its bytes are reproducible across all of it.
+* The card is `43224` B here against `59734` B in claim (a) because the fixture is
+  a different one (a shorter bio), so the QR encodes a different slug. Within THIS
+  comparison the fixture is constant, which is what makes the equality meaningful.
+* `soft`'s token block is `:root` and was **not edited**; the `SOFT_AS_SHIPPED`
+  deep-equal pin in `tests/unit/theme.test.ts` is what keeps that true, and it is
+  byte-level about the token values rather than about a rendered page.
+* The only card-markup change was `id` + `aria-labelledby` on the chip lists.
+  Neither affects layout, colour or paint, and the equality above is the
+  observable form of that: nothing about the painted card moved.
+
+### A note on the two `evidence/screenshots/mini-landing-*.png` files
+
+Those are full-page shots of the public **card** (taken by
+`tests/e2e/onboarding-landing.spec.ts`), and they change on every e2e run: the run
+resets the database, the slug is regenerated, and the QR image inside the card
+encodes it. They are not landing-page images and their churn is not a rendering
+change.
+
+The measurements in the table above still stand as recorded: they were taken
+against the pre-theme tree (`99b752e`) and the tree that shipped the three themes,
+neither of which this change modified.
+
+## Reproducing the screenshots
+
+The images in this folder are now regenerable without any checkout juggling:
+
+```
+pnpm capture:themes --card=/p/<slug> --event=/e/<slug>
+```
+
+`scripts/capture-theme-evidence.mjs` writes the same filenames the e2e suite
+asserts about and records a SHA-256 per file in `theme-capture.json`, so a re-run
+can be compared to a previous one instead of merely eyeballed. This does **not**
+replace claim (a) above, which compares two different *builds* and still needs the
+stash dance; it removes the separate problem that the folder used to be evidenced
+by a capture nobody had committed.
+
 ## What is *not* covered by this
 
 * The comparison is Chromium-only, at one device pixel ratio, on one machine —

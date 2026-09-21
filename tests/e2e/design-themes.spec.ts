@@ -2,12 +2,13 @@ import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { THEMES, type Theme } from '../../src/lib/theme';
 import { en } from '../../src/i18n/en';
 import { ru } from '../../src/i18n/ru';
 import { es } from '../../src/i18n/es';
 
 /**
- * Design review — the acceptance gate for the three themes.
+ * Design review — the acceptance gate for the four themes.
  *
  * Everything in the bar is VERIFIED here rather than asserted in a report: axe
  * (including its colour-contrast rule) on the card and the event in each theme,
@@ -17,6 +18,13 @@ import { es } from '../../src/i18n/es';
  * are written to evidence/design-themes/measurements.json and the screenshots to
  * evidence/design-themes/ — that pair is the evidence, and a reviewer can re-read
  * it without re-running the suite.
+ *
+ * AXE: ZERO VIOLATIONS OF ANY IMPACT. The assertion used to admit `serious` and
+ * `critical` and treat `moderate`/`minor` as acceptable noise, which quietly left
+ * the whole class of structural findings (an un-landmarked strip of controls was
+ * exactly one) as something the gate could not fail on. It now fails on any
+ * violation at all: a finding is either fixed or it is a real problem, and there
+ * is no third category in which a finding is nobody's problem.
  *
  * WHY 390 AND 360 ARE MEASURED, NOT ASSUMED. The owner judges this on a phone.
  * 390×844 is the iPhone 14 class; 360×740 is the widest "small Android" that
@@ -28,10 +36,12 @@ import { es } from '../../src/i18n/es';
  * assertions here are deliberately absolute: the bar must start BELOW the card's
  * bottom edge, which is a stronger statement than "it does not overlap the
  * button" and survives future content changes inside the card.
+ *
+ * THE THEME LIST IS THE APP'S OWN (src/lib/theme.ts), not a copy. The sweep below
+ * therefore covers a newly added theme automatically instead of going green while
+ * the new one is untested; what the list CONTAINS is pinned by
+ * tests/unit/theme.test.ts.
  */
-
-const THEMES = ['soft', 'swiss', 'poster'] as const;
-type Theme = (typeof THEMES)[number];
 
 const EVIDENCE_DIR = path.join(process.cwd(), 'evidence', 'design-themes');
 const MOBILE = { width: 390, height: 844 };
@@ -53,7 +63,8 @@ interface Sample {
   barBottom: number | null;
   barBelowCard: boolean | null;
   minTapTarget: { name: string; width: number; height: number } | null;
-  axeSerious: string[];
+  /** EVERY axe violation, of any impact — see the note at the top of the file. */
+  axeViolations: string[];
   axeContrastNodes: number;
 }
 
@@ -65,6 +76,17 @@ function must(value: string | undefined, locale: string): string {
     throw new Error(`dictionary ${locale} has no value for a theme bar label`);
   }
   return value;
+}
+
+/**
+ * The dictionary key for one theme's switcher label. A helper rather than an
+ * inline template so the key stays a LITERAL UNION TypeScript can check against
+ * all three dictionaries: a theme added to `THEMES` without a `theme.<name>`
+ * string in en/ru/es fails `pnpm typecheck` instead of rendering a button with no
+ * text on it.
+ */
+function themeLabelKey(theme: Theme): `theme.${Theme}` {
+  return `theme.${theme}`;
 }
 
 /**
@@ -165,7 +187,7 @@ async function box(page: Page, selector: string) {
  * The primary action each page exists for: the card's accent CTA (intro when the
  * viewer shares an event, sign-in otherwise) and the event's join button.
  */
-async function measure(page: Page): Promise<Omit<Sample, 'theme' | 'page' | 'viewport' | 'axeSerious' | 'axeContrastNodes'>> {
+async function measure(page: Page): Promise<Omit<Sample, 'theme' | 'page' | 'viewport' | 'axeViolations' | 'axeContrastNodes'>> {
   const pageWidth = await page.evaluate(() => window.innerWidth);
   const scrollWidth = await page.evaluate(() => document.documentElement.scrollWidth);
   const viewportHeight = await page.evaluate(() => window.innerHeight);
@@ -210,25 +232,31 @@ async function smallestTapTarget(page: Page): Promise<Sample['minTapTarget']> {
   return smallest;
 }
 
-/** axe, plus the colour-contrast rule called out by name (it is `serious`). */
+/**
+ * axe, at EVERY impact level, plus the colour-contrast rule called out by name.
+ *
+ * The severity filter is deliberately gone. It used to keep only `serious` and
+ * `critical`, which meant a `moderate` finding (the review bar itself once
+ * reported as an un-landmarked `region`) could not fail this gate. An exemption
+ * that only exists because an assertion was narrow is not a decision, so the
+ * assertion is now as wide as axe is.
+ */
 async function scan(page: Page) {
   const results = await new AxeBuilder({ page }).analyze();
-  const serious = results.violations
-    .filter((v) => v.impact === 'serious' || v.impact === 'critical')
-    .map((v) => `${v.id} [${v.impact}] ${v.help}`);
+  const violations = results.violations.map((v) => `${v.id} [${v.impact}] ${v.help} (${v.nodes.length} node(s))`);
   for (const v of results.violations) {
     console.log(`      axe ${v.id} [${v.impact}] ${v.nodes.length} node(s)`);
     for (const node of v.nodes.slice(0, 3)) console.log(`        ${node.html.slice(0, 140)}`);
   }
   const contrast = results.violations.find((v) => v.id === 'color-contrast');
-  return { serious, contrastNodes: contrast?.nodes.length ?? 0 };
+  return { violations, contrastNodes: contrast?.nodes.length ?? 0 };
 }
 
 test.beforeAll(() => {
   mkdirSync(EVIDENCE_DIR, { recursive: true });
 });
 
-test('design review: card and event hold the bar in all three themes at 390 and 360', async ({ page }) => {
+test('design review: card and event hold the bar in all four themes at 390 and 360', async ({ page }) => {
   test.setTimeout(180_000);
   const { cardPath } = await seed(page, {
     email: 'themes-owner@example.org',
@@ -262,7 +290,7 @@ test('design review: card and event hold the bar in all three themes at 390 and 
         viewport: `${viewport.width}`,
         ...measured,
         minTapTarget: null,
-        axeSerious: axe.serious,
+        axeViolations: axe.violations,
         axeContrastNodes: axe.contrastNodes,
       });
       if (viewport === MOBILE) {
@@ -273,7 +301,7 @@ test('design review: card and event hold the bar in all three themes at 390 and 
         });
       }
       console.log(
-        `[themes] none ${target.page} @${viewport.width}: cardBottom=${measured.cardBottom} title=${measured.titleBottom} action=${measured.actionTop}–${measured.actionBottom} overflow=${measured.overflowPx}px axe=${axe.serious.length}`,
+        `[themes] none ${target.page} @${viewport.width}: cardBottom=${measured.cardBottom} title=${measured.titleBottom} action=${measured.actionTop}–${measured.actionBottom} overflow=${measured.overflowPx}px axe=${axe.violations.length}`,
       );
     }
   }
@@ -306,7 +334,7 @@ test('design review: card and event hold the bar in all three themes at 390 and 
           viewport: label,
           ...measured,
           minTapTarget: tap,
-          axeSerious: axe.serious,
+          axeViolations: axe.violations,
           axeContrastNodes: axe.contrastNodes,
         });
 
@@ -321,7 +349,7 @@ test('design review: card and event hold the bar in all three themes at 390 and 
           problems.push(`${where}: the bar covers the primary action (bar ${measured.barTop} < action bottom ${measured.actionBottom})`);
         }
         if (measured.actionTop < 0) problems.push(`${where}: the primary action was not found`);
-        if (axe.serious.length > 0) problems.push(`${where}: ${axe.serious.join(' | ')}`);
+        if (axe.violations.length > 0) problems.push(`${where}: ${axe.violations.join(' | ')}`);
         if (tap && (tap.height < 44 || tap.width < 44)) {
           problems.push(`${where}: tap target ${tap.name} is ${tap.width}×${tap.height}, below 44px`);
         }
@@ -336,7 +364,7 @@ test('design review: card and event hold the bar in all three themes at 390 and 
           });
           await page.screenshot({ path: path.join(EVIDENCE_DIR, `${target.page}-390-${theme}-firstscreen.png`) });
           console.log(
-            `[themes] ${where}: cardBottom=${measured.cardBottom} title=${measured.titleBottom} action=${measured.actionTop}–${measured.actionBottom} bar=${measured.barTop} overflow=${measured.overflowPx}px axe=${axe.serious.length}`,
+            `[themes] ${where}: cardBottom=${measured.cardBottom} title=${measured.titleBottom} action=${measured.actionTop}–${measured.actionBottom} bar=${measured.barTop} overflow=${measured.overflowPx}px axe=${axe.violations.length}`,
           );
         }
       }
@@ -371,7 +399,7 @@ test('design review: card and event hold the bar in all three themes at 390 and 
     `${JSON.stringify(
       {
         generated_at: new Date().toISOString(),
-        note: 'Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme "none" is the visitor pass (no cookie, no query, no bar). overflowPx > 0 or a bar above cardBottom would be a failure, not a tolerance.',
+        note: 'Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme "none" is the visitor pass (no cookie, no query, no bar). overflowPx > 0 or a bar above cardBottom would be a failure, not a tolerance. axeViolations lists EVERY violation of any impact: axeViolations must be empty, so any entry here is a failure, not a note.',
         samples,
       },
       null,
@@ -508,24 +536,122 @@ test('design review: the bar is localized, and says what it is', async ({ page }
   // single URL carries language AND theme — which is also how the owner would
   // check a Russian or Spanish review. `must` also fails loudly if a dictionary
   // lost one of these keys, so an untranslated bar cannot pass by rendering an
-  // empty string.
+  // empty string. Every theme name is pulled from the dictionary, so adding a
+  // theme without translating it fails here rather than shipping an English word
+  // into a Russian bar.
   const cases = [
-    { lang: 'en', bar: must(en['theme.bar'], 'en'), soft: must(en['theme.soft'], 'en'), exit: must(en['theme.exit'], 'en') },
-    { lang: 'ru', bar: must(ru['theme.bar'], 'ru'), soft: must(ru['theme.soft'], 'ru'), exit: must(ru['theme.exit'], 'ru') },
-    { lang: 'es', bar: must(es['theme.bar'], 'es'), soft: must(es['theme.soft'], 'es'), exit: must(es['theme.exit'], 'es') },
+    {
+      lang: 'en',
+      bar: must(en['theme.bar'], 'en'),
+      exit: must(en['theme.exit'], 'en'),
+      defaultName: must(en['theme.soft'], 'en'),
+      names: THEMES.map((theme) => must(en[themeLabelKey(theme)], 'en')),
+    },
+    {
+      lang: 'ru',
+      bar: must(ru['theme.bar'], 'ru'),
+      exit: must(ru['theme.exit'], 'ru'),
+      defaultName: must(ru['theme.soft'], 'ru'),
+      names: THEMES.map((theme) => must(ru[themeLabelKey(theme)], 'ru')),
+    },
+    {
+      lang: 'es',
+      bar: must(es['theme.bar'], 'es'),
+      exit: must(es['theme.exit'], 'es'),
+      defaultName: must(es['theme.soft'], 'es'),
+      names: THEMES.map((theme) => must(es[themeLabelKey(theme)], 'es')),
+    },
   ];
-  for (const labels of cases) {
-    await page.goto(`${cardPath}?lang=${labels.lang}&theme=soft`);
+  for (const { lang, bar, exit, defaultName, names } of cases) {
+    await page.goto(`${cardPath}?lang=${lang}&theme=soft`);
     await waitHydrated(page);
-    const bar = page.getByTestId('theme-bar');
-    await expect(bar).toBeVisible();
-    await expect(bar).toContainText(labels.bar);
-    await expect(bar).toContainText(labels.soft);
-    await expect(bar).toContainText(labels.exit);
-    // The names are distinct words, not the English ones smuggled through.
-    const names = await page.locator('[data-testid="theme-switcher"] button').allTextContents();
-    expect(names).toHaveLength(3);
-    for (const name of names) expect(name.trim().length).toBeGreaterThan(0);
-    console.log(`[themes] ${labels.lang}: ${names.map((n) => n.trim()).join(' / ')}`);
+    const barLocator = page.getByTestId('theme-bar');
+    await expect(barLocator).toBeVisible();
+    await expect(barLocator).toContainText(bar);
+    await expect(barLocator).toContainText(defaultName);
+    await expect(barLocator).toContainText(exit);
+
+    // Four controls, one per theme, each with real text...
+    const rendered = (await page.locator('[data-testid="theme-switcher"] button').allTextContents()).map((n) => n.trim());
+    expect(rendered).toHaveLength(THEMES.length);
+    for (const name of rendered) expect(name.length).toBeGreaterThan(0);
+    // ...and four DISTINCT names: a switcher offering the same word twice is a
+    // switcher you cannot use. (Premium reads "Premium" in EN and ES, which is
+    // the word in both languages — the requirement is distinctness WITHIN a
+    // locale, so that is what is asserted.)
+    expect(new Set(rendered).size, `[${lang}] duplicate theme names: ${rendered.join(' / ')}`).toBe(THEMES.length);
+    // The rendered names ARE this locale's dictionary values, in switcher order.
+    expect(rendered).toEqual(names);
+    console.log(`[themes] ${lang}: ${rendered.join(' / ')}`);
   }
+});
+
+test('design review: in premium the chip groups are told apart without colour', async ({ page }) => {
+  test.setTimeout(120_000);
+  const { cardPath } = await seed(page, {
+    email: 'themes-carrier@example.org',
+    name: 'Carrier Owner',
+    slug: 'e2e-themed-carrier',
+  });
+  await page.setViewportSize(MOBILE);
+
+  const offersLabel = must(en['pubcard.helpTitle'], 'en');
+  const needsLabel = must(en['pubcard.lookingFor'], 'en');
+  expect(offersLabel, 'the two group headings must be different words').not.toBe(needsLabel);
+
+  await page.goto(`${cardPath}?theme=premium`);
+  await waitHydrated(page);
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'premium');
+
+  // 1. THE PREMISE, MEASURED RATHER THAN ASSUMED. `premium` paints an offer chip
+  //    and a need chip with the same value, which is the whole reason the group
+  //    has to be announced. If a later change gives them different colours, this
+  //    assertion fails and that is the moment to revisit the decision — not to
+  //    delete the assertion.
+  const chipPaint = await page.evaluate(() => {
+    const read = (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      const style = getComputedStyle(el);
+      return { background: style.backgroundColor, color: style.color, radius: style.borderTopLeftRadius };
+    };
+    return { offer: read('.chip-offer'), need: read('.chip-need') };
+  });
+  expect(chipPaint.offer, 'the fixture must render an offer chip').not.toBeNull();
+  expect(chipPaint.need, 'the fixture must render a need chip').not.toBeNull();
+  expect(
+    chipPaint.offer,
+    'premium must paint both chip kinds identically — that is the premise of this test',
+  ).toEqual(chipPaint.need);
+
+  // 2. THE DIFFERENCE IS ANNOUNCED. Each list carries its own accessible name,
+  //    so a screen reader user hears which group a chip belongs to. Asking for
+  //    the list BY NAME is the assertion: an unnamed list cannot be found this
+  //    way at all, so this cannot pass by accident.
+  const offersList = page.getByRole('list', { name: offersLabel });
+  const needsList = page.getByRole('list', { name: needsLabel });
+  await expect(offersList, `no list is named "${offersLabel}" in premium`).toBeVisible();
+  await expect(needsList, `no list is named "${needsLabel}" in premium`).toBeVisible();
+  await expect(page.getByTestId('pubcard-offers')).toContainText(offersLabel);
+  await expect(page.getByTestId('pubcard-needs')).toContainText(needsLabel);
+
+  // 3. ...AND THE CHIPS DIFFER IN TEXT, not only in place.
+  const chips = async (list: typeof offersList) =>
+    (await list.getByRole('listitem').allTextContents()).map((text) => text.trim()).filter((text) => text.length > 0);
+  const offers = await chips(offersList);
+  const needs = await chips(needsList);
+  expect(offers.length, 'the offers group must render at least one chip').toBeGreaterThan(0);
+  expect(needs.length, 'the needs group must render at least one chip').toBeGreaterThan(0);
+  for (const text of offers) {
+    expect(needs, `"${text}" appears in both groups, so the groups differ only in place`).not.toContain(text);
+  }
+
+  // 4. The tightened axe bar applies to this page too, at the theme whose whole
+  //    point is that hue carries nothing.
+  const axe = await scan(page);
+  expect(axe.violations, `premium axe findings:\n${axe.violations.join('\n')}`).toEqual([]);
+
+  console.log(
+    `[themes] premium carrier: offers [${offers.join(', ')}] vs needs [${needs.join(', ')}]; lists named "${offersLabel}" / "${needsLabel}"; axe=${axe.violations.length}`,
+  );
 });

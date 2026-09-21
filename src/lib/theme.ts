@@ -5,7 +5,7 @@
  * src/i18n/locale.ts is: the proxy runs on the edge and imports this module, so
  * anything it pulled in would have to be edge-compatible too.
  *
- * WHAT A THEME IS HERE. Not a user preference but a REVIEW MODE: three design
+ * WHAT A THEME IS HERE. Not a user preference but a REVIEW MODE: four design
  * directions over ONE markup (src/app/globals.css holds the token sets), used by
  * the owner to judge the card and the event on a real phone. That is why the
  * default is `null` rather than `'soft'`: "no explicit theme" is a real state —
@@ -21,10 +21,10 @@
  * write produces a consent event or an audit row.
  */
 
-export type Theme = 'soft' | 'swiss' | 'poster';
+export type Theme = 'soft' | 'swiss' | 'poster' | 'premium';
 
-/** The three themes, in the order the switcher shows them. */
-export const THEMES: readonly Theme[] = ['soft', 'swiss', 'poster'] as const;
+/** The four themes, in the order the switcher shows them. */
+export const THEMES: readonly Theme[] = ['soft', 'swiss', 'poster', 'premium'] as const;
 
 /**
  * The theme an un-themed page renders as. Not "the theme that is applied" —
@@ -42,7 +42,7 @@ export const THEME_QUERY_PARAM = 'theme';
 
 /** Validates a raw cookie/header/query value into a known theme. */
 export function isTheme(value: unknown): value is Theme {
-  return value === 'soft' || value === 'swiss' || value === 'poster';
+  return value === 'soft' || value === 'swiss' || value === 'poster' || value === 'premium';
 }
 
 /**

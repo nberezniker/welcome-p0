@@ -70,6 +70,7 @@ export default async function RootLayout({
                 soft: t('theme.soft'),
                 swiss: t('theme.swiss'),
                 poster: t('theme.poster'),
+                premium: t('theme.premium'),
               },
             }}
           />

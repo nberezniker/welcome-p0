@@ -168,10 +168,22 @@ test('onboarding path: the card renders the axes as labels, not raw ids', async 
   // EN is the default locale in tests: the picker labels, not "seeking-cofounder".
   assert.ok(!html.includes('seeking-cofounder'), 'raw intent ids must not be rendered');
   assert.ok(!html.includes('ai-ml'), 'raw interest ids must not be rendered');
-  assert.match(html, /<h2 class="eyebrow">How I can help<\/h2>/);
-  assert.match(html, /<h2 class="eyebrow">Looking for<\/h2>/);
+  // The headings keep their text and now also carry the ids that name the lists
+  // below them (attribute order is not asserted here — the binding is).
+  assert.match(html, /<h2[^>]*id="pubcard-offers-title"[^>]*>How I can help<\/h2>/);
+  assert.match(html, /<h2[^>]*id="pubcard-needs-title"[^>]*>Looking for<\/h2>/);
   assert.match(html, /data-testid="pubcard-interests"/);
   assert.ok(html.includes('foodtech'), 'keywords are shown as expertise');
+  // ...and each chip list is NAMED BY its own heading. In the `premium` theme the
+  // offers and needs chips are the same colour by design, so this is the only
+  // thing that tells a screen reader user which group a chip belongs to.
+  // Asserted on rendered HTML, not merely in the source.
+  for (const group of ['offers', 'needs', 'interests'] as const) {
+    assert.ok(
+      html.includes(`aria-labelledby="pubcard-${group}-title"`),
+      `the ${group} chip list must be labelled by its heading — premium tells its groups apart by name, not by hue`,
+    );
+  }
 });
 
 test('onboarding path: the card carries shareable meta tags', async () => {

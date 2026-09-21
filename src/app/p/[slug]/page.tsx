@@ -82,7 +82,21 @@ function ContactIcon({ kind }: { kind: PublicContact['kind'] }) {
   );
 }
 
-/** Chip row with a heading; renders nothing when there is nothing to show. */
+/**
+ * Chip row with a heading; renders nothing when there is nothing to show.
+ *
+ * COLOUR IS NEVER THE ONLY CARRIER HERE, and the wiring below is what makes that
+ * true rather than aspirational. In the `premium` theme an offer chip and a need
+ * chip are the SAME colour value (globals.css says why), so the only thing that
+ * tells them apart is their label. A heading sitting above a list does not name
+ * that list on its own — a screen reader moving by list would hear three
+ * unattached chips — so the heading is given an id and the list is labelled BY
+ * it: "Help offered, list, 3 items". The `<section>` is named too, which also
+ * makes it a `region` landmark. tests/unit/theme.test.ts pins both the naming and
+ * the fact that the two group labels are distinct strings in all three locales,
+ * so a later "cleanup" cannot strip the difference and leave position as the only
+ * thing separating the groups.
+ */
 function ChipSection({
   title,
   labels,
@@ -96,10 +110,15 @@ function ChipSection({
 }) {
   if (labels.length === 0) return null;
   const className = accent === 'offer' ? 'chip-offer' : accent === 'need' ? 'chip-need' : 'chip';
+  // Derived from `testId`, which every call site already makes unique, so the id
+  // cannot collide and no second prop has to be kept in sync.
+  const headingId = `${testId}-title`;
   return (
-    <section className="mt-6" data-testid={testId}>
-      <h2 className="eyebrow">{title}</h2>
-      <ul className="mt-2 flex flex-wrap gap-2">
+    <section className="mt-6" data-testid={testId} aria-labelledby={headingId}>
+      <h2 className="eyebrow" id={headingId}>
+        {title}
+      </h2>
+      <ul className="mt-2 flex flex-wrap gap-2" aria-labelledby={headingId}>
         {labels.map((label, index) => (
           <li key={`${label}-${index}`} className={className}>
             {label}
@@ -200,9 +219,13 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           testId="pubcard-offers"
         />
         {profile.keywords.length > 0 ? (
-          <section className="mt-4" data-testid="pubcard-expertise">
-            <h2 className="eyebrow">{t('pubcard.expertise')}</h2>
-            <ul className="mt-2 flex flex-wrap gap-2">
+          // Named for the same reason the chip groups are: this list is also only
+          // distinguishable from the others by its heading.
+          <section className="mt-4" data-testid="pubcard-expertise" aria-labelledby="pubcard-expertise-title">
+            <h2 className="eyebrow" id="pubcard-expertise-title">
+              {t('pubcard.expertise')}
+            </h2>
+            <ul className="mt-2 flex flex-wrap gap-2" aria-labelledby="pubcard-expertise-title">
               {profile.keywords.map((keyword) => (
                 <li key={keyword} className="chip !bg-white !text-ink border border-line">
                   {keyword}

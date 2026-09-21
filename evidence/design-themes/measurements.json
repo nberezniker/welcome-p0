@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-21T11:47:32.211Z",
-  "note": "Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme \"none\" is the visitor pass (no cookie, no query, no bar). overflowPx > 0 or a bar above cardBottom would be a failure, not a tolerance.",
+  "generated_at": "2026-09-21T13:51:14.235Z",
+  "note": "Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme \"none\" is the visitor pass (no cookie, no query, no bar). overflowPx > 0 or a bar above cardBottom would be a failure, not a tolerance. axeViolations lists EVERY violation of any impact: axeViolations must be empty, so any entry here is a failure, not a note.",
   "samples": [
     {
       "theme": "none",
@@ -18,7 +18,7 @@
       "barBottom": null,
       "barBelowCard": null,
       "minTapTarget": null,
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -37,7 +37,7 @@
       "barBottom": null,
       "barBelowCard": null,
       "minTapTarget": null,
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -56,7 +56,7 @@
       "barBottom": null,
       "barBelowCard": null,
       "minTapTarget": null,
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -75,7 +75,7 @@
       "barBottom": null,
       "barBelowCard": null,
       "minTapTarget": null,
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -91,14 +91,14 @@
       "actionBottom": 1117.875,
       "actionAboveFold": false,
       "barTop": 1254.875,
-      "barBottom": 1411.0625,
+      "barBottom": 1432.65625,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -114,14 +114,14 @@
       "actionBottom": 1173.875,
       "actionAboveFold": false,
       "barTop": 1310.875,
-      "barBottom": 1440.65625,
+      "barBottom": 1488.65625,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -137,14 +137,14 @@
       "actionBottom": 543.5,
       "actionAboveFold": true,
       "barTop": 636.5,
-      "barBottom": 792.6875,
+      "barBottom": 814.28125,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -160,14 +160,14 @@
       "actionBottom": 579.5,
       "actionAboveFold": true,
       "barTop": 688.5,
-      "barBottom": 818.28125,
+      "barBottom": 866.28125,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -183,14 +183,14 @@
       "actionBottom": 1118.875,
       "actionAboveFold": false,
       "barTop": 1256.875,
-      "barBottom": 1413.0625,
+      "barBottom": 1434.65625,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -206,14 +206,14 @@
       "actionBottom": 1174.875,
       "actionAboveFold": false,
       "barTop": 1312.875,
-      "barBottom": 1442.65625,
+      "barBottom": 1490.65625,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -229,14 +229,14 @@
       "actionBottom": 544.5,
       "actionAboveFold": true,
       "barTop": 638.5,
-      "barBottom": 794.6875,
+      "barBottom": 816.28125,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -252,14 +252,14 @@
       "actionBottom": 580.5,
       "actionAboveFold": true,
       "barTop": 690.5,
-      "barBottom": 820.28125,
+      "barBottom": 868.28125,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -275,14 +275,14 @@
       "actionBottom": 1118.875,
       "actionAboveFold": false,
       "barTop": 1256.875,
-      "barBottom": 1413.0625,
+      "barBottom": 1434.65625,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -298,14 +298,14 @@
       "actionBottom": 1174.875,
       "actionAboveFold": false,
       "barTop": 1312.875,
-      "barBottom": 1442.65625,
+      "barBottom": 1490.65625,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -321,14 +321,14 @@
       "actionBottom": 544.5,
       "actionAboveFold": true,
       "barTop": 638.5,
-      "barBottom": 794.6875,
+      "barBottom": 816.28125,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
       "axeContrastNodes": 0
     },
     {
@@ -344,14 +344,106 @@
       "actionBottom": 580.5,
       "actionAboveFold": true,
       "barTop": 690.5,
-      "barBottom": 820.28125,
+      "barBottom": 868.28125,
       "barBelowCard": true,
       "minTapTarget": {
         "name": "theme-option-soft",
         "width": 57,
         "height": 44
       },
-      "axeSerious": [],
+      "axeViolations": [],
+      "axeContrastNodes": 0
+    },
+    {
+      "theme": "premium",
+      "page": "card",
+      "viewport": "390",
+      "pageWidth": 390,
+      "scrollWidth": 390,
+      "overflowPx": 0,
+      "cardBottom": 1214.875,
+      "titleBottom": 101,
+      "actionTop": 1073.875,
+      "actionBottom": 1117.875,
+      "actionAboveFold": false,
+      "barTop": 1254.875,
+      "barBottom": 1432.65625,
+      "barBelowCard": true,
+      "minTapTarget": {
+        "name": "theme-option-soft",
+        "width": 57,
+        "height": 44
+      },
+      "axeViolations": [],
+      "axeContrastNodes": 0
+    },
+    {
+      "theme": "premium",
+      "page": "card",
+      "viewport": "360",
+      "pageWidth": 360,
+      "scrollWidth": 360,
+      "overflowPx": 0,
+      "cardBottom": 1270.875,
+      "titleBottom": 101,
+      "actionTop": 1129.875,
+      "actionBottom": 1173.875,
+      "actionAboveFold": false,
+      "barTop": 1310.875,
+      "barBottom": 1488.65625,
+      "barBelowCard": true,
+      "minTapTarget": {
+        "name": "theme-option-soft",
+        "width": 57,
+        "height": 44
+      },
+      "axeViolations": [],
+      "axeContrastNodes": 0
+    },
+    {
+      "theme": "premium",
+      "page": "event",
+      "viewport": "390",
+      "pageWidth": 390,
+      "scrollWidth": 390,
+      "overflowPx": 0,
+      "cardBottom": 596.5,
+      "titleBottom": 197,
+      "actionTop": 499.5,
+      "actionBottom": 543.5,
+      "actionAboveFold": true,
+      "barTop": 636.5,
+      "barBottom": 814.28125,
+      "barBelowCard": true,
+      "minTapTarget": {
+        "name": "theme-option-soft",
+        "width": 57,
+        "height": 44
+      },
+      "axeViolations": [],
+      "axeContrastNodes": 0
+    },
+    {
+      "theme": "premium",
+      "page": "event",
+      "viewport": "360",
+      "pageWidth": 360,
+      "scrollWidth": 360,
+      "overflowPx": 0,
+      "cardBottom": 648.5,
+      "titleBottom": 233,
+      "actionTop": 535.5,
+      "actionBottom": 579.5,
+      "actionAboveFold": true,
+      "barTop": 688.5,
+      "barBottom": 866.28125,
+      "barBelowCard": true,
+      "minTapTarget": {
+        "name": "theme-option-soft",
+        "width": 57,
+        "height": 44
+      },
+      "axeViolations": [],
       "axeContrastNodes": 0
     }
   ]

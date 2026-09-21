@@ -1200,5 +1200,6 @@ export const ru: Partial<Dictionary> = {
   'theme.soft': 'Мягкая',
   'theme.swiss': 'Швейцарская',
   'theme.poster': 'Плакатная',
+  'theme.premium': 'Премиальная',
   'theme.exit': 'Выйти из проверки',
 };
