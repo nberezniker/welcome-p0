@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-21T13:51:14.235Z",
+  "generated_at": "2026-09-21T13:58:52.256Z",
   "note": "Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme \"none\" is the visitor pass (no cookie, no query, no bar). overflowPx > 0 or a bar above cardBottom would be a failure, not a tolerance. axeViolations lists EVERY violation of any impact: axeViolations must be empty, so any entry here is a failure, not a note.",
   "samples": [
     {
