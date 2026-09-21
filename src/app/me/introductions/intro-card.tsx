@@ -4,8 +4,25 @@ import { useEffect, useState } from 'react';
 import { Modal, Toast, useToast } from '../../../components/modal';
 import { fill } from '../../../components/fill';
 
+import { IntroCalendar, type IntroCalendarStrings } from './intro-calendar';
+
 export type ContactKind = 'whatsapp' | 'telegram_username' | 'linkedin_url' | 'website' | 'phone' | 'github_url';
 export const ALL_KINDS: ContactKind[] = ['whatsapp', 'telegram_username', 'linkedin_url', 'website', 'phone', 'github_url'];
+
+/**
+ * The agreed meeting's calendar control, or null.
+ *
+ * Null is the whole point: the control belongs to a MUTUAL introduction — a
+ * meeting can only be "agreed" once both sides said yes — so the slot and the
+ * counterpart's public slug reach a card only in that state. A pending or
+ * declined card has no agreed meeting and gets nothing to press.
+ */
+export interface IntroCalendarProps {
+  counterpartSlug: string;
+  state: 'not_configured' | 'not_connected' | 'expired' | 'revoked' | 'ready';
+  missingEnv: readonly string[];
+  strings: IntroCalendarStrings;
+}
 
 interface IntroDetail {
   introduction: {
@@ -59,6 +76,7 @@ export function IntroCard({
   otherAccountId,
   kindLabels,
   strings,
+  calendar,
 }: {
   introId: string;
   otherName: string;
@@ -66,6 +84,8 @@ export function IntroCard({
   otherAccountId: string;
   kindLabels: Record<ContactKind, string>;
   strings: Strings;
+  /** Present only for a MUTUAL introduction — see IntroCalendarProps. */
+  calendar: IntroCalendarProps | null;
 }) {
   const [detail, setDetail] = useState<IntroDetail | null>(null);
   const [reveal, setReveal] = useState<ContactKind[]>([]);
@@ -185,7 +205,11 @@ export function IntroCard({
   return (
     <section className="card" data-testid={`intro-${introId}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-base font-bold">{otherName}</h3>
+        {/* h2, not h3: the page has ONE h1 and this is a top-level card inside it,
+            and axe's heading-order rule is a gate on this page
+            (tests/e2e/intro-calendar.spec.ts) — an h1 → h3 jump was a moderate
+            violation that had simply never been scanned. */}
+        <h2 className="text-base font-bold">{otherName}</h2>
         <span
           className={
             state === 'mutual' ? 'chip' : 'chip !bg-paper !text-muted'
@@ -279,6 +303,16 @@ export function IntroCard({
             </div>
           )}
         </div>
+      ) : null}
+
+      {state === 'mutual' && calendar ? (
+        <IntroCalendar
+          introId={introId}
+          counterpartSlug={calendar.counterpartSlug}
+          state={calendar.state}
+          missingEnv={calendar.missingEnv}
+          strings={calendar.strings}
+        />
       ) : null}
 
       {/* Only the side that actually answered sees its own decision echoed: the

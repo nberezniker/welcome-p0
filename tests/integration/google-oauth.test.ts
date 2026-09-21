@@ -14,6 +14,7 @@ import { setGoogleFetch } from '../../src/lib/google-api';
 import { purgeExpiredFlowStates } from '../../src/lib/oauth-flow';
 import { runCleanupPass } from '../../src/infra/cleanup';
 import { GOOGLE_CALENDAR_SCOPE, GOOGLE_CONTACTS_SCOPE } from '../../src/domain/google-oauth';
+import { meetingRequest } from '../../src/domain/meeting-calendar';
 import { accountIdFromCookie, loginViaOtp, makeRequest, uniqueEmail, assertStatus } from './helpers';
 
 /**
@@ -1058,6 +1059,50 @@ test('google calendar: invalid input, an unknown counterpart and no grant all fa
     ),
     401,
   );
+});
+
+test('google calendar: the introduction card\'s OWN body builder is accepted, and sends no address', async () => {
+  google.reset();
+  const counterpart = await newAccount('calendar-intro-card');
+  const owner = await connectCalendar('calendar-intro-card-owner');
+  google.calls.length = 0;
+
+  // The exact function the control calls (src/app/me/introductions/intro-calendar.tsx
+  // → src/domain/meeting-calendar.ts). Testing the ENDPOINT with a hand-written
+  // body would prove the endpoint works; testing it with THIS body proves the UI
+  // and the endpoint agree — including that the body carries no `@`, which is
+  // what `meetingRequest` is shaped to make impossible.
+  const body = meetingRequest({
+    // The public card slug the cabinet exposes for the counterpart — the value
+    // the mutual-introduction card hands to the endpoint.
+    counterpartSlug: counterpart.slug,
+    startsAt: '2026-09-21T15:00:00.000Z',
+    endsAt: '2026-09-21T16:00:00.000Z',
+    timezone: 'Europe/Madrid',
+  });
+  assert.equal(body.counterpart_slug, counterpart.slug);
+  assert.equal(Object.keys(body).some((key) => key.includes('email')), false);
+
+  const res = await googleCalendarCreate(
+    makeRequest('/api/me/calendar/google', { cookie: owner.cookie, body }),
+  );
+  assertStatus(res, 201);
+  const payload = (await res.json()) as {
+    event: { html_link: string | null };
+    counterpart: { slug: string };
+    attendees_sent: number;
+  };
+  // The slug the card sent is the one the endpoint resolved, to the person it
+  // belongs to — so "the card's counterpart_slug" and "the calendar entry's
+  // person" cannot drift apart.
+  assert.equal(payload.counterpart.slug, counterpart.slug);
+  assert.equal(payload.attendees_sent, 0);
+
+  const insert = google.lastCall('googleapis.com/calendar');
+  assert.ok(insert, 'the event must reach Google');
+  assert.equal(insert.body.includes('@'), false, 'no address of any kind may leave from the card');
+  assert.equal('attendees' in (JSON.parse(insert.body) as Record<string, unknown>), false);
+  assert.equal(insert.body.includes(counterpart.displayName), true, 'the counterpart is present as a NAME');
 });
 
 // ---------------------------------------------------------------------------

@@ -37,6 +37,17 @@ import { es } from '../../src/i18n/es';
  * bottom edge, which is a stronger statement than "it does not overlap the
  * button" and survives future content changes inside the card.
  *
+ * THE EVENT PAGE'S ACTION HIERARCHY IS PART OF THIS SWEEP, not of a second one:
+ * `actionAboveFold` used to be recorded and never asserted, and the event was
+ * seeded without a schedule, so the calendar and share controls did not exist to
+ * be measured. Both are fixed here — the event carries a real schedule, the
+ * primary action must be on the FIRST SCREEN in every pass, the collapsed
+ * controls must not be in the document, and the two disclosures are opened inside
+ * each pass so their revealed controls get the same axe/overflow/44px treatment
+ * as everything else. A hierarchy that only holds in the default look is not a
+ * hierarchy. (The non-themed gates for the same surface live in
+ * tests/e2e/event-actions.spec.ts.)
+ *
  * THE THEME LIST IS THE APP'S OWN (src/lib/theme.ts), not a copy. The sweep below
  * therefore covers a newly added theme automatically instead of going green while
  * the new one is untested; what the list CONTAINS is pinned by
@@ -59,6 +70,15 @@ interface Sample {
   actionTop: number;
   actionBottom: number;
   actionAboveFold: boolean;
+  /** Every control of the card, in DOM order — the action hierarchy, measured. */
+  order: string[];
+  /** Bottom edge of the event page's join control, or null when it has none. */
+  joinBottom: number | null;
+  /** Smallest of the controls the event action hierarchy owns, 44px rule. */
+  minEventTarget: { name: string; width: number; height: number } | null;
+  /** The same three answers after both disclosures are opened. */
+  expandedOverflowPx: number;
+  expandedAxeViolations: string[];
   barTop: number | null;
   barBottom: number | null;
   barBelowCard: boolean | null;
@@ -156,6 +176,11 @@ async function seed(page: Page, opts: { email: string; name: string; slug: strin
       mode: 'offline',
       access_mode: 'public',
       timezone: 'UTC',
+      // A schedule, so the calendar and share controls this sweep must measure
+      // actually exist. Without a start time the page renders neither, and the
+      // four themes would be judged on a page that is not the real one.
+      starts_at: '2031-05-01T18:00:00.000Z',
+      ends_at: '2031-05-01T20:00:00.000Z',
       description: 'A description at body size, long enough to wrap on a phone.',
     },
   });
@@ -198,6 +223,11 @@ async function measure(page: Page): Promise<Omit<Sample, 'theme' | 'page' | 'vie
     (await box(page, '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-intro-cta"]')) ??
     (await box(page, '[data-testid="join-button"]'));
   const bar = await box(page, '[data-testid="theme-bar"]');
+  const order = await page.evaluate(() =>
+    [...document.querySelectorAll('main a.btn-light, main a.btn-accent, main a.btn-primary, main a.btn-outline, main button.btn-light, main button.btn-accent, main button.btn-primary')]
+      .map((el) => el.getAttribute('data-testid'))
+      .filter((id): id is string => id !== null),
+  );
 
   return {
     pageWidth,
@@ -208,11 +238,57 @@ async function measure(page: Page): Promise<Omit<Sample, 'theme' | 'page' | 'vie
     actionTop: action?.top ?? -1,
     actionBottom: action?.bottom ?? -1,
     actionAboveFold: action ? action.bottom <= viewportHeight : false,
+    order,
+    joinBottom: (await box(page, '[data-testid="join-button"]'))?.bottom ?? null,
+    minEventTarget: null,
+    expandedOverflowPx: 0,
+    expandedAxeViolations: [],
     barTop: bar?.top ?? null,
     barBottom: bar?.bottom ?? null,
     barBelowCard: bar && card ? bar.top >= card.bottom - 1 : null,
     minTapTarget: null,
   };
+}
+
+/**
+ * The controls the event page's ACTION HIERARCHY owns, with the 44px rule on
+ * both axes. The participation panel's own controls are deliberately not here:
+ * the hierarchy change neither adds nor restyles them, and folding an unrelated
+ * pre-existing property of the panel into this gate would make the gate lie
+ * about what it is guarding.
+ */
+const EVENT_ACTION_CONTROLS = [
+  'join-button',
+  'event-ics',
+  'event-calendar-more',
+  'event-gcal',
+  'share-toggle',
+  'share-native',
+  'share-linkedin',
+  'share-whatsapp',
+  'share-telegram',
+  'share-x',
+] as const;
+
+async function eventActionTargets(page: Page): Promise<Sample['minEventTarget']> {
+  let smallest: Sample['minEventTarget'] = null;
+  for (const id of EVENT_ACTION_CONTROLS) {
+    const locator = page.getByTestId(id);
+    if ((await locator.count()) === 0) continue;
+    const b = await locator.first().boundingBox();
+    if (!b) continue;
+    const entry = { name: id, width: Math.round(b.width), height: Math.round(b.height) };
+    if (!smallest || entry.height < smallest.height || entry.width < smallest.width) smallest = entry;
+  }
+  return smallest;
+}
+
+/** Opens both disclosures of the event page, if the page has them. */
+async function openEventDisclosures(page: Page): Promise<void> {
+  for (const id of ['event-calendar-more', 'share-toggle'] as const) {
+    const locator = page.getByTestId(id);
+    if ((await locator.count()) > 0) await locator.click();
+  }
 }
 
 /** Smallest tap target among the bar's controls — the 44px rule, measured. */
@@ -230,6 +306,56 @@ async function smallestTapTarget(page: Page): Promise<Sample['minTapTarget']> {
     }
   }
   return smallest;
+}
+
+/**
+ * Horizontal overflow of the document, in CSS pixels — the same number
+ * `measure()` records, asked again after a disclosure has been opened.
+ */
+async function overflowPx(page: Page): Promise<number> {
+  return page.evaluate(() => Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth));
+}
+
+/**
+ * The event page's action hierarchy, in one place, so the un-themed pass and
+ * every themed pass are held to the same four answers: the join action is the
+ * page's first control AND its bottom edge is on the first screen, the two
+ * secondary options are collapsed, and the controls the hierarchy owns — before
+ * and after the disclosures are opened — clear 44px without the revealed panel
+ * overflowing.
+ */
+function checkEventHierarchy(
+  label: string,
+  measured: Pick<Sample, 'order' | 'joinBottom' | 'actionAboveFold'>,
+  collapsed: Sample['minEventTarget'],
+  expanded: Sample['minEventTarget'],
+  expandedOverflowPx: number,
+  expandedAxe: string[],
+  problems: string[],
+): void {
+  if (measured.order[0] !== 'join-button') {
+    problems.push(`${label}: the join action is not the event page's first control (${measured.order.join(', ') || 'none'})`);
+  }
+  if (measured.joinBottom === null) {
+    problems.push(`${label}: the event page rendered no join control to measure`);
+  } else if (!measured.actionAboveFold) {
+    problems.push(`${label}: the join action ends at ${measured.joinBottom}, below the first screen`);
+  }
+  if (measured.order.includes('event-gcal')) {
+    problems.push(`${label}: the Google template is not collapsed behind the calendar control`);
+  }
+  if (measured.order.includes('share-linkedin')) {
+    problems.push(`${label}: the deeplinks are not collapsed behind the share control`);
+  }
+  for (const target of [collapsed, expanded]) {
+    if (target && (target.width < 44 || target.height < 44)) {
+      problems.push(`${label}: action control "${target.name}" is ${target.width}×${target.height}, below the 44px touch target`);
+    }
+  }
+  if (expandedOverflowPx > 0) {
+    problems.push(`${label}: the opened disclosures overflow by ${expandedOverflowPx}px`);
+  }
+  for (const finding of expandedAxe) problems.push(`${label} expanded axe: ${finding}`);
 }
 
 /**
@@ -284,15 +410,36 @@ test('design review: card and event hold the bar in all four themes at 390 and 3
       await expect(page.getByTestId('theme-bar')).toHaveCount(0);
       const measured = await measure(page);
       const axe = await scan(page);
-      samples.push({
-        theme: 'none',
-        page: target.page,
-        viewport: `${viewport.width}`,
-        ...measured,
-        minTapTarget: null,
-        axeViolations: axe.violations,
-        axeContrastNodes: axe.contrastNodes,
-      });
+      const isEvent = target.page === 'event';
+      if (isEvent) {
+        const collapsedTargets = await eventActionTargets(page);
+        await openEventDisclosures(page);
+        const expandedAxe = await scan(page);
+        samples.push({
+          theme: 'none',
+          page: target.page,
+          viewport: `${viewport.width}`,
+          ...measured,
+          minEventTarget: collapsedTargets,
+          expandedOverflowPx: await overflowPx(page),
+          expandedAxeViolations: expandedAxe.violations,
+          minTapTarget: null,
+          axeViolations: axe.violations,
+          axeContrastNodes: axe.contrastNodes,
+        });
+        checkEventHierarchy(`none @${viewport.width}`, measured, collapsedTargets, 
+          await eventActionTargets(page), await overflowPx(page), expandedAxe.violations, problems);
+      } else {
+        samples.push({
+          theme: 'none',
+          page: target.page,
+          viewport: `${viewport.width}`,
+          ...measured,
+          minTapTarget: null,
+          axeViolations: axe.violations,
+          axeContrastNodes: axe.contrastNodes,
+        });
+      }
       if (viewport === MOBILE) {
         const cardSelector = target.page === 'card' ? '[data-testid="pubcard"]' : 'main .card';
         await hideDevOverlay(page);
@@ -328,11 +475,25 @@ test('design review: card and event hold the bar in all four themes at 390 and 3
         const measured = await measure(page);
         const axe = await scan(page);
         const tap = await smallestTapTarget(page);
+        const isEvent = target.page === 'event';
+        const collapsedEventTargets = isEvent ? await eventActionTargets(page) : null;
+        let expandedOverflow = 0;
+        let expandedAxe: string[] = [];
+        let expandedEventTargets: Sample['minEventTarget'] = null;
+        if (isEvent) {
+          await openEventDisclosures(page);
+          expandedAxe = (await scan(page)).violations;
+          expandedOverflow = await overflowPx(page);
+          expandedEventTargets = await eventActionTargets(page);
+        }
         samples.push({
           theme,
           page: target.page,
           viewport: label,
           ...measured,
+          minEventTarget: collapsedEventTargets,
+          expandedOverflowPx: expandedOverflow,
+          expandedAxeViolations: expandedAxe,
           minTapTarget: tap,
           axeViolations: axe.violations,
           axeContrastNodes: axe.contrastNodes,
@@ -352,6 +513,17 @@ test('design review: card and event hold the bar in all four themes at 390 and 3
         if (axe.violations.length > 0) problems.push(`${where}: ${axe.violations.join(' | ')}`);
         if (tap && (tap.height < 44 || tap.width < 44)) {
           problems.push(`${where}: tap target ${tap.name} is ${tap.width}×${tap.height}, below 44px`);
+        }
+        if (target.page === 'event') {
+          checkEventHierarchy(
+            where,
+            measured,
+            collapsedEventTargets,
+            expandedEventTargets,
+            expandedOverflow,
+            expandedAxe,
+            problems,
+          );
         }
 
         // The screenshots that go in the evidence folder: the judged element at
@@ -399,7 +571,7 @@ test('design review: card and event hold the bar in all four themes at 390 and 3
     `${JSON.stringify(
       {
         generated_at: new Date().toISOString(),
-        note: 'Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme "none" is the visitor pass (no cookie, no query, no bar). overflowPx > 0 or a bar above cardBottom would be a failure, not a tolerance. axeViolations lists EVERY violation of any impact: axeViolations must be empty, so any entry here is a failure, not a note.',
+        note: 'Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme "none" is the visitor pass (no cookie, no query, no bar). overflowPx > 0, a bar above cardBottom, or an event page whose join control is not its first control and on the first screen would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened.',
         samples,
       },
       null,

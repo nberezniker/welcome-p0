@@ -26,10 +26,20 @@ function formatterFor(timezone: string, locale: Locale): Intl.DateTimeFormat {
  * of throwing — the page should still render.
  */
 function formatInTz(date: Date, timezone: string, locale: Locale): string {
+  return tryFormatInTz(date, timezone, locale) ?? date.toISOString();
+}
+
+/**
+ * The same formatting, or null when the timezone cannot be used at all (a bad DB
+ * value). This is the single probe for "the zone is usable": the UTC fallback
+ * above and the zone name `formatEventSchedule` prints both read it, so a line
+ * that carries a zone's name can never be a UTC stamp wearing that name.
+ */
+function tryFormatInTz(date: Date, timezone: string, locale: Locale): string | null {
   try {
     return formatterFor(timezone, locale).format(date);
   } catch {
-    return date.toISOString();
+    return null;
   }
 }
 
@@ -92,4 +102,40 @@ export function formatEventWhen(
   const sameDay = formatSameDayRange(startsAt, endsAt, timezone, locale);
   if (sameDay) return sameDay;
   return `${start} — ${formatInTz(endsAt, timezone, locale)}`;
+}
+
+/**
+ * The schedule line the EVENT PAGE shows: the string above with the organizer's
+ * zone named once, after it —
+ *
+ *   "12 Jun 2031, 18:00–21:00 · Europe/Madrid"
+ *
+ * It exists because the page printed the zone twice: once inside the
+ * "When (event timezone)" label and again in a "Timezone (IANA)" row of its own.
+ * The zone belongs to the schedule it describes, so it travels on that line.
+ *
+ * THE HONEST FALLBACK IS WHY THIS LIVES HERE. When the zone cannot be used,
+ * `formatEventWhen` prints the raw UTC stamp rather than a silently wrong wall
+ * clock; appending the unusable zone's name to that stamp would undo the
+ * honesty in the one place it matters most. So the name is appended only when
+ * the SAME probe that formatted the clock (`tryFormatInTz`) could use the zone —
+ * otherwise the line is the fallback alone, unlabelled. Nothing is guessed or
+ * "fixed up": a bad zone renders as a bad zone, which is what makes it fixable.
+ *
+ * Null exactly when `formatEventWhen` is: no start, no line. The caller owns what
+ * to show instead (the event page keeps the zone on a row of its own there —
+ * there is no clock for it to qualify).
+ *
+ * The preview image keeps calling `formatEventWhen`: it is a single line of
+ * pixels, where the zone costs more room than it explains.
+ */
+export function formatEventSchedule(
+  startsAt: Date | null,
+  endsAt: Date | null,
+  timezone: string,
+  locale: Locale,
+): string | null {
+  const when = formatEventWhen(startsAt, endsAt, timezone, locale);
+  if (when === null || !startsAt) return null;
+  return tryFormatInTz(startsAt, timezone, locale) === null ? when : `${when} · ${timezone}`;
 }

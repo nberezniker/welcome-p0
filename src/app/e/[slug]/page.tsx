@@ -5,11 +5,12 @@ import { getT } from '../../../i18n';
 import { loadEventView } from '../../../lib/event-view';
 import { getOptionalAccountId } from '../../../lib/session-page';
 import { appBaseUrl } from '../../../lib/env';
-import { formatEventWhen } from '../../../lib/event-time';
+import { formatEventSchedule } from '../../../lib/event-time';
 import { googleCalendarUrl } from '../../../domain/ics';
 import { ShareLinks } from '../../../components/share-links';
 import JoinEventButton from './join-button';
 import EventMemberPanel from './member-panel';
+import { CalendarOptions } from './calendar-options';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +47,15 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 /** Event landing (locale-aware): public info, join (code-aware), member panel
  * with attendance self-report + per-event consent toggles. Online link shown
- * only to members; anonymous visitors never see member data. */
+ * only to members; anonymous visitors never see member data.
+ *
+ * THE ORDER BELOW IS THE HIERARCHY, and it is asserted in
+ * tests/e2e/event-actions.spec.ts: the title, then THE ACTION the page exists
+ * for, then everything secondary. The audit that prompted this found eight
+ * `btn` controls with `Join` last — a visitor scrolled past `Add to calendar`,
+ * `Google Calendar` and five share controls to reach the only one that matters.
+ * So: one schedule line, the join CTA (or, for a member, the member state),
+ * ONE calendar control, ONE share control, and only then the prose. */
 export default async function EventPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const { locale, t } = await getT();
@@ -84,6 +93,15 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
       : event.access_mode === 'registration'
         ? 'event.access.registration'
         : 'event.access.closed';
+  // The schedule with the zone named ONCE (src/lib/event-time.ts) — the page
+  // used to print the zone twice, in the label and in a row of its own.
+  const schedule = formatEventSchedule(
+    event.starts_at ? new Date(event.starts_at) : null,
+    event.ends_at ? new Date(event.ends_at) : null,
+    event.timezone,
+    locale,
+  );
+  const eventUrl = `${appBaseUrl().replace(/\/+$/, '')}/e/${event.slug}`;
 
   return (
     <main className="mx-auto w-full max-w-3xl px-5 py-10 sm:px-6">
@@ -96,25 +114,23 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
         <h1 className="mt-3 text-3xl font-extrabold tracking-tight">{event.name}</h1>
 
         <dl className="mt-4 flex flex-col gap-1 text-sm text-muted">
-          {event.starts_at && (
+          {schedule ? (
             <div>
               <dt className="inline font-semibold text-ink">{t('event.timeTitle')}: </dt>
-              {/* The very string the preview image renders (src/lib/event-time.ts);
-                  the testid is how the e2e reads the schedule it formats. */}
+              {/* The string carries its own zone (src/lib/event-time.ts), and the
+                  testid is how the e2e reads the schedule it formats. */}
               <dd className="inline" data-testid="event-when">
-                {formatEventWhen(
-                  new Date(event.starts_at),
-                  event.ends_at ? new Date(event.ends_at) : null,
-                  event.timezone,
-                  locale,
-                )}
+                {schedule}
               </dd>
             </div>
+          ) : (
+            /* No start time at all: there is no clock for the zone to qualify,
+               so it keeps a row of its own rather than riding on nothing. */
+            <div>
+              <dt className="inline font-semibold text-ink">{t('org.timezoneLabel')}: </dt>
+              <dd className="inline">{event.timezone}</dd>
+            </div>
           )}
-          <div>
-            <dt className="inline font-semibold text-ink">{t('org.timezoneLabel')}: </dt>
-            <dd className="inline">{event.timezone}</dd>
-          </div>
           {event.location_label && (
             <div>
               <dt className="inline font-semibold text-ink">{t('event.locationTitle')}: </dt>
@@ -123,34 +139,67 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           )}
         </dl>
 
-        {/* Calendar affordances: the .ics download is the file half of the
-            interop layer, the Google link the no-download half. Both exist only
-            when there is a schedule — a calendar entry without a time is a
-            lie. The room link is never part of either (src/domain/ics.ts). */}
+        {/* THE PRIMARY ACTION, first control on the page. A member has already
+            done it, so the same slot names their state instead — the controls
+            themselves stay in the participation panel below, where they were. */}
+        {viewer.is_member ? (
+          <p
+            className="mt-5 rounded-xl bg-mint px-4 py-3 text-sm font-semibold text-pine"
+            role="status"
+            data-testid="member-state"
+          >
+            {t('event.alreadyMember')}
+          </p>
+        ) : canJoin ? (
+          <div className="mt-5 border-t border-line pt-5">
+            <JoinEventButton
+              eventId={event.id}
+              needsCode={needsCode}
+              strings={{
+                joinCta: t('event.joinCta'),
+                joining: t('event.joining'),
+                joinCodeLabel: t('event.joinCodeLabel'),
+                joinCodeHint: t('event.joinCodeHint'),
+                joinProfileRequired: t('event.joinProfileRequired'),
+                joinFull: t('event.joinFull'),
+                joinForbidden: t('event.joinForbidden'),
+                joinNotActive: t('event.joinNotActive'),
+                signInToJoin: t('common.errorUnauthorized'),
+                errorGeneric: t('common.errorGeneric'),
+                errorNetwork: t('common.errorNetwork'),
+                joined: t('event.alreadyMember'),
+              }}
+            />
+            <p className="mt-3 text-xs text-muted">{t('event.participantsNote')}</p>
+          </div>
+        ) : null}
+
+        {/* ONE calendar control: the .ics download adds the event and is a plain
+            link, so it needs no JavaScript and the interop contract is untouched.
+            The Google template is the secondary option INSIDE it, one disclosure
+            away — not a second button beside it. Both exist only when there is a
+            schedule: a calendar entry without a time is a lie. The room link is
+            never part of either (src/domain/ics.ts). */}
         {event.starts_at ? (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2" data-testid="event-calendar">
             <a
               href={`/api/events/${encodeURIComponent(event.slug)}/ics`}
-              className="btn-light btn-small"
+              className="btn-light"
               data-testid="event-ics"
             >
               {t('event.addToCalendar')}
             </a>
-            <a
-              href={googleCalendarUrl({
+            <CalendarOptions
+              googleHref={googleCalendarUrl({
                 name: event.name,
                 description: event.description,
                 locationLabel: event.location_label,
                 startsAt: new Date(event.starts_at),
                 endsAt: event.ends_at ? new Date(event.ends_at) : null,
               })}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-light btn-small"
-              data-testid="event-gcal"
-            >
-              {t('event.addToGoogleCalendar')}
-            </a>
+              toggleLabel={t('event.calendarMore')}
+              linkLabel={t('event.addToGoogleCalendar')}
+            />
           </div>
         ) : (
           <p className="mt-3 text-xs text-muted" data-testid="event-no-schedule">
@@ -158,11 +207,14 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           </p>
         )}
 
+        {/* ONE share control, revealing the four deeplinks: the row of five used
+            to compete with the action above it. */}
         <div className="mt-3">
           <ShareLinks
-            url={`${appBaseUrl().replace(/\/+$/, '')}/e/${event.slug}`}
+            url={eventUrl}
             title={event.name}
             testId="event-share"
+            disclosure={{ label: t('share.label') }}
             labels={{
               linkedin: t('share.linkedin'),
               whatsapp: t('share.whatsapp'),
@@ -187,35 +239,11 @@ export default async function EventPage({ params }: { params: Promise<{ slug: st
           <a
             href={viewer.online_link}
             rel="noopener noreferrer nofollow"
-            className="btn-light btn-small mt-4"
+            className="btn-light mt-4"
             data-testid="online-room-link"
           >
             {t('event.onlineLink')} ↗
           </a>
-        )}
-
-        {!viewer.is_member && canJoin && (
-          <div className="mt-6 border-t border-line pt-5">
-            <JoinEventButton
-              eventId={event.id}
-              needsCode={needsCode}
-              strings={{
-                joinCta: t('event.joinCta'),
-                joining: t('event.joining'),
-                joinCodeLabel: t('event.joinCodeLabel'),
-                joinCodeHint: t('event.joinCodeHint'),
-                joinProfileRequired: t('event.joinProfileRequired'),
-                joinFull: t('event.joinFull'),
-                joinForbidden: t('event.joinForbidden'),
-                joinNotActive: t('event.joinNotActive'),
-                signInToJoin: t('common.errorUnauthorized'),
-                errorGeneric: t('common.errorGeneric'),
-                errorNetwork: t('common.errorNetwork'),
-                joined: t('event.alreadyMember'),
-              }}
-            />
-            <p className="mt-3 text-xs text-muted">{t('event.participantsNote')}</p>
-          </div>
         )}
 
         {viewer.is_member && membership ? (

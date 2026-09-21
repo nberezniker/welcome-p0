@@ -81,16 +81,24 @@ test('interop: event page offers the .ics file and the Google template link', as
   await expect(ics).toBeVisible();
   await expect(ics).toHaveAttribute('href', `/api/events/${EVENT_SLUG}/ics`);
 
-  // The Google template link goes straight to the user's own calendar.
+  // The Google template link goes straight to the user's own calendar. It is now
+  // the SECONDARY half of one calendar action rather than a second action beside
+  // the join button, so it is reached through its disclosure — and the collapse
+  // is asserted, not assumed (src/app/e/[slug]/calendar-options.tsx).
+  await expect(page.getByTestId('event-gcal')).toHaveCount(0);
+  await page.getByTestId('event-calendar-more').click();
   const gcal = page.getByTestId('event-gcal');
   await expect(gcal).toBeVisible();
   const gcalHref = (await gcal.getAttribute('href')) ?? '';
   expect(gcalHref.startsWith('https://calendar.google.com/calendar/render?action=TEMPLATE')).toBe(true);
   expect(decodeURIComponent(gcalHref)).toContain(`${icsStamp(startIso)}/${icsStamp(endIso)}`);
 
-  // Share deeplinks: outbound, new tab, never a window opener.
+  // Share deeplinks: outbound, new tab, never a window opener. They live behind
+  // the ONE share control the page offers (src/components/share-links.tsx).
   const share = page.getByTestId('event-share');
   await expect(share).toBeVisible();
+  await expect(page.getByTestId('share-linkedin')).toHaveCount(0);
+  await page.getByTestId('share-toggle').click();
   for (const [testId, host] of [
     ['share-linkedin', 'https://www.linkedin.com/'],
     ['share-whatsapp', 'https://wa.me/'],
@@ -98,6 +106,7 @@ test('interop: event page offers the .ics file and the Google template link', as
     ['share-x', 'https://x.com/'],
   ] as const) {
     const link = page.getByTestId(testId);
+    await expect(link).toBeVisible();
     await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
     await expect(link).toHaveAttribute('target', '_blank');
     expect(((await link.getAttribute('href')) ?? '').startsWith(host)).toBe(true);
