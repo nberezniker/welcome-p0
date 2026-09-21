@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { getLocale } from '../i18n';
+import { getT } from '../i18n';
 import { appBaseUrl } from '../lib/env';
+import { getTheme } from '../lib/theme-page';
 import { HydrationMarker } from '../components/hydration-marker';
+import { ThemeBar } from '../components/theme-bar';
 import './globals.css';
 
 /**
@@ -43,12 +45,35 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getLocale();
+  // The ONE place that decides `<html data-theme>` and the only place that may
+  // render the review bar — a theme is a document-level fact (the token sets in
+  // globals.css hang off `html[data-theme]`), and the bar has to be outside every
+  // page's own containers so it can never sit on top of what is being reviewed.
+  const [{ locale, t }, theme] = await Promise.all([getT(), getTheme()]);
   return (
-    <html lang={locale}>
+    // No theme → NO attribute at all, so a page with no explicit theme is
+    // byte-identical to the pre-theme one (the `soft` tokens live on `:root`).
+    <html lang={locale} data-theme={theme ?? undefined}>
       <body className="min-h-screen antialiased">
         <HydrationMarker />
         {children}
+        {theme ? (
+          <ThemeBar
+            current={theme}
+            labels={{
+              title: t('theme.bar'),
+              group: t('theme.group'),
+              option: t('theme.option'),
+              hint: t('theme.barHint'),
+              exit: t('theme.exit'),
+              names: {
+                soft: t('theme.soft'),
+                swiss: t('theme.swiss'),
+                poster: t('theme.poster'),
+              },
+            }}
+          />
+        ) : null}
       </body>
     </html>
   );

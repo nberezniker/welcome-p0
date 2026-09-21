@@ -5,20 +5,197 @@
  * highlights, soft rounded cards. Utilities: bg-ink, text-muted, border-line,
  * bg-accent, text-accent, bg-mint, text-pine, bg-paper, bg-accent-pale, etc.
  *
- * `--color-accent` is one step darker than the reference coral (#d84932) so it
- * clears WCAG AA (4.5:1) in BOTH directions it is actually used: white text on
- * an accent button, and accent text on white/paper. The original shade measured
- * 4.27:1 — a real contrast failure, not a rounding difference. */
+ * TWO LAYERS, ONE SOURCE OF TRUTH.
+ *
+ * 1. `--t-*` are the THEME TOKENS (below the @theme block): the only place a
+ *    colour, radius, shadow or type weight is written down. The three themes —
+ *    `soft` (default), `swiss`, `poster` — are three value sets for the same
+ *    names, selected by `html[data-theme="…"]` and by nothing else. `:root`
+ *    carries `soft`, whose values ARE the pre-theme literals, so a page with no
+ *    `data-theme` renders exactly as it did before themes existed; the e2e gate
+ *    pins that by comparing the computed styles of the card and the event,
+ *    un-themed vs `?theme=soft` (tests/e2e/design-themes.spec.ts).
+ *
+ * 2. `@theme` maps utility names onto those tokens — `bg-ink` →
+ *    `var(--color-ink)` → `var(--t-ink)` — so ONE markup serves all three
+ *    themes. Deliberately NOT `@theme inline`: plain CSS here and the inline
+ *    styles some components carry (`style={{ background: 'var(--color-pine)' }}`
+ *    in the funnel legend) read `var(--color-*)` directly and must keep
+ *    resolving; inlining would delete those variables.
+ *
+ * CONTRAST. Every value below is measured, not eyeballed; each theme's pairs and
+ * ratios are tabulated in docs-internal/design/THEMES.md. The precedent that set
+ * the rule is the coral: the reference coral (#d84932) measured 4.27:1 against
+ * white — below WCAG AA (4.5:1) BOTH as accent text on paper and as white text
+ * on an accent button — so themes ship #c93d26 (5.03:1 both ways), and every
+ * other theme's accent was measured the same way instead of picked for looks.
+ * Where a theme's own palette failed, the value was darkened until it cleared
+ * the bar: no text colour here is below 4.5:1 on the surface it is used on. */
 @theme {
-  --color-ink: #18241f;
-  --color-muted: #59665e;
-  --color-paper: #f5f4ee;
-  --color-line: #dce0d6;
-  --color-accent: #c93d26;
-  --color-accent-pale: #fff0e9;
-  --color-pine: #284d3d;
-  --color-mint: #e6efe4;
+  /* Surfaces and text */
+  --color-paper: var(--t-canvas);
+  --color-white: var(--t-surface);
+  --color-ink: var(--t-ink);
+  --color-muted: var(--t-muted);
+  --color-line: var(--t-line);
+  --color-line-strong: var(--t-line-strong);
+  --color-field-line: var(--t-field-line);
+  /* The accent: fills the primary action, carries emphasis text */
+  --color-accent: var(--t-accent);
+  --color-accent-hover: var(--t-accent-hover);
+  --color-accent-pale: var(--t-accent-pale);
+  --color-ink-hover: var(--t-ink-hover);
+  /* Semantic chips: help offered / help wanted / interests */
+  --color-pine: var(--t-pine);
+  --color-mint: var(--t-mint);
+  --color-offer: var(--t-offer);
+  --color-offer-ink: var(--t-offer-ink);
+  --color-need: var(--t-need);
+  --color-need-ink: var(--t-need-ink);
+  /* Shape and voice */
+  --radius-md: var(--t-radius-md);
+  --radius-lg: var(--t-radius-lg);
+  --radius-xl: var(--t-radius-xl);
+  --radius-2xl: var(--t-radius-2xl);
+  --radius-3xl: var(--t-radius-3xl);
+  --radius-full: var(--t-radius-full);
+  --shadow-sm: var(--t-shadow-card);
+  --font-weight-extrabold: var(--t-heading-weight);
+  --tracking-tight: var(--t-heading-tracking);
+  /* Not a theme's business: the type family belongs to the product. */
   --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ── soft — the default, and today's look ──────────────────────────────────
+   Carried by `:root`, so an un-themed page is byte-identical to the pre-theme
+   one. Shape and type values are Tailwind's own defaults, copied literally
+   (0.75rem, calc(infinity * 1px), the two-layer shadow, 800, -0.025em) so the
+   computed styles match exactly rather than approximately. There is on purpose
+   no `html[data-theme="soft"]` block: `soft` IS the default, and writing it
+   twice is how the two drift apart. */
+:root {
+  --t-canvas: #f5f4ee;
+  --t-surface: #fff;
+  --t-ink: #18241f;
+  --t-muted: #59665e;
+  --t-line: #dce0d6;
+  --t-line-strong: #b9c1b7;
+  --t-field-line: #ccd3c6;
+  --t-accent: #c93d26;
+  --t-accent-hover: #bf3d29;
+  --t-accent-pale: #fff0e9;
+  --t-ink-hover: #2c3a33;
+  --t-pine: #284d3d;
+  --t-mint: #e6efe4;
+  --t-offer: oklch(97.9% 0.021 166.113);
+  --t-offer-ink: oklch(43.2% 0.095 166.913);
+  --t-need: oklch(97.7% 0.013 236.62);
+  --t-need-ink: oklch(44.3% 0.11 240.79);
+  --t-rule-card: 1px;
+  --t-radius-md: 0.375rem;
+  --t-radius-lg: 0.5rem;
+  --t-radius-xl: 0.75rem;
+  --t-radius-2xl: 1rem;
+  --t-radius-3xl: 1.5rem;
+  --t-radius-full: calc(infinity * 1px);
+  --t-shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --t-heading-weight: 800;
+  --t-heading-tracking: -0.025em;
+}
+
+/* ── swiss — International Typographic Style ───────────────────────────────
+   Objective and flat: a neutral grey ground, black type, ONE red accent, grey
+   hairlines instead of shadows, no rounded corner anywhere, and a chip that is
+   either a grey field or a solid black block rather than a pastel.
+
+   Measured (AA bar 4.5:1 for text, 3:1 for a UI boundary):
+     ink #101112 on canvas #f4f4f4 17.19:1 · on surface #fff 18.90:1
+     muted #54585c on canvas 6.52:1 · on surface 7.17:1
+     accent #c93d26 on canvas 4.57:1 · on surface 5.03:1
+     white on accent 5.03:1  · white on accent-hover #a8301c 6.76:1
+     accent on accent-pale #fdf2f0 4.58:1
+     pine(=ink) on mint #efefef 16.44:1 · offer-ink on offer #e9e9e9 15.57:1
+     white on need #101112 18.90:1 · line #888888 on surface 3.54:1, on canvas 3.22:1
+   The accent is deliberately NOT a different red: the brief's candidate was
+   measured (5.03:1 on white, 4.57:1 on this canvas) and it passes, so changing
+   it would have been a look, not a fix. `--t-canvas` is #f4f4f4 and not #fff
+   because the card's paper-grey chips and the `.btn-light` hover would
+   otherwise be white on white — an invisible control, not a style choice. */
+html[data-theme="swiss"] {
+  --t-canvas: #f4f4f4;
+  --t-surface: #fff;
+  --t-ink: #101112;
+  --t-muted: #54585c;
+  --t-line: #888888;
+  --t-line-strong: #888888;
+  --t-field-line: #888888;
+  --t-accent: #c93d26;
+  --t-accent-hover: #a8301c;
+  --t-accent-pale: #fdf2f0;
+  --t-ink-hover: #2a2c30;
+  --t-pine: #101112;
+  --t-mint: #efefef;
+  --t-offer: #e9e9e9;
+  --t-offer-ink: #101112;
+  --t-need: #101112;
+  --t-need-ink: #fff;
+  --t-rule-card: 2px;
+  --t-radius-md: 0;
+  --t-radius-lg: 0;
+  --t-radius-xl: 0;
+  --t-radius-2xl: 0;
+  --t-radius-3xl: 0;
+  --t-radius-full: 0;
+  /* A transparent shadow rather than `none`: shadow-sm composes the theme value
+     into a box-shadow LIST, and `none` inside a list is invalid CSS, so the
+     declaration would be dropped instead of doing nothing. */
+  --t-shadow-card: 0 0 #0000;
+  --t-heading-weight: 800;
+  --t-heading-tracking: -0.02em;
+}
+
+/* ── poster — constructivist poster ────────────────────────────────────────
+   Loud and flat: a pale cobalt ground, near-black type, black rules at 3px on
+   the card, cobalt doing every accent job, lavender-tinted chips, and heavier,
+   tighter headings (900 / -0.045em) for the poster voice. Chips stay pills
+   here, which is the visible difference from swiss at a glance.
+
+   Measured:
+     ink #0b0b14 on canvas #f0eeff 17.14:1 · on surface #fff 19.59:1
+     muted #4e4d63 on canvas 7.16:1 · on surface 8.19:1
+     accent #0047ab on canvas 7.38:1 · on surface 8.44:1
+     white on accent 8.44:1 · white on accent-hover #003580 11.53:1
+     accent on accent-pale #e6e9ff 7.02:1
+     pine #16207a on mint #e3e6ff 11.19:1 · white on offer #0047ab 8.44:1
+     white on need #0b0b14 19.59:1 · line(=ink) on surface 19.59:1 */
+html[data-theme="poster"] {
+  --t-canvas: #f0eeff;
+  --t-surface: #fff;
+  --t-ink: #0b0b14;
+  --t-muted: #4e4d63;
+  --t-line: #0b0b14;
+  --t-line-strong: #0b0b14;
+  --t-field-line: #0b0b14;
+  --t-accent: #0047ab;
+  --t-accent-hover: #003580;
+  --t-accent-pale: #e6e9ff;
+  --t-ink-hover: #26263a;
+  --t-pine: #16207a;
+  --t-mint: #e3e6ff;
+  --t-offer: #0047ab;
+  --t-offer-ink: #fff;
+  --t-need: #0b0b14;
+  --t-need-ink: #fff;
+  --t-rule-card: 3px;
+  --t-radius-md: 3px;
+  --t-radius-lg: 3px;
+  --t-radius-xl: 3px;
+  --t-radius-2xl: 3px;
+  --t-radius-3xl: 3px;
+  --t-radius-full: calc(infinity * 1px);
+  --t-shadow-card: 0 0 #0000;
+  --t-heading-weight: 900;
+  --t-heading-tracking: -0.045em;
 }
 
 html {
@@ -57,7 +234,10 @@ body {
 
 /* Buttons — shared primitives (min-height 44px+ for touch targets).
  * Tailwind v4 note: @apply cannot reference custom (non-utility) classes, so
- * each variant repeats the base utilities. */
+ * each variant repeats the base utilities.
+ * Every colour here comes from a theme token (hover included): a hardcoded
+ * near-coral hover on top of poster's cobalt button would be the theme leaking
+ * from a class definition rather than from a token. */
 .btn,
 .btn-primary,
 .btn-accent,
@@ -67,27 +247,32 @@ body {
   @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-transparent px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50;
 }
 .btn-primary {
-  @apply bg-ink text-white hover:bg-[#2c3a33];
+  @apply bg-ink text-white hover:bg-ink-hover;
 }
 .btn-accent {
-  @apply bg-accent text-white hover:bg-[#bf3d29];
+  @apply bg-accent text-white hover:bg-accent-hover;
 }
 .btn-outline {
-  @apply border-[#b9c1b7] bg-transparent text-ink hover:bg-white;
+  @apply border-line-strong bg-transparent text-ink hover:bg-white;
 }
 .btn-light {
   @apply border-line bg-white text-ink hover:bg-paper;
 }
 .btn-danger {
-  @apply bg-accent text-white hover:bg-[#bf3d29];
+  @apply bg-accent text-white hover:bg-accent-hover;
 }
 .btn-small {
   @apply min-h-9 px-3 py-1.5 text-xs;
 }
 
-/* Form controls. */
+/* Form controls. The placeholder keeps its literal grey on purpose: it is not
+ * body text, axe does not read ::placeholder, and it measures 2.62:1 against
+ * white — a PRE-EXISTING shortfall recorded in docs-internal/design/THEMES.md
+ * rather than quietly changed, because changing it would change today's look.
+ * The border is themed (`--t-field-line`), so a poster/skiss input is a rule in
+ * that theme's ink rather than a leftover soft-green hairline. */
 .input {
-  @apply w-full min-w-0 rounded-lg border border-[#ccd3c6] bg-white px-3 py-2.5 text-base text-ink placeholder:text-[#9aa69c] focus:border-ink focus:outline-none;
+  @apply w-full min-w-0 rounded-lg border border-field-line bg-white px-3 py-2.5 text-base text-ink placeholder:text-[#9aa69c] focus:border-ink focus:outline-none;
 }
 .label {
   @apply mb-1 block text-xs font-bold uppercase tracking-wide text-muted;
@@ -96,21 +281,28 @@ body {
   @apply mt-1 text-sm text-red-700;
 }
 
-/* Cards and chips. */
+/* Cards and chips.
+ * The card's border WIDTH is a token (`--t-rule-card`: 1px soft, 2px swiss,
+ * 3px poster) because "a 3px black rule" is the poster theme's whole frame, and
+ * a width is part of a design language the same way a colour is. `border-width`
+ * follows the @apply on purpose: @apply inlines its declarations in place, so
+ * this is the later declaration and wins. */
 .card {
   @apply rounded-2xl border border-line bg-white p-6 shadow-sm;
+  border-width: var(--t-rule-card);
 }
 .card-tight {
   @apply rounded-xl border border-line bg-white p-4;
+  border-width: var(--t-rule-card);
 }
 .chip {
   @apply inline-flex items-center gap-1.5 rounded-full bg-mint px-3 py-1 text-xs font-semibold text-pine;
 }
 .chip-offer {
-  @apply inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800;
+  @apply inline-flex items-center gap-1.5 rounded-full bg-offer px-3 py-1 text-xs font-semibold text-offer-ink;
 }
 .chip-need {
-  @apply inline-flex items-center gap-1.5 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800;
+  @apply inline-flex items-center gap-1.5 rounded-full bg-need px-3 py-1 text-xs font-semibold text-need-ink;
 }
 .eyebrow {
   @apply inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-muted;

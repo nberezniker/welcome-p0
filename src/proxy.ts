@@ -5,10 +5,16 @@ import {
   LOCALE_QUERY_PARAM,
   isLocale,
 } from './i18n/locale';
+import {
+  THEME_COOKIE,
+  THEME_COOKIE_MAX_AGE,
+  THEME_QUERY_PARAM,
+  isTheme,
+} from './lib/theme';
 import { REQUEST_ID_HEADER, isWellFormedRequestId, newRequestId } from './lib/request-id';
 
 /**
- * Two per-request concerns, one place, because Next gives a deployment exactly
+ * Three per-request concerns, one place, because Next gives a deployment exactly
  * one proxy hook.
  *
  * 1. LOCALE OVERRIDE for the PUBLIC pages: `?lang=en|ru|es`.
@@ -31,11 +37,26 @@ import { REQUEST_ID_HEADER, isWellFormedRequestId, newRequestId } from './lib/re
  * An invalid value (`?lang=de`, `?lang=RU`, empty) is ignored completely: no
  * cookie is written and the stored preference is untouched.
  *
- * Scope is deliberately the four public entry points named by the brief. Signed
- * -in surfaces keep the cookie-only switcher (an explicit UI action), so a
- * stray query parameter cannot silently change a session's language.
+ * 2. THEME OVERRIDE for the same public pages: `?theme=soft|swiss|poster`.
  *
- * 2. REQUEST ID for every `/api` request (matcher below).
+ * The theme is a REVIEW MODE, not a preference — a per-person review of a design
+ * direction, argued in src/lib/theme.ts, which is why it is carried by a cookie
+ * and never by a durable per-person column (and, just as importantly, why this
+ * file must stay free of any account state: the structural half of that rule is
+ * pinned in tests/unit/locale-query.test.ts, and this comment deliberately says
+ * "account state" rather than naming anything the guard greps for). It is wired
+ * exactly like the locale override above — forwarded `Cookie` + `x-welcome-theme`
+ * for the current render, Set-Cookie for the next one — so that `data-theme` is
+ * already on `<html>` in the first byte the owner's phone receives. An invalid
+ * value is ignored in the same way, and a request with no theme at all gets NO
+ * `data-theme` attribute and no switcher: that is the page a stranger sees.
+ *
+ * Both overrides cover the same four public entry points, and that scoping is
+ * deliberate for the theme too: `/e/<slug>` and the cabinet are reached with the
+ * cookie the query just set (the switcher rides along in the layout), so a
+ * stray query parameter still cannot reshape a signed-in surface.
+ *
+ * 3. REQUEST ID for every `/api` request (matcher below).
  *
  * WHY HERE. The id has to exist BEFORE any handler runs, and it has to be the
  * SAME value for a request that a route, its error body and its log lines all
@@ -66,6 +87,14 @@ export function proxy(request: NextRequest) {
     request.cookies.set(LOCALE_COOKIE, requested);
   }
 
+  const requestedTheme = request.nextUrl.searchParams.get(THEME_QUERY_PARAM);
+  const themeApplied = isTheme(requestedTheme);
+  if (themeApplied) {
+    // 2a. Same write-through, same reason: the render in THIS response must
+    //     already be themed, not the next one.
+    request.cookies.set(THEME_COOKIE, requestedTheme);
+  }
+
   const requestHeaders = new Headers(request.headers);
   let mutated = false;
 
@@ -74,6 +103,12 @@ export function proxy(request: NextRequest) {
     //     first, so the override survives even if the header rewrite above is
     //     ever re-implemented by Next.
     requestHeaders.set('x-welcome-locale', requested);
+    mutated = true;
+  }
+
+  if (themeApplied) {
+    // 2b. The channel getTheme() reads first (src/lib/theme-page.ts).
+    requestHeaders.set('x-welcome-theme', requestedTheme);
     mutated = true;
   }
 
@@ -91,8 +126,9 @@ export function proxy(request: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
 
-  // 2. Remember the choice for the next visit (same attributes as
-  //    POST /api/locale).
+  // Both choices are remembered for the next visit (same attributes as
+  // POST /api/locale and POST /api/theme).
+  const secure = process.env.APP_ENV === 'production';
   if (localeApplied) {
     response.cookies.set({
       name: LOCALE_COOKIE,
@@ -100,14 +136,26 @@ export function proxy(request: NextRequest) {
       path: '/',
       maxAge: LOCALE_COOKIE_MAX_AGE,
       sameSite: 'lax',
-      secure: process.env.APP_ENV === 'production',
+      secure,
+    });
+  }
+  if (themeApplied) {
+    response.cookies.set({
+      name: THEME_COOKIE,
+      value: requestedTheme,
+      path: '/',
+      maxAge: THEME_COOKIE_MAX_AGE,
+      sameSite: 'lax',
+      secure,
     });
   }
   return response;
 }
 
 export const config = {
-  // `/api/:path*` is here for the request id alone — the locale override above
-  // is still scoped to the four public entry points by its own guard.
+  // `/api/:path*` is here for the request id alone — the locale and theme
+  // overrides above are still scoped to the four public entry points by their
+  // own guards.
   matcher: ['/', '/login', '/p/:path*', '/legal/:path*', '/api/:path*'],
 };
+

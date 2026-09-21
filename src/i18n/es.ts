@@ -1192,4 +1192,16 @@ export const es: Partial<Dictionary> = {
   'providers.x.description': 'Solo compartir enlace; no hay API útil para esto.',
   'providers.luma.title': 'Luma',
   'providers.luma.description': 'Importación de eventos, cuando tengamos acceso a la API de Luma.',
+
+  // ── Revisión de diseño (el selector de tema) ──────────────────────────────
+  // La barra solo se muestra con un tema EXPLÍCITO (cookie o ?theme=); los
+  // nombres de tema se traducen como adjetivos de «estilo de diseño».
+  'theme.bar': 'Revisión de diseño',
+  'theme.group': 'Tema de diseño',
+  'theme.option': 'Tema de diseño: {name}',
+  'theme.barHint': 'Visible solo en modo de revisión: los visitantes siempre ven el diseño predeterminado.',
+  'theme.soft': 'Suave',
+  'theme.swiss': 'Suizo',
+  'theme.poster': 'Póster',
+  'theme.exit': 'Salir de la revisión',
 };
