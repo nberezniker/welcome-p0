@@ -169,7 +169,7 @@ html[data-theme="swiss"] {
      pine #16207a on mint #e3e6ff 11.19:1 · white on offer #0047ab 8.44:1
      white on need #0b0b14 19.59:1 · line(=ink) on surface 19.59:1 */
 html[data-theme="poster"] {
-  --t-canvas: #f0eeff;
+  --t-canvas: #fbfaf7;
   --t-surface: #fff;
   --t-ink: #0b0b14;
   --t-muted: #4e4d63;
@@ -184,9 +184,9 @@ html[data-theme="poster"] {
   --t-mint: #e3e6ff;
   --t-offer: #0047ab;
   --t-offer-ink: #fff;
-  --t-need: #0b0b14;
+  --t-need: #0047ab;
   --t-need-ink: #fff;
-  --t-rule-card: 3px;
+  --t-rule-card: 2px;
   --t-radius-md: 3px;
   --t-radius-lg: 3px;
   --t-radius-xl: 3px;
@@ -194,8 +194,8 @@ html[data-theme="poster"] {
   --t-radius-3xl: 3px;
   --t-radius-full: calc(infinity * 1px);
   --t-shadow-card: 0 0 #0000;
-  --t-heading-weight: 900;
-  --t-heading-tracking: -0.045em;
+  --t-heading-weight: 700;
+  --t-heading-tracking: -0.03em;
 }
 
 html {
