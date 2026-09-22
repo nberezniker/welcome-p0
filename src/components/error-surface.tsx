@@ -77,10 +77,14 @@ export function ErrorSurface({ onRetry }: { onRetry?: () => void }) {
       <h1
         ref={headingRef}
         tabIndex={-1}
-        // `outline-none` on a programmatic focus target only: the element is not
-        // reachable by Tab, so there is no focus ring to remove, and a visible
-        // ring on a heading nobody tabbed to reads as a stray artifact.
-        className="mt-5 text-2xl font-extrabold leading-tight tracking-tight outline-none sm:text-3xl"
+        // `focus-target-quiet` on a programmatic focus target only: the element
+        // is not reachable by Tab, so there is no focus ring to remove, and a
+        // visible ring on a heading nobody tabbed to reads as a stray artifact.
+        // NOT `outline-none`: that utility loses to the unlayered
+        // `:focus-visible` rule in globals.css, so the ring used to appear or not
+        // depending on whether the reader had last pressed a key — measured as
+        // 3/3 keyboard against 0/3 pointer (globals.css carries the rule and why).
+        className="focus-target-quiet mt-5 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl"
       >
         {copy.title}
       </h1>

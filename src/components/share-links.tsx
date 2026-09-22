@@ -20,10 +20,15 @@ import { copyText } from './copy-button';
  * card's "pass me on" action. With `disclosure` the same controls collapse
  * behind one labelled control — what the event page needs, where the five share
  * controls sat in a row competing with the join action and the native-share
- * `Share…` button duplicated the four deeplinks beside it. In that mode the
- * revealed controls render at FULL size instead of `btn-small`: a panel the
- * visitor opens deliberately on a phone is a touch surface, and 36px is not a
- * touch target.
+ * `Share…` button duplicated the four deeplinks beside it.
+ *
+ * BOTH MODES ARE 44px. They used to differ: the card's open row was `btn-small`
+ * (36px, "not a touch target" by its own words) on the theory that a compact
+ * strip is a different kind of control. It is not — it is the row a person taps
+ * to hand the card to someone else, and it was the only public-card control below
+ * the product's floor. Both modes now clear 44px on BOTH axes and keep the
+ * compact type (`.btn-small-tap`); `min-w-11` is what stops the "X" label from
+ * being a 36px-wide box. Measured every run by tests/e2e/design-gate.spec.ts.
  *
  * One component rather than two: the network list, the hrefs and the
  * `rel`/`target` discipline are the interop layer's contract (A1.1/A1.2) and
@@ -75,11 +80,17 @@ export function ShareLinks({
   );
   if (hrefs.length === 0) return null;
 
-  // `min-w-11` in the collapsed mode for a reason the default mode does not
-  // have: the revealed panel is a phone touch surface opened on purpose, and the
-  // shortest label here ("X") is 43.5px wide on its own — a 44px-height target
-  // that is 43px across is still a miss.
-  const controlClass = disclosure ? 'btn-light min-w-11' : 'btn-light btn-small';
+  // `min-w-11` in BOTH modes, for a reason the taller box alone does not cover:
+  // the shortest label here ("X") is ~36px wide on its own, so a 44px-tall target
+  // that is 36px across is still a miss. The revealed event panel and the card's
+  // open row are both phone touch surfaces, and this row IS the card's "pass me
+  // on" action — the four deeplinks a person taps with a thumb.
+  //
+  // The card's row therefore uses `.btn-small-tap` (compact TYPE and padding,
+  // 44px box) instead of `.btn-small`: it stays the dense row it looks like while
+  // meeting the product's 44px floor. That class exists because `.btn-small` is
+  // unlayered CSS and beats the layered `min-h-11` utility — see globals.css.
+  const controlClass = disclosure ? 'btn-light min-w-11' : 'btn-light btn-small-tap min-w-11';
   const panelId = `${testId}-options`;
 
   return (

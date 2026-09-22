@@ -124,6 +124,32 @@ body {
   border-radius: 4px;
 }
 
+/* ── A PROGRAMMATIC focus target is not a control ───────────────────────────
+   The crash page moves focus onto its `<h1 tabindex="-1">` so a screen reader
+   announces the failure instead of leaving the reader at the top of a page they
+   cannot see (src/components/error-surface.tsx says why). Nobody can Tab to that
+   heading, so it has no focus indicator to keep — and the designer's choice was
+   no ring at all.
+
+   WHY A CLASS AND NOT A UTILITY. `outline-none` cannot express that choice here:
+   Tailwind utilities live in `@layer utilities`, and the rule above is
+   UNLAYERED, so it beats every layer regardless of specificity. The ring was
+   therefore decided by the browser's `:focus-visible` heuristic instead of by
+   this file — it appeared when the last interaction had been a key press and
+   vanished after a mouse click, which is exactly the intermittency this fixes
+   (measured: 3/3 keyboard, 0/3 pointer). This rule is unlayered and later in the
+   file, and its two pseudo-classes also outrank the `:where(...)` above, so the
+   order is not what carries it.
+
+   Deliberately NOT made a utility, and deliberately not applied anywhere else: a
+   class nothing else uses cannot be reached for to silence a ring on a real
+   control, and the surfaces that DO take keyboard focus keep theirs (asserted in
+   tests/e2e/card-contacts-qr.spec.ts). */
+.focus-target-quiet:focus,
+.focus-target-quiet:focus-visible {
+  outline: none;
+}
+
 /* Skip link: hidden until focused. */
 .skip-link {
   position: absolute;

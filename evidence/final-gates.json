@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-09-22T09:14:31.098Z",
-  "head_sha_at_gate_run": "bd291118d28bc612454cc3b279f188537e573565",
+  "generated_at": "2026-09-22T11:07:26.033Z",
+  "head_sha_at_gate_run": "c3a1015cc320b1f731cdc834219a1ab97f5dd93f",
   "note": "The seven release gates run fresh and sequentially on the working tree; the combined output is evidence/final-gates.log.",
   "previous_run": {
-    "generated_at": "2026-09-22T08:39:46.409Z",
-    "head_sha_at_gate_run": "ab015ec6a3e63b17ef7528e8986368af719afa11"
+    "generated_at": "2026-09-22T10:58:07.282Z",
+    "head_sha_at_gate_run": "c3a1015cc320b1f731cdc834219a1ab97f5dd93f"
   },
   "gates": [
     {
@@ -19,7 +19,7 @@
     {
       "command": "pnpm lint",
       "exit_code": 0,
-      "duration_s": 10,
+      "duration_s": 9,
       "summary_lines": [
         "> welcome-p0@0.1.0 lint /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> eslint ."
@@ -28,50 +28,53 @@
     {
       "command": "pnpm test:unit",
       "exit_code": 0,
-      "duration_s": 12,
+      "duration_s": 13,
       "summary_lines": [
-        "# tests 675",
-        "# pass 675",
-        "# fail 0"
+        "ℹ skipped 0",
+        "ℹ todo 0",
+        "ℹ duration_ms 12792.373542"
       ]
     },
     {
       "command": "pnpm test:integration",
       "exit_code": 0,
-      "duration_s": 26,
+      "duration_s": 28,
       "summary_lines": [
-        "# tests 410",
-        "# pass 409",
-        "# fail 0",
-        "# skipped 1"
+        "applied 013 013_oauth_grants.sql",
+        "applied 014 014_account_locale.sql",
+        "applied 015 015_outbox_correlation_id.sql"
       ]
     },
     {
       "command": "pnpm test:e2e",
       "exit_code": 0,
-      "duration_s": 149,
+      "duration_s": 154,
       "summary_lines": [
-        "  62 passed (2.5m)"
+        "  67 passed (2.6m)",
+        "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
+        "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
+        "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
+        "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)"
       ]
     },
     {
       "command": "pnpm build",
       "exit_code": 0,
-      "duration_s": 5,
+      "duration_s": 7,
       "summary_lines": [
-        "✓ Compiled successfully in 1165ms",
+        "✓ Compiled successfully in 1717ms",
         "  Generating static pages using 9 workers (0/39) ...",
         "  Generating static pages using 9 workers (9/39) \r",
         "  Generating static pages using 9 workers (19/39) \r",
         "  Generating static pages using 9 workers (29/39) \r",
-        "✓ Generating static pages using 9 workers (39/39) in 164ms",
+        "✓ Generating static pages using 9 workers (39/39) in 180ms",
         "Route (app)"
       ]
     },
     {
       "command": "pnpm scan:secrets",
       "exit_code": 0,
-      "duration_s": 10,
+      "duration_s": 11,
       "summary_lines": [
         "> welcome-p0@0.1.0 scan:secrets /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "scan:secrets ok — no secrets found in tracked files (5 documented exemption(s), 0 stale)"
@@ -82,16 +85,16 @@
     "gates_total": 7,
     "gates_exit_zero": 7,
     "unit": {
-      "pass": 675,
+      "pass": 0,
       "fail": 0
     },
     "integration": {
-      "pass": 409,
+      "pass": 0,
       "fail": 0,
-      "skipped": 1
+      "skipped": 0
     },
     "e2e": {
-      "pass": 62,
+      "pass": 67,
       "fail": 0
     }
   }

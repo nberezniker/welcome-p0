@@ -1,0 +1,51 @@
+
+> welcome-p0@0.1.0 demo:reset /Users/nikiti4/.openclaw-autoclaw/workspace/welcome
+> node --env-file-if-exists=.env.local --import tsx scripts/demo-reset.mts --i-know-this-is-production
+
+DEMO RESET — returns the demo personas to a demonstrable state
+==============================================================
+target       PRODUCTION-LIKE — acknowledged with --i-know-this-is-production (APP_ENV=production)
+mode         APPLY
+event        welcome-demo-meetup
+pair         demo2@welcome.test  ↔  marta.demo@welcome.test
+scope        ONE event context × ONE canonical pair — introductions WHERE context_key = 'event:<event-id>' AND profile_a = <min> AND profile_b = <max>; their consents (FK cascade) and their own outbox notices.
+
+event id     36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6
+cooldown     30 days — an introduction in this context keeps the pair out of recommendations
+profiles     3f8b8a11-2821-48e8-b145-7031b5512a1e (demo2@welcome.test)  ↔  f3a2bd19-e1e8-444d-86f2-1bf754febfa9 (marta.demo@welcome.test)
+accounts     both is_demo = true, active, with a profile, active members of this event
+context key  event:36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6
+
+WILL REMOVE
+  introduction  1c72a638-703b-4aea-95f2-3219b4470755  state=mutual  created=2026-09-22T09:07:19.248Z
+  consents      2 (ON DELETE CASCADE from the introductions above)
+  notices       3 (outbox jobs whose subject_id is one of those introductions)
+  attempts      3 (delivery attempts of those notices — cascade)
+  audit rows    0 — append-only; the 3 row(s) recording these actions are KEPT
+
+COUNTS BEFORE  introductions/consents/notices/audit/attempts  scoped=1/2/3/3/3  totals=5/10/7/1117/264
+
+WHY THIS MUCH AND NO MORE: introductions has UNIQUE(context_key, profile_a, profile_b), so a row that stayed would make the next proposal answer already_existed=true instead of creating a fresh pending card; and the event intro cooldown excludes a pair that has ANY introduction in the context, so recommendations would never offer the pair again. Those two rules are exactly what makes the pair undemonstrable, and deleting the ONE introduction row for this pair in this event context is the least destructive change that lifts both. The consent rows go with it by the schema's own ON DELETE CASCADE; the introduction's own outbox notices go because each one's subject_id and dedupe key IS that introduction, so keeping them would let the worker announce an introduction that no longer exists. audit_events is append-only by design: the actions DID happen, and deleting their record would be a bigger lie than the leftover row, so the audit delta is expected to be zero.
+
+REMOVED: 1 introduction(s), 3 notice(s) (and everything the schema cascades).
+
+COUNTS AFTER
+  scoped (the named pair in this event context)
+    introductions       1 → 0  (-1)
+    consents            2 → 0  (-2)
+    notices             3 → 0  (-3)
+    audit rows          3 → 3  (0)
+    delivery attempts    3 → 0  (-3, cascade of the notices)
+  totals (whole table)
+    introductions       5 → 4  (-1)
+    consents            10 → 8  (-2)
+    notices             7 → 4  (-3)
+    audit rows          1117 → 1117  (0)
+    delivery attempts    264 → 261  (-3, cascade of the notices)
+
+SCOPE CHECK  (scoped delta vs whole-table delta)
+  introductions   MATCH
+  consents        MATCH
+  notices         MATCH
+  audit rows      MATCH
+  attempts        MATCH

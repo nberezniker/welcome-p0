@@ -74,6 +74,7 @@ type Strings = {
   errorGeneric: string;
   modes: Record<DirectoryMode, string>;
   modeHints: Record<DirectoryMode, string>;
+  showEveryone: string;
   filterInterest: string;
   filterFunction: string;
   filterIndustry: string;
@@ -445,9 +446,35 @@ export function DirectoryPanel({
           <p className="mt-3 text-sm text-muted">{strings.loading}</p>
         ) : (
           <>
-            <p className="mt-3 text-xs text-muted" data-testid="dir-result-count">
-              {fill(strings.resultCount, { n: members.length })}
-            </p>
+            {/*
+              THE WAY OUT OF A NARROWED LIST, next to its size.
+
+              A narrowed mode can be honest and still leave the reader stuck: the
+              `intent` list is empty by ARITHMETIC for a viewer who offers nothing
+              (the API says so itself), and any narrowed list is one tap away from
+              the full one. The mode tabs above can always widen the list too, but
+              a tab that happens to be unselected is not an obvious do-this-next —
+              this is, and it carries the number it would widen. Rendered whenever
+              the list IS narrowed (mode !== 'all'), not only when it is empty:
+              "nobody matches you" and "there are 3 of them, want everyone?" are
+              the same question, and the second one is where the button is most
+              likely to be wanted.
+            */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <p className="text-xs text-muted" data-testid="dir-result-count">
+                {fill(strings.resultCount, { n: members.length })}
+              </p>
+              {mode !== 'all' ? (
+                <button
+                  type="button"
+                  className="btn-light btn-small"
+                  onClick={() => apply({ mode: 'all' })}
+                  data-testid="dir-show-everyone"
+                >
+                  {strings.showEveryone}
+                </button>
+              ) : null}
+            </div>
             {members.length === 0 ? (
               <p className="mt-2 text-sm text-muted" data-testid="directory-empty">
                 {/* An empty intent/interest result means "nobody matches the

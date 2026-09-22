@@ -1,0 +1,27 @@
+  A is a member: "You are a member of this event."
+  shot: 01-a-event-member-state.png
+  A signs in and opens the demo event: 4540ms (fcp→usable 157ms)
+  A's public card: https://welcome.colmogravity.net/p/F4FL0_fORTXgnUA6Yqh-tA
+  shot: 02-a-reveal-chooser.png (element)
+  shot: 03-a-proposal-sent.png (element)
+  A opens the directory and proposes the introduction: 1879ms (fcp→usable 1602ms)
+  shot: 04-b-card-from-qr-url.png
+  B signs in and opens the card from the QR URL: 1739ms (fcp→usable 73ms)
+  [info] B was ALREADY a member of this event (seeded), so there was no join to perform: the page shows the member state instead of a join action. The real join on a fresh account is covered by the local spec.
+  shot: 05-b-event-already-member.png
+  B opens the event: 235ms (fcp→usable 58ms)
+  shot: 06-b-proposal-pending.png (element)
+  shot: 07-b-mutual-reveal.png (element)
+  B sees the request waiting and accepts it: 1784ms (fcp→usable 1647ms)
+  shot: 08-a-mutual-reveal.png (element)
+  A sees the mutual state and the reveal: 499ms (fcp→usable 337ms)
+  shot: 09-a-public-card-stranger.png
+  a stranger opens A’s public card at phone size: 429ms (fcp→usable 179ms)
+  shot: 10-directory-desktop-1280.png (element)
+  the directory at desktop size: 1420ms (fcp→usable 1106ms)
+  [blocked] 11-defect-directory-slug-url.png SKIPPED: the captured text carries the real-person marker "Nikita Berezniker"
+  the directory at its slug URL (the deployed defect): 3129ms (fcp→usable 3015ms)
+
+steps: 9, screenshots: 10, skipped: 1, friction: 2
+  [info] B was ALREADY a member of this event (seeded), so there was no join to perform: the page shows the member state instead of a join action. The real join on a fresh account is covered by the local spec.
+  [blocked] 11-defect-directory-slug-url.png SKIPPED: the captured text carries the real-person marker "Nikita Berezniker"

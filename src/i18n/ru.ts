@@ -960,6 +960,7 @@ export const ru: Partial<Dictionary> = {
   'dir.modeHintIntent': 'Участники, которые ищут то, что вы предлагаете.',
   'dir.modeHintInterest': 'Участники, у которых есть хотя бы один общий с вами интерес.',
   'dir.modeHintAll': 'Все, кто виден в этом событии — сузьте список фильтрами.',
+  'dir.showEveryone': 'Показать всех',
   'dir.filterInterest': 'Интерес',
   'dir.filterFunction': 'Функция',
   'dir.filterIndustry': 'Отрасль',

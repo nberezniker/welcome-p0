@@ -323,15 +323,23 @@ test('two users: A proposes, B arrives through the QR and accepts, and the conta
     await page.goto(`/me/events/${event.id}/directory`);
     await waitHydrated(page);
     await expect(page.getByRole('heading', { level: 1, name: en['directory.title'] })).toBeVisible();
-    // The directory opens in its DEFAULT mode — `intent`, "they seek what I
-    // offer" — and A's profile declares no offers, so the honest first answer is
-    // an empty list with the mode's own hint rather than a dump of everybody
-    // (src/domain/directory-filters.ts, and the route's empty-result branch).
-    // That state is recorded here and then left by the page's own control, which
-    // is how a person looking for one attendee actually finds them.
+    // The directory's default mode depends on the VIEWER: "they seek what I offer"
+    // when the viewer declares offers, and "Everyone" when they declare none,
+    // because intent mode is empty by construction for such a viewer
+    // (defaultModeForViewer, src/domain/directory-filters.ts). A declares no
+    // offers, so the page must open able to show people — without the visitor
+    // having to discover the mode control.
+    await expect(page.getByTestId('dir-mode-all'), 'a viewer with no offers opens on Everyone').toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.getByTestId('member-list')).toBeVisible({ timeout: 30_000 });
+    // The narrowed mode is still the honest empty answer when asked for
+    // explicitly — that is what the hint exists for.
+    await page.goto(`/me/events/${event.id}/directory?mode=intent`);
+    await waitHydrated(page);
     await expect(page.getByTestId('directory-empty')).toHaveText(en['dir.modeHintIntent'], { timeout: 30_000 });
-    await page.getByTestId('dir-mode-all').click();
-    await expect(page.getByTestId('dir-mode-all')).toHaveAttribute('aria-selected', 'true');
+    await page.goto(`/me/events/${event.id}/directory`);
     const directory = await page.request.get(`/api/events/${event.slug}/directory?mode=all`);
     expect(directory.status(), await directory.text()).toBe(200);
     const members = ((await directory.json()) as { members: { profile_id: string; display_name: string }[] }).members;

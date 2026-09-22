@@ -98,6 +98,18 @@ async function joinDirectory(page: Page) {
  * assertion then only covers the render, which is why it needs no fixed wait.
  */
 async function openDirectoryAllMode(page: Page, eventId: string): Promise<string[]> {
+  // The directory already opens on "Everyone" when the viewer declares no offers
+  // (defaultModeForViewer, src/domain/directory-filters.ts). Clicking an
+  // already-selected tab refetches nothing, so the wait below would hang: read
+  // the API's own answer instead of provoking a request that will not happen.
+  const allTab = page.getByTestId('dir-mode-all');
+  if ((await allTab.getAttribute('aria-selected')) === 'true') {
+    const res = await page.request.get(`/api/events/${eventId}/directory?mode=all`);
+    expect(res.status(), 'GET directory?mode=all').toBe(200);
+    const body = (await res.json()) as { members?: { display_name: string }[] };
+    await expect(page.getByTestId('member-list')).toBeVisible({ timeout: 30_000 });
+    return (body.members ?? []).map((m) => m.display_name);
+  }
   const answered = page.waitForResponse(
     (r) =>
       r.request().method() === 'GET' &&
@@ -221,8 +233,8 @@ test.describe('WELCOME P0 smoke', () => {
 
     // ── 7. B opens the directory and proposes an intro to A ────────────────
     await pageB.goto(`/me/events/${eventId}/directory`);
-    // Pass B: the directory defaults to intent mode ("they seek what I offer"),
-    // which is honestly empty for these tag-only profiles — switch to "Everyone".
+    // B declares no offers, so the directory opens on "Everyone" already; the
+    // helper only clicks when the page is still narrowed.
     await waitHydrated(pageB);
     const visible = await openDirectoryAllMode(pageB, eventId);
     // The list is asserted against the API's own answer: A must be visible to B.

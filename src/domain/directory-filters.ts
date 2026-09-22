@@ -14,6 +14,31 @@ export const DIRECTORY_MODES: readonly DirectoryMode[] = ['intent', 'interest', 
 /** Default mode: "they seek what I offer" (TAXONOMY_V3.md §Search/UX). */
 export const DEFAULT_DIRECTORY_MODE: DirectoryMode = 'intent';
 
+/**
+ * The default mode for a viewer, given whether `intent` can produce ANYTHING.
+ *
+ * `intent` is the product's differentiated view — the point of the offer/need
+ * axes is that "who is looking for what I offer" is answerable — so it stays the
+ * default for everyone it can work for, and a particular event having no match
+ * today is not a reason to replace it.
+ *
+ * The one case where it is not the default is the one where its emptiness is
+ * ARITHMETIC rather than a finding: the API builds the intent filter from
+ * `complementOf(viewer.offer_intents)`
+ * (src/app/api/events/[eventIdOrSlug]/directory/route.ts — "Nothing to look for →
+ * honest empty result, not a full directory dump"), so a viewer who offers
+ * nothing at all gets an empty list BY CONSTRUCTION, whatever the event holds.
+ * Opening on that screen, with the real list one tab away, reads as "this event
+ * is empty" when it is not. Only that case falls back to `all`.
+ *
+ * The caller answers `intentPossible`, because it depends on the viewer's stored
+ * taxonomy values — a database fact. Keeping it out of this module also keeps
+ * the taxonomy catalogue out of the client bundle this file is imported by.
+ */
+export function defaultModeFor(intentPossible: boolean): DirectoryMode {
+  return intentPossible ? DEFAULT_DIRECTORY_MODE : 'all';
+}
+
 export interface DirectoryFilters {
   mode: DirectoryMode;
   interest: string | null;
@@ -44,17 +69,29 @@ export function filtersToQuery(filters: DirectoryFilters): string {
   return params.toString();
 }
 
-/** Parses searchParams into filter state; anything unknown falls back to the default. */
-export function filtersFromQuery(search: {
-  mode?: string;
-  interest?: string;
-  function?: string;
-  industry?: string;
-  q?: string;
-}): DirectoryFilters {
+/**
+ * Parses searchParams into filter state; anything unknown falls back to
+ * `fallbackMode` — the product default unless the caller has a reason for
+ * another one (see `defaultModeFor`: a viewer whose offer axis is empty gets
+ * `all`, and only the caller can know that).
+ *
+ * An EXPLICIT `?mode=` always wins, including `mode=intent` for a viewer the
+ * fallback would have sent to `all`: the default is a convenience, not a lock,
+ * and a link that names a mode must reopen in that mode.
+ */
+export function filtersFromQuery(
+  search: {
+    mode?: string;
+    interest?: string;
+    function?: string;
+    industry?: string;
+    q?: string;
+  },
+  fallbackMode: DirectoryMode = DEFAULT_DIRECTORY_MODE,
+): DirectoryFilters {
   const mode: DirectoryMode = (DIRECTORY_MODES as readonly string[]).includes(search.mode ?? '')
     ? (search.mode as DirectoryMode)
-    : DEFAULT_DIRECTORY_MODE;
+    : fallbackMode;
   return {
     mode,
     interest: search.interest ?? null,

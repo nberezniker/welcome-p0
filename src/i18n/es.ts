@@ -962,6 +962,7 @@ export const es: Partial<Dictionary> = {
   'dir.modeHintIntent': 'Miembros que buscan lo que ofreces ahora mismo.',
   'dir.modeHintInterest': 'Miembros que comparten al menos un interés contigo.',
   'dir.modeHintAll': 'Todos los visibles en este evento: acota la lista con los filtros.',
+  'dir.showEveryone': 'Ver todos',
   'dir.filterInterest': 'Interés',
   'dir.filterFunction': 'Función',
   'dir.filterIndustry': 'Sector',

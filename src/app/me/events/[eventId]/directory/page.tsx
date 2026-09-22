@@ -5,7 +5,8 @@ import { getSql } from '../../../../../lib/db';
 import { requireAccountId } from '../../../../../lib/session-page';
 import { getT } from '../../../../../i18n';
 import { DirectoryPanel } from './directory-panel';
-import { filtersFromQuery } from '../../../../../domain/directory-filters';
+import { filtersFromQuery, defaultModeFor } from '../../../../../domain/directory-filters';
+import { complementOf } from '../../../../../domain/taxonomy';
 import { isUuid } from '../../../../../domain/organizer';
 import type { ReasonTemplates } from '../../../../../domain/reasons';
 import type { ReasonV4Templates } from '../../../../../domain/reasons-v4';
@@ -30,13 +31,8 @@ export default async function EventDirectoryPage({
     const value = rawSearch[key];
     return typeof value === 'string' ? value : undefined;
   };
-  const initialFilters = filtersFromQuery({
-    mode: single('mode'),
-    interest: single('interest'),
-    function: single('function'),
-    industry: single('industry'),
-    q: single('q'),
-  });
+  // Filter state is parsed further down: its DEFAULT depends on the viewer's own
+  // offer axis, which is a database fact this component has not read yet.
   // Reason sentences are built from i18n here; the API only returns codes.
   const reasonTemplates: ReasonTemplates = {
     me: {
@@ -93,12 +89,49 @@ export default async function EventDirectoryPage({
   const event = eventRows[0];
   if (!event) notFound();
 
-  // Viewer visibility state for the honest note (own membership only).
-  const visRows = await sql<{ directory_visible: boolean; state: string }[]>`
-    SELECT m.directory_visible, m.state
+  // Viewer visibility state for the honest note (own membership only), plus the
+  // viewer's own OFFER axis — which decides the default mode below.
+  //
+  // The effective offers are resolved exactly the way the directory API resolves
+  // them (`COALESCE(NULLIF(m.…, '{}'), pr.…)`: a membership override wins over
+  // the profile), because the two have to disagree about nothing: the API builds
+  // its `intent` filter from these values, so a page that decided the default
+  // from a different set could open on "intent" precisely where the API returns
+  // nothing.
+  const visRows = await sql<{ directory_visible: boolean; state: string; offer_intents: string[] }[]>`
+    SELECT m.directory_visible, m.state,
+           COALESCE(NULLIF(m.offer_intents, '{}'), p.offer_intents) AS offer_intents
     FROM event_memberships m JOIN profiles p ON p.id = m.profile_id
     WHERE m.event_id = ${event.id} AND p.account_id = ${accountId} LIMIT 1`;
   const mine = visRows[0] ?? null;
+
+  // CAN `intent` MODE PRODUCE ANYTHING FOR THIS VIEWER? The mode filters on
+  // "members seeking the complement of what I offer", so the answer is yes iff at
+  // least one of the viewer's offers has a complement in the catalogue. Nothing
+  // to look for ⇒ the API returns an empty list by construction (it says so
+  // itself: "honest empty result, not a full directory dump"), and opening the
+  // directory on a screen that is empty BY ARITHMETIC is what the fallback is
+  // for. A viewer who is not an active member is left alone: the API refuses the
+  // request, so the mode is not what they will be looking at, and pretending to
+  // know their offer axis would be inventing a fact.
+  const intentPossible =
+    mine === null || mine.state !== 'active'
+      ? true
+      : mine.offer_intents.some((offer) => complementOf(offer) !== null);
+
+  // Filter state lives in the URL; the server seeds the client panel from it so a
+  // shared link opens the same narrowed view. An explicit `?mode=` still wins —
+  // the fallback only decides what an UNSPECIFIED mode means.
+  const initialFilters = filtersFromQuery(
+    {
+      mode: single('mode'),
+      interest: single('interest'),
+      function: single('function'),
+      industry: single('industry'),
+      q: single('q'),
+    },
+    defaultModeFor(intentPossible),
+  );
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -173,6 +206,7 @@ export default async function EventDirectoryPage({
               interest: t('dir.modeHintInterest'),
               all: t('dir.modeHintAll'),
             },
+            showEveryone: t('dir.showEveryone'),
             filterInterest: t('dir.filterInterest'),
             filterFunction: t('dir.filterFunction'),
             filterIndustry: t('dir.filterIndustry'),

@@ -992,6 +992,7 @@ export const en = {
   'dir.modeHintIntent': 'Members looking for what you offer right now.',
   'dir.modeHintInterest': 'Members who share at least one interest with you.',
   'dir.modeHintAll': 'Everyone visible in this event — narrow it down with the filters.',
+  'dir.showEveryone': 'Show everyone',
   'dir.filterInterest': 'Interest',
   'dir.filterFunction': 'Function',
   'dir.filterIndustry': 'Industry',

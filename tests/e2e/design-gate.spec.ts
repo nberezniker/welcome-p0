@@ -3,6 +3,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { en } from '../../src/i18n/en';
+import { ru } from '../../src/i18n/ru';
+import { es } from '../../src/i18n/es';
 
 /**
  * THE DESIGN GATE — the look that ships, measured rather than asserted.
@@ -44,18 +46,30 @@ import { en } from '../../src/i18n/en';
  * severity level — a finding is either fixed or it is a real problem, and there
  * is no third category in which a finding is nobody's problem.
  *
- * THE TWO TOUCH BARS, AND WHY THERE ARE TWO. Every control a thumb is meant to
- * hit clears the product's 44px floor, and that is what the assertions below
- * hold. There is exactly one documented exception: `.btn-small` (36px), the
- * compact variant the cabinet and organizer console use for density on purpose
- * and which the public card's own share strip uses — a row of four deeplinks
- * that is the card's "pass me on" affordance rather than its primary action.
- * Those controls are still MEASURED and recorded every run, and asserted against
- * the bar that actually applies to them (24×24, WCAG 2.5.8 AA), so the exception
- * is a number in the evidence rather than an exemption in the code; the smallest
- * one today is the "X" link at 34×36. Raising that row to 44px is a change to the
- * card's own layout (its height and its line breaks), which is the owner's call
- * and not a side effect of this gate.
+ * THE TOUCH BAR, AND WHY THE CARD IS NO LONGER AN EXCEPTION. Every control a
+ * thumb is meant to hit clears the product's 44px floor, and that is what the
+ * assertions below hold. For a while there was exactly one documented exception:
+ * `.btn-small` (36px), the compact variant the cabinet and organizer console use
+ * for density on purpose — AND, wrongly, the public card's own share strip. The
+ * share strip was the only public-card control below the floor and it is the row
+ * a person taps to hand the card to someone else, so it now clears 44px on both
+ * axes (`.btn-small-tap` keeps the compact type, `min-w-11` keeps the "X" label
+ * from being a 36px-wide box) and the card's controls are MEASURED BY NAME below
+ * rather than left to the compact bucket. `.btn-small` remains a real, recorded
+ * exception on the cabinet/organizer/directory density surfaces; those controls
+ * are still measured every run and held to the bar that actually applies to them
+ * (24×24, WCAG 2.5.8 AA), so the exception is a number in the evidence rather
+ * than an exemption in the code.
+ *
+ * THE CARD'S PRIMARY ACTION IS ON THE FIRST SCREEN, IN ALL THREE LANGUAGES.
+ * That is now asserted, not described: the action used to be the card's LAST
+ * element (starting at y=926 inside a 1067px card at 390px), and the gate used to
+ * say so out loud while exempting the card from the above-the-fold rule the event
+ * page already had. The action now lives in the hero, so the same rule applies to
+ * both pages — and because the hero also holds the name and the role, the fold
+ * numbers are measured per locale (en/ru/es), not in English only: Russian and
+ * Spanish role strings are longer, and a hero that pushed the person's own name
+ * below the fold to fit a button would be a worse card than the one it replaced.
  *
  * WHY 390 AND 360 ARE MEASURED, NOT ASSUMED. 390×844 is the iPhone 14 class;
  * 360×740 is the widest "small Android" that still sells. A layout that fits one
@@ -75,6 +89,9 @@ interface Sample {
   overflowPx: number;
   cardBottom: number;
   titleBottom: number;
+  /** Bottom edge of the card's role (headline) and company line; -1 when absent. */
+  roleBottom: number;
+  companyBottom: number;
   actionTop: number;
   actionBottom: number;
   actionAboveFold: boolean;
@@ -210,6 +227,11 @@ async function measure(page: Page): Promise<Omit<Sample, 'page' | 'viewport' | '
 
   const card = await box(page, '[data-testid="pubcard"], main .card');
   const title = await box(page, '[data-testid="pubcard-name"], main .card h1');
+  // The two lines that make up "who this is" beside the name. Measured because
+  // the hero now also carries the primary action: those three boxes are the ones
+  // the fold rule is about on the card.
+  const role = await box(page, '[data-testid="pubcard-headline"]');
+  const company = await box(page, '[data-testid="pubcard-company"]');
   const action =
     (await box(page, '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-intro-cta"]')) ??
     (await box(page, '[data-testid="join-button"]'));
@@ -225,6 +247,8 @@ async function measure(page: Page): Promise<Omit<Sample, 'page' | 'viewport' | '
     overflowPx: Math.max(0, scrollWidth - pageWidth),
     cardBottom: card?.bottom ?? -1,
     titleBottom: title?.bottom ?? -1,
+    roleBottom: role?.bottom ?? -1,
+    companyBottom: company?.bottom ?? -1,
     actionTop: action?.top ?? -1,
     actionBottom: action?.bottom ?? -1,
     actionAboveFold: action ? action.bottom <= viewportHeight : false,
@@ -235,6 +259,48 @@ async function measure(page: Page): Promise<Omit<Sample, 'page' | 'viewport' | '
     expandedAxeViolations: [],
     compactTargets: [],
   };
+}
+
+/**
+ * The controls the CARD's action hierarchy owns, with the 44px rule on both
+ * axes — the same treatment the event's list gets, for the same reason: these
+ * are the controls a thumb is meant to hit on the page a QR code opens.
+ *
+ * The share strip is in here by name because it used to be the gate's one
+ * documented exception (`.btn-small`, 36px) and the owner's answer to "is that
+ * row a touch surface?" was yes. Keeping it as a NAMED assertion rather than
+ * letting it fall back into the generic sweep is what stops it from quietly
+ * becoming an exception again: if the class is reverted, this list fails.
+ */
+const CARD_ACTION_CONTROLS = [
+  'pubcard-intro-cta',
+  'pubcard-vcard',
+  'pubcard-qr-download',
+  'share-native',
+  'share-linkedin',
+  'share-whatsapp',
+  'share-telegram',
+  'share-x',
+  'pubcard-qr',
+] as const;
+
+async function cardActionTargets(page: Page): Promise<{ name: string; width: number; height: number }[]> {
+  const out: { name: string; width: number; height: number }[] = [];
+  for (const id of CARD_ACTION_CONTROLS) {
+    const locator = page.getByTestId(id);
+    if ((await locator.count()) === 0) continue;
+    const b = await locator.first().boundingBox();
+    if (!b) continue;
+    out.push({ name: id, width: Math.round(b.width), height: Math.round(b.height) });
+  }
+  // The anonymous visitor's action is an <a> inside a testid'd wrapper (the
+  // signed-in one is the wrapper's own button), so it is addressed by role.
+  const signIn = page.locator('[data-testid="pubcard-signin-cta"] a');
+  if ((await signIn.count()) > 0) {
+    const b = await signIn.first().boundingBox();
+    if (b) out.push({ name: 'pubcard-signin-cta', width: Math.round(b.width), height: Math.round(b.height) });
+  }
+  return out;
 }
 
 /**
@@ -559,12 +625,15 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
       let expandedTargets: Sample['minEventTarget'] = null;
       let expandedOverflow = 0;
       let expandedAxe: string[] = [];
+      let cardTargets: { name: string; width: number; height: number }[] = [];
       if (isEvent) {
         collapsedTargets = await eventActionTargets(page);
         await openEventDisclosures(page);
         expandedAxe = (await scan(page)).violations;
         expandedOverflow = await overflowPx(page);
         expandedTargets = await eventActionTargets(page);
+      } else {
+        cardTargets = await cardActionTargets(page);
       }
 
       samples.push({
@@ -585,18 +654,28 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
         problems.push(`${where}: horizontal overflow of ${measured.overflowPx}px (scrollWidth ${measured.scrollWidth})`);
       }
       if (measured.actionTop < 0) problems.push(`${where}: the primary action was not found`);
-      // THE ABOVE-THE-FOLD RULE IS THE EVENT'S, not the card's. The card's own
-      // primary action sits well below the fold and always has (the card is
-      // ~1200px tall and the action is its last element); lifting it above the
-      // fold means restructuring the card, which is a product decision this gate
-      // records rather than smuggles in. The event is the page where the action
-      // has to be the first control AND on the first screen.
-      if (isEvent && !measured.actionAboveFold) {
+      // THE ABOVE-THE-FOLD RULE IS BOTH PAGES'. It used to be the event's alone,
+      // with the card exempted because its action was its last element — the card
+      // is the page a QR code opens, and "scroll a screen and a half to find the
+      // one thing this page is for" was the finding that changed. The action now
+      // lives in the card's hero, so the same rule holds here, and the per-locale
+      // numbers below are what keep the hero from trading the name for the button.
+      if (!measured.actionAboveFold) {
         problems.push(`${where}: the primary action ends at ${measured.actionBottom}, below the first screen`);
       }
       if (axe.violations.length > 0) problems.push(`${where}: ${axe.violations.join(' | ')}`);
       if (tap && (tap.height < 44 || tap.width < 44)) {
         problems.push(`${where}: tap target ${tap.name} is ${tap.width}×${tap.height}, below 44px`);
+      }
+      for (const control of cardTargets) {
+        if (control.width < 44 || control.height < 44) {
+          problems.push(`${where}: card control "${control.name}" is ${control.width}×${control.height}, below the 44px touch target`);
+        }
+      }
+      // The card's own row is the whole list this sweep is about; an empty list
+      // would pass the loop above by having nothing to measure.
+      if (!isEvent && cardTargets.length < 9) {
+        problems.push(`${where}: expected the card's 9 action controls, measured ${cardTargets.length} (${JSON.stringify(cardTargets)})`);
       }
       for (const control of compact) {
         if (control.width < 24 || control.height < 24) {
@@ -618,9 +697,110 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
         await page.screenshot({ path: path.join(EVIDENCE_DIR, `${target.page}-390-firstscreen.png`) });
       }
       console.log(
-        `[design] ${where}: cardBottom=${measured.cardBottom} action=${measured.actionTop}–${measured.actionBottom} overflow=${measured.overflowPx}px axe=${axe.violations.length} smallest=${tap ? `${tap.width}×${tap.height}` : 'n/a'}`,
+        `[design] ${where}: cardBottom=${measured.cardBottom} name=${measured.titleBottom} role=${measured.roleBottom} action=${measured.actionTop}–${measured.actionBottom} fold=${measured.actionAboveFold} overflow=${measured.overflowPx}px axe=${axe.violations.length} smallest=${tap ? `${tap.width}×${tap.height}` : 'n/a'}${cardTargets.length ? ` cardControls=${JSON.stringify(cardTargets)}` : ''}`,
       );
     }
+  }
+
+  // ── The card's hero, in every language ─────────────────────────────────────
+  //
+  // WHY THE CARD HAS ITS OWN LOCALE PASS. The hero now holds the name, the role,
+  // the company AND the primary action, and the fold rule for all four is what
+  // says the restructuring worked rather than traded one problem for another.
+  // English is the shortest of the three languages, so measuring it alone would
+  // be measuring the easiest case: Russian ("Войти, чтобы связаться", and much
+  // longer role strings) and Spanish wrap earlier, and a hero that grows by two
+  // lines can push its own bottom — or the name it exists to introduce — past the
+  // 844px fold. The dictionary strings are imported from the real dictionaries and
+  // the rendered CTA text is compared to them, so a pass that silently kept
+  // rendering English (which is what a locale bug looks like) fails here instead
+  // of producing three identical rows of numbers.
+  const foldSamples: {
+    locale: string;
+    viewport: string;
+    fold: number;
+    nameBottom: number;
+    roleBottom: number;
+    companyBottom: number;
+    actionTop: number;
+    actionBottom: number;
+    /** Bottom of the localized hint under the action — the longest translated line in the hero. */
+    hintBottom: number;
+    /** Bottom of the whole hero, action and hint included. */
+    heroBottom: number;
+    ctaText: string;
+  }[] = [];
+  for (const locale of ['en', 'ru', 'es'] as const) {
+    await page.setViewportSize(MOBILE);
+    const response = await page.goto(`${cardPath}?lang=${locale}`);
+    expect(response?.status(), `card?lang=${locale}`).toBe(200);
+    await waitHydrated(page);
+    await expect(page.getByTestId('pubcard-offers'), `card?lang=${locale} must render its chips`).toBeVisible();
+
+    const fold = await page.evaluate(() => window.innerHeight);
+    const measuredLocale = await measure(page);
+    const ctaText = ((await page.getByTestId('pubcard-signin-cta').innerText()) ?? '').trim();
+    // THE LOCALE-SENSITIVE HALF OF THE HERO. The name, role and company lines are
+    // the PROFILE's own text — they are identical in all three languages, and the
+    // identical numbers below are a fact about the fixture rather than a bug. What
+    // actually changes with the language is the dictionary copy in the hero: the
+    // action's label and the hint under it. The hint is the longest of them, so
+    // its bottom edge (and the hero's) is where a longer Russian or Spanish string
+    // would push the block down.
+    const hint = await box(page, '[data-testid="pubcard-signin-cta"] p, [data-testid="pubcard-intro-cta"] + p');
+    const hero = await box(page, '[data-testid="pubcard"] header');
+    foldSamples.push({
+      locale,
+      viewport: `${MOBILE.width}`,
+      fold,
+      nameBottom: measuredLocale.titleBottom,
+      roleBottom: measuredLocale.roleBottom,
+      companyBottom: measuredLocale.companyBottom,
+      actionTop: measuredLocale.actionTop,
+      actionBottom: measuredLocale.actionBottom,
+      hintBottom: hint?.bottom ?? -1,
+      heroBottom: hero?.bottom ?? -1,
+      ctaText,
+    });
+
+    const where = `card @${MOBILE.width} ${locale}`;
+    // The dictionary is the oracle: the numbers below are only "measured in
+    // Russian" if the page really rendered Russian.
+    const expectedCta = { en, ru, es }[locale]['pubcard.ctaSignIn'];
+    if (!expectedCta) {
+      problems.push(`${where}: the ${locale} dictionary has no pubcard.ctaSignIn string to compare the page against`);
+    } else if (!ctaText.includes(expectedCta)) {
+      problems.push(`${where}: the page did not render the ${locale} dictionary (CTA reads "${ctaText.slice(0, 60)}", expected "${expectedCta}")`);
+    }
+    if (measuredLocale.overflowPx > 0) {
+      problems.push(`${where}: horizontal overflow of ${measuredLocale.overflowPx}px`);
+    }
+    // The name and the role are the fold rule's SUBJECT, not its leftovers: they
+    // must be on the first screen in every language.
+    if (measuredLocale.titleBottom < 0 || measuredLocale.titleBottom > fold) {
+      problems.push(`${where}: the name ends at ${measuredLocale.titleBottom}, below the ${fold}px fold`);
+    }
+    if (measuredLocale.roleBottom < 0 || measuredLocale.roleBottom > fold) {
+      problems.push(`${where}: the role ends at ${measuredLocale.roleBottom}, below the ${fold}px fold`);
+    }
+    if (measuredLocale.companyBottom >= 0 && measuredLocale.companyBottom > fold) {
+      problems.push(`${where}: the company line ends at ${measuredLocale.companyBottom}, below the ${fold}px fold`);
+    }
+    if (measuredLocale.actionTop < 0 || !measuredLocale.actionAboveFold) {
+      problems.push(`${where}: the primary action ends at ${measuredLocale.actionBottom}, below the ${fold}px fold`);
+    }
+    // The whole hero — the localized hint included — has to be on the first
+    // screen. A hero that ends past the fold would leave the transition from the
+    // identity block to the rest of the card invisible at the bottom edge.
+    if (hint === null || hint.bottom > fold) {
+      problems.push(`${where}: the action's hint ends at ${hint ? hint.bottom : 'nowhere'}, below the ${fold}px fold`);
+    }
+    if (hero === null || hero.bottom > fold) {
+      problems.push(`${where}: the card hero ends at ${hero ? hero.bottom : 'nowhere'}, below the ${fold}px fold`);
+    }
+    console.log(
+      `[design] ${where}: fold=${fold} name=${measuredLocale.titleBottom} role=${measuredLocale.roleBottom} company=${measuredLocale.companyBottom} action=${measuredLocale.actionTop}–${measuredLocale.actionBottom} hintBottom=${hint ? hint.bottom : 'n/a'} heroBottom=${hero ? hero.bottom : 'n/a'} cta="${ctaText.slice(0, 40)}"`,
+    );
   }
 
   // ── The member panel ───────────────────────────────────────────────────────
@@ -682,8 +862,9 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
     `${JSON.stringify(
       {
         generated_at: new Date().toISOString(),
-        note: 'Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-gate.spec.ts. One pass per surface: the product ships one design, so there is no theme dimension any more. overflowPx > 0, an event page whose join control is not its first control or is below the first screen, or a control below its touch bar would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minTapTarget is the smallest control-shaped element on the page; minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened. compactTargets lists the documented .btn-small controls (the card share strip among them): they are excluded from the 44px floor and held to the 24px WCAG 2.5.8 minimum, and they are recorded so that exception stays a number rather than an exemption. member_panel is the second phase: the participation panel, which only a member sees — its toggle ROWS (the labels that carry the 44px target, not the 16px boxes inside them) and its two links.',
+        note: 'Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-gate.spec.ts. One pass per surface: the product ships one design, so there is no theme dimension any more. overflowPx > 0, a primary action below the first screen, or a control below its touch bar would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minTapTarget is the smallest control-shaped element on the page; minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened. card_fold is the card hero measured at 390px in all three locales: the fold in CSS pixels plus the bottom edges of the name, the role and the company line, and the box of the primary action — name and role above the fold is the point of moving the action into the hero, and English alone would measure the easiest case. compactTargets lists the documented .btn-small controls (the cabinet/organizer/directory density surfaces): they are excluded from the 44px floor and held to the 24px WCAG 2.5.8 minimum, and they are recorded so that exception stays a number rather than an exemption — the public card is no longer in this bucket (card_action controls are named and asserted at 44px). member_panel is the second phase: the participation panel, which only a member sees — its toggle ROWS (the labels that carry the 44px target, not the 16px boxes inside them) and its two links.',
         samples,
+        card_fold: foldSamples,
         member_panel: panelSamples,
       },
       null,

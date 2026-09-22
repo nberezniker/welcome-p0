@@ -17,6 +17,13 @@ const REVEAL_KINDS: readonly LinkKind[] = ['linkedin_url', 'website', 'github_ur
  * owner (the server passes both the event id and the target profile id in that
  * case — ids the viewer can already see in that event's directory). Everyone else
  * gets a sign-in link: contacts are never revealed from a public card.
+ *
+ * WHERE IT RENDERS. The card puts this in its HERO, directly under the name and
+ * the role, so the page's primary action is on the first screen at 390px (before
+ * that it sat at the bottom of a ~1070px card and never was). That is also why
+ * the wrapper carries no `border-t`/`pt-5`: those were the separators of the
+ * bottom-of-card block, and a rule drawn under a person's name is not a section
+ * break. `tests/e2e/design-gate.spec.ts` measures the fold in all three locales.
  */
 export function IntroCta({
   profileId,
@@ -75,7 +82,7 @@ export function IntroCta({
   };
 
   return (
-    <div className="mt-6 border-t border-line pt-5">
+    <div className="mt-5">
       <button
         type="button"
         className="btn-accent w-full sm:w-auto"
@@ -121,10 +128,12 @@ export function IntroCta({
   );
 }
 
-/** Sign-in CTA shown when there is no shared event (or the viewer is anonymous). */
+/** Sign-in CTA shown when there is no shared event (or the viewer is anonymous).
+ * Renders in the card's hero, beside (never instead of) the introduction
+ * affordance — see the note on `IntroCta` for why it carries no top rule. */
 export function SignInCta({ href, label, hint }: { href: string; label: string; hint: string }) {
   return (
-    <div className="mt-6 border-t border-line pt-5" data-testid="pubcard-signin-cta">
+    <div className="mt-5" data-testid="pubcard-signin-cta">
       <Link href={href} className="btn-accent w-full sm:w-auto">
         {label}
       </Link>

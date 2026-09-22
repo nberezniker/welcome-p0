@@ -210,13 +210,41 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   return (
     <main className="mx-auto w-full max-w-xl px-5 py-10 sm:px-6">
       <article className="card" data-testid="pubcard">
-        {/* Hero */}
+        {/*
+          Hero: WHO this is, WHAT they do, and WHAT THE VISITOR CAN DO — all on
+          the first screen at 390px, which is the whole point of the order.
+
+          THE PRIMARY ACTION USED TO BE THE CARD'S LAST ELEMENT. At 390px it
+          started at y=926 inside a 1067px card, so a visitor who arrived from a
+          QR code saw a name and a bio and had to scroll a screen and a half to
+          find the one thing the page exists for. The action is now the hero's
+          last row: name → role → company → languages → action. Nothing was
+          dropped and no section moved relative to its neighbours — bio, chips,
+          contacts and the QR/share block follow in the order they always had.
+
+          WHY THE NAME STAYS THE HERO'S FIRST LINE, not the button. The fold rule
+          this change has to satisfy is the opposite of "fit a button": in all
+          three locales the NAME and the ROLE must be above the fold, and Russian
+          and Spanish are longer than English ("Независимый консультант по
+          продукту", "Consultor independiente de producto"). They are measured per
+          locale, not assumed, by tests/e2e/design-gate.spec.ts — a hero that
+          pushed its own subject below the fold to make room for a button would be
+          a worse card than the one this replaces.
+        */}
         <header>
           <h1 className="text-3xl font-extrabold tracking-tight" data-testid="pubcard-name">
             {profile.display_name}
           </h1>
-          {profile.headline ? <p className="mt-2 text-lg text-muted">{profile.headline}</p> : null}
-          {profile.company ? <p className="mt-1 text-sm font-semibold text-ink">{profile.company}</p> : null}
+          {profile.headline ? (
+            <p className="mt-2 text-lg text-muted" data-testid="pubcard-headline">
+              {profile.headline}
+            </p>
+          ) : null}
+          {profile.company ? (
+            <p className="mt-1 text-sm font-semibold text-ink" data-testid="pubcard-company">
+              {profile.company}
+            </p>
+          ) : null}
           {/*
             Languages. The list carries its own accessible NAME, for the same
             reason the chip groups below are labelled: a list of bare values with
@@ -236,6 +264,37 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
               ))}
             </ul>
           ) : null}
+
+          {/* The card's primary action, in the hero — see the block comment above. */}
+          {sharedEvent ? (
+            <IntroCta
+              profileId={sharedEvent.targetProfileId}
+              eventId={sharedEvent.eventId}
+              displayName={profile.display_name}
+              kindLabels={kindLabels}
+              strings={{
+                ctaIntro: t('pubcard.ctaIntro'),
+                ctaIntroSent: t('pubcard.ctaIntroSent'),
+                ctaIntroAlready: t('pubcard.ctaIntroAlready'),
+                ctaSignIn: t('pubcard.ctaSignIn'),
+                ctaSignInHint: t('pubcard.ctaSignInHint'),
+                revealTitle: t('pubcard.revealTitle'),
+                revealHint: t('pubcard.revealHint'),
+                sendRequest: t('pubcard.sendRequest'),
+                sending: t('common.saving'),
+                cancel: t('common.cancel'),
+                errorNetwork: t('common.errorNetwork'),
+                errorGeneric: t('common.errorGeneric'),
+              }}
+            />
+          ) : (
+            <SignInCta
+              href={`/login?next=/p/${profile.slug}`}
+              label={t('pubcard.ctaSignIn')}
+              hint={t('pubcard.ctaSignInHint')}
+            />
+          )}
+
           {profile.short_bio ? (
             <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-ink" data-testid="pubcard-bio">
               {profile.short_bio}
@@ -400,34 +459,9 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           </QrPanel>
         </div>
 
-        {sharedEvent ? (
-          <IntroCta
-            profileId={sharedEvent.targetProfileId}
-            eventId={sharedEvent.eventId}
-            displayName={profile.display_name}
-            kindLabels={kindLabels}
-            strings={{
-              ctaIntro: t('pubcard.ctaIntro'),
-              ctaIntroSent: t('pubcard.ctaIntroSent'),
-              ctaIntroAlready: t('pubcard.ctaIntroAlready'),
-              ctaSignIn: t('pubcard.ctaSignIn'),
-              ctaSignInHint: t('pubcard.ctaSignInHint'),
-              revealTitle: t('pubcard.revealTitle'),
-              revealHint: t('pubcard.revealHint'),
-              sendRequest: t('pubcard.sendRequest'),
-              sending: t('common.saving'),
-              cancel: t('common.cancel'),
-              errorNetwork: t('common.errorNetwork'),
-              errorGeneric: t('common.errorGeneric'),
-            }}
-          />
-        ) : (
-          <SignInCta
-            href={`/login?next=/p/${profile.slug}`}
-            label={t('pubcard.ctaSignIn')}
-            hint={t('pubcard.ctaSignInHint')}
-          />
-        )}
+        {/* The card's primary action is NOT here any more — it lives in the hero
+            (see the block comment at the top of the card). This block is the
+            "pass me on" surface: save the contact, save the code, show the code. */}
 
         <p className="mt-4 text-xs text-muted">{t('pubcard.buildNote')}</p>
       </article>
