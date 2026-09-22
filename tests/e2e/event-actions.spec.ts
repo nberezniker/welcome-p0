@@ -172,13 +172,17 @@ async function measure(page: Page) {
 }
 
 /**
- * The 44px rule, on both axes, for the controls this change ADDS or ALTERS.
+ * The 44px rule, on both axes, for the controls of the action hierarchy this page
+ * is about: the join action and the calendar/share disclosures, collapsed and
+ * expanded.
  *
- * The member panel's own controls (its checkboxes and its two links) are NOT in
- * this list: this change neither adds nor restyles them, and measuring them here
- * would turn a pre-existing, unrelated property of the panel into a failure of
- * this gate. What is measured is every control of the new hierarchy, collapsed
- * and expanded.
+ * The member panel's own controls are deliberately NOT in this list. They used to
+ * be excluded because they were pre-existing and outside that change's scope; the
+ * reason now is narrower and different — they are measured in full by the
+ * member-state test below, where the member's card actually exists, and asserting
+ * them twice from two lists would mean two places to update. That test asserts
+ * the panel's three toggle ROWS (their labels, not the 16px glyphs) and its two
+ * links.
  */
 async function smallTargets(page: Page): Promise<string[]> {
   const problems: string[] = [];
@@ -379,21 +383,47 @@ test('event actions: a member sees the member state in that slot, and the panel 
   expect((await patched).status(), 'the directory toggle must keep writing through its endpoint').toBe(200);
   await expect(dirToggle).toBeChecked({ checked: !wasChecked });
 
-  // REPORTED, NOT ASSERTED: the smallest tap target among EVERY control of the
-  // member's card, including the participation panel's own checkboxes and its two
-  // `btn-small` links. Those are pre-existing and this change neither adds nor
-  // restyles them, so they are not part of the 44px assertion above — but leaving
-  // the number unmeasured would let "the page passes the tap-target rule" sound
-  // broader than it is, so the gate prints it on every run.
-  const allTargets = await page.evaluate(() =>
-    [...document.querySelectorAll('main .card a.btn-light, main .card a.btn-primary, main .card a.btn-accent, main .card button, main .card input[type="checkbox"]')]
-      .map((el) => {
-        const r = el.getBoundingClientRect();
-        return { id: el.getAttribute('data-testid') ?? el.className, w: Math.round(r.width), h: Math.round(r.height) };
-      })
-      .sort((a, b) => a.w * a.h - b.w * b.h),
-  );
-  console.log(`[event-actions] member card tap targets (smallest 4): ${JSON.stringify(allTargets.slice(0, 4))}`);
+  // THE PANEL'S OWN CONTROLS, MEASURED — previously the one blind spot on this
+  // page. This block used to print the smallest targets and assert nothing,
+  // because the panel's checkboxes and its two `btn-small` links were
+  // pre-existing and outside that change's scope. They are in scope now, so they
+  // are asserted like everything else.
+  //
+  // WHAT IS MEASURED, and why it is the row and not the input: each toggle is a
+  // `<label>` that WRAPS its checkbox and carries `min-h-11`, so the whole 44px
+  // row is the clickable area while the glyph stays 16px. Measuring the glyph
+  // would demand a 44px checkbox nobody needs — the thumb hits the row. The
+  // input is still a real `<input type="checkbox">` (the PATCH assertion just
+  // above depends on it), which is the part that must not change.
+  const panelTargets = await page.evaluate(() => {
+    const out: { name: string; w: number; h: number }[] = [];
+    const record = (name: string, el: Element | null | undefined) => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      out.push({ name, w: Math.round(r.width), h: Math.round(r.height) });
+    };
+    for (const id of ['attendance-toggle', 'event-directory-toggle', 'event-marketing-toggle']) {
+      const input = document.querySelector(`[data-testid="${id}"]`);
+      record(id, input?.closest('label') ?? input);
+    }
+    const panel = document.querySelector('[data-testid="member-panel"]');
+    for (const link of panel?.querySelectorAll('a.btn-light, a.btn-primary, a.btn-accent, a.btn-small-tap') ?? []) {
+      record(link.getAttribute('data-testid') ?? `link:"${(link.textContent ?? '').trim()}"`, link);
+    }
+    for (const button of panel?.querySelectorAll('button') ?? []) {
+      record(`button:"${(button.textContent ?? '').trim()}"`, button);
+    }
+    return out;
+  });
+  const tooSmall = panelTargets.filter((t) => t.w < 44 || t.h < 44);
+  console.log(`[event-actions] member panel tap targets: ${JSON.stringify(panelTargets)}`);
+  expect(
+    tooSmall,
+    `member panel controls below the 44px touch target: ${JSON.stringify(tooSmall)}`,
+  ).toEqual([]);
+  // A vacuous pass would be worse than a failure: the panel must actually
+  // contain the three rows and the two links this assertion claims to cover.
+  expect(panelTargets.length, 'the panel must expose its rows and links to this measurement').toBe(5);
 
   // A member's page still passes axe at every impact, and the room link is still
   // member-only (the visitor never sees it — asserted in the tests above).

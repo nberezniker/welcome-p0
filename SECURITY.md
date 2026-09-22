@@ -64,5 +64,11 @@ history does not un-leak it.
   other prefix is rejected. Consequence today: the key is a one-way door. It must
   be backed up with the database, and a leaked or lost key has no remedy except
   the data it decrypts. Not a P0 defect — but not a rotation story either.
+  **Assessed in full in
+  [docs-internal/security/KEY_ROTATION_ASSESSMENT.md](docs-internal/security/KEY_ROTATION_ASSESSMENT.md)**:
+  the six ciphertext columns, the key's OTHER role that a column-level audit
+  misses (an HKDF-derived MAC for the OAuth `state`), what a keyring would take,
+  the expand → flip → backfill → contract order for a live deployment, the risks,
+  and rough sizing. Deliberately not implemented in this pass.
   (The single-operator note for self-hosters is in
   [SELF_HOSTING.md §3.3](SELF_HOSTING.md).)

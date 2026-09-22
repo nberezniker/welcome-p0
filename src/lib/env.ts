@@ -240,6 +240,67 @@ export function workerFreshnessSeconds(raw: string | undefined = process.env.WOR
   return parsed;
 }
 
+// ---------------------------------------------------------------------------
+// Database statement budget — how long ONE SQL statement may run.
+// Read once, when the pool is built (src/lib/db.ts); see the note there.
+// ---------------------------------------------------------------------------
+
+/**
+ * Default `statement_timeout`: 10 seconds.
+ *
+ * WHY THIS EXISTS. `connect_timeout` (5s) bounds *reaching* the server, not
+ * *running* on it: once a connection is up, a query that is blocked on a lock, a
+ * bad plan or a stuck seq scan holds its pooled connection until the client
+ * gives up — which, with no bound, is never. Ten pooled connections and one
+ * unbounded statement is a request (or a worker tick) pinned indefinitely.
+ *
+ * WHY 10 SECONDS, specifically:
+ *   - it matches the outbound budget this app already uses for a single external
+ *     call (REQUEST_TIMEOUT_MS = 10s in the Telegram and email transports), so a
+ *     hung statement cannot outlive the send that is waiting on it;
+ *   - it is far above every statement this schema actually runs. The heaviest are
+ *     the directory/audience joins and the batched cleanup DELETEs (500 rows per
+ *     pass) — all indexed, all sized per event or per 500 rows. A statement that
+ *     needs seconds here is a bug or a lock, not a workload;
+ *   - it is short enough to be a bound. A timeout longer than the caller's own
+ *     budget is not a safety control, it is a delayed failure.
+ *
+ * NOT APPLIED TO MIGRATIONS. `scripts/migrate.mjs` builds its own client, so a
+ * long index build in a migration is deliberately outside this budget.
+ */
+export const STATEMENT_TIMEOUT_MS_DEFAULT = 10_000;
+
+/**
+ * Bounds on a configured statement budget, and why there is no "off".
+ *
+ * `statement_timeout = 0` means DISABLED in Postgres. A configured zero would
+ * therefore restore exactly the unbounded behaviour this setting removes, so the
+ * accepted range starts at 100ms rather than at 0 — the same stance
+ * src/lib/outbound.ts takes for HTTP ("a timeout is a safety control, not a
+ * preference"). The floor is also below any real statement, so it cannot be
+ * reached by accident.
+ *
+ * The 10-minute ceiling is a typo guard, not a workload limit: a unit mix-up
+ * (`600000` is 10 minutes in ms; `600000000` is 6.9 days) would otherwise turn
+ * the bound into decoration while looking like a deliberate number.
+ */
+export const STATEMENT_TIMEOUT_MS_MIN = 100;
+export const STATEMENT_TIMEOUT_MS_MAX = 10 * 60 * 1000;
+
+/**
+ * Milliseconds a single SQL statement may run before Postgres cancels it.
+ * `STATEMENT_TIMEOUT_MS` overrides the default; anything that is not a whole
+ * number of milliseconds in `[100, 600000]` — including `0`, which Postgres
+ * would read as "no limit" — falls back to the default instead of clamping.
+ */
+export function statementTimeoutMs(raw: string | undefined = process.env.STATEMENT_TIMEOUT_MS): number {
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < STATEMENT_TIMEOUT_MS_MIN || parsed > STATEMENT_TIMEOUT_MS_MAX) {
+    return STATEMENT_TIMEOUT_MS_DEFAULT;
+  }
+  return parsed;
+}
+
 const defaultExposureWarner = createOtpExposureWarner();
 
 /**

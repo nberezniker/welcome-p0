@@ -291,6 +291,40 @@ async function openEventDisclosures(page: Page): Promise<void> {
   }
 }
 
+/**
+ * The member panel's own controls, as the THUMB sees them: the three toggle rows
+ * and the two links.
+ *
+ * MEASURING THE ROW, NOT THE GLYPH. Each toggle is a `<label>` wrapping its
+ * checkbox and carrying `min-h-11`, so the whole 44px row is the clickable area
+ * while the checkbox itself stays 16px. Measuring `input[type=checkbox]` would
+ * report a 16px box and demand a 44px checkbox — a control nobody has to hit,
+ * because the thumb hits the row. What must NOT change is that the input is still
+ * a real checkbox; that is asserted by event-actions.spec.ts, which drives it
+ * through its PATCH endpoint.
+ */
+async function memberPanelTargets(
+  page: Page,
+): Promise<{ name: string; width: number; height: number }[]> {
+  return page.evaluate(() => {
+    const out: { name: string; width: number; height: number }[] = [];
+    const record = (name: string, el: Element | null | undefined) => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      out.push({ name, width: Math.round(r.width), height: Math.round(r.height) });
+    };
+    for (const id of ['attendance-toggle', 'event-directory-toggle', 'event-marketing-toggle']) {
+      const input = document.querySelector(`[data-testid="${id}"]`);
+      record(id, input?.closest('label') ?? input);
+    }
+    const panel = document.querySelector('[data-testid="member-panel"]');
+    for (const link of panel?.querySelectorAll('a') ?? []) {
+      record(link.getAttribute('data-testid') ?? `link:"${(link.textContent ?? '').trim()}"`, link);
+    }
+    return out;
+  });
+}
+
 /** Smallest tap target among the bar's controls — the 44px rule, measured. */
 async function smallestTapTarget(page: Page): Promise<Sample['minTapTarget']> {
   const controls = page.locator('[data-testid="theme-bar"] button');
@@ -572,8 +606,18 @@ test('design review: card and event hold the bar in all four themes at 390 and 3
         // fetched: measuring a 390px layout in a 1280px window and then resizing
         // would measure the wrong thing.
         await page.setViewportSize(viewport);
-        // `?theme=` is what ENTERS review mode; the cookie it sets carries the
-        // theme onward, not backward — so each visit states it explicitly.
+        // `?theme=` is the way INTO review mode, and it is a channel on whatever
+        // page the override covers (`/p/*`, here). It is NOT a channel on
+        // `/e/<slug>`: the proxy's matcher scopes both `?theme=` and `?lang=` to
+        // the same four public entry points, so the event page is reached with
+        // the COOKIE this very loop set one iteration earlier — card first, then
+        // event, per the `targets` order above.
+        //
+        // That ordering is load-bearing, and the line that used to stand here
+        // ("each visit states it explicitly") was simply wrong about the event:
+        // swapping the two targets would leave the event un-themed. The rule
+        // itself is pinned, symmetrically for both parameters, by the dedicated
+        // test at the end of this file.
         const response = await page.goto(`${target.path}?theme=${theme}`);
         expect(response?.status(), `${target.page} ${theme}`).toBe(200);
         await waitHydrated(page);
@@ -676,14 +720,97 @@ test('design review: card and event hold the bar in all four themes at 390 and 3
     }
   }
 
+  // ── The member panel, in every theme ───────────────────────────────────────
+  //
+  // WHY A SECOND PHASE. The sweep above measures the page a VISITOR gets, and a
+  // visitor has no participation panel (it is rendered only for an active member).
+  // The panel's own controls were therefore the one part of the event page that
+  // no theme pass had ever looked at — which is how they reached this change
+  // sitting below the 44px target. They are measured here, in all four themes and
+  // in the un-themed pass, at both widths: axe at every impact, horizontal
+  // overflow, and the 44px rule.
+  //
+  // The panel joins the event HERE, at the end, deliberately: joining replaces
+  // the join button with the member state, and the hierarchy assertions above are
+  // about the page BEFORE that happens.
+  const panelSamples: {
+    theme: Theme | 'none';
+    viewport: string;
+    overflowPx: number;
+    axeViolations: string[];
+    targets: { name: string; width: number; height: number }[];
+  }[] = [];
+  {
+    // The product's way into a named theme is the query on an entry point the
+    // override COVERS (`/p/*`), which sets the cookie; the event page is then
+    // reached with that cookie. Stated here rather than relied on incidentally:
+    // the main loop's card-then-event order makes the same thing happen, but
+    // nothing in it says so, which is exactly how "?theme= works on /e/" became
+    // a plausible reading of this file.
+    const EVENT_PATH = '/e/e2e-themed-meetup';
+
+    await page.goto(EVENT_PATH);
+    await waitHydrated(page);
+    const join = page.getByTestId('join-button');
+    if ((await join.count()) > 0) {
+      await join.click();
+    }
+    await expect(page.getByTestId('member-panel')).toBeVisible({ timeout: 30_000 });
+
+    for (const theme of ['none', ...THEMES] as const) {
+      for (const viewport of [MOBILE, NARROW]) {
+        await page.setViewportSize(viewport);
+        if (theme === 'none') {
+          // Only the theme cookie: clearing them all would sign the member out,
+          // and this phase needs the member.
+          await page.context().clearCookies({ name: 'welcome_theme' });
+          await page.goto(EVENT_PATH);
+        } else {
+          await page.goto(`${cardPath}?theme=${theme}`);
+          await page.goto(EVENT_PATH);
+        }
+        await waitHydrated(page);
+        await expect(page.getByTestId('member-panel'), `panel must render (${theme})`).toBeVisible();
+
+        const where = `${theme} member-panel @${viewport.width}`;
+        const overflow = await overflowPx(page);
+        const axe = await scan(page);
+        const targets = await memberPanelTargets(page);
+        panelSamples.push({ theme, viewport: `${viewport.width}`, overflowPx: overflow, axeViolations: axe.violations, targets });
+
+        if (theme === 'none') {
+          expect(page.locator('html'), 'the un-themed pass must carry no data-theme').not.toHaveAttribute('data-theme', /.*/);
+        } else {
+          await expect(page.locator('html'), `${where} theme must apply`).toHaveAttribute('data-theme', theme);
+        }
+        if (overflow > 0) problems.push(`${where}: horizontal overflow of ${overflow}px`);
+        if (axe.violations.length > 0) problems.push(`${where}: ${axe.violations.join(' | ')}`);
+        // Five controls: three rows and two links. A shorter list would mean the
+        // measurement silently stopped covering something.
+        if (targets.length !== 5) {
+          problems.push(`${where}: expected 5 panel controls, measured ${targets.length} (${JSON.stringify(targets)})`);
+        }
+        for (const t of targets) {
+          if (t.width < 44 || t.height < 44) {
+            problems.push(`${where}: ${t.name} is ${t.width}×${t.height}, below the 44px touch target`);
+          }
+        }
+        console.log(
+          `[themes] ${where}: overflow=${overflow}px axe=${axe.violations.length} targets=${JSON.stringify(targets)}`,
+        );
+      }
+    }
+  }
+
   // Written BEFORE the assertions: evidence has to survive a failing run.
   writeFileSync(
     path.join(EVIDENCE_DIR, 'measurements.json'),
     `${JSON.stringify(
       {
         generated_at: new Date().toISOString(),
-        note: 'Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme "none" is the visitor pass (no cookie, no query, no bar). overflowPx > 0, a bar above cardBottom, or an event page whose join control is not its first control and on the first screen would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened.',
+        note: 'Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme "none" is the visitor pass (no cookie, no query, no bar). overflowPx > 0, a bar above cardBottom, or an event page whose join control is not its first control and on the first screen would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened. member_panel is the second phase: the participation panel, which only a member sees, measured in all four themes and the un-themed pass at both widths — its toggle ROWS (the labels that carry the 44px target, not the 16px boxes inside them) and its two links.',
         samples,
+        member_panel: panelSamples,
       },
       null,
       2,
@@ -937,4 +1064,66 @@ test('design review: in premium the chip groups are told apart without colour', 
   console.log(
     `[themes] premium carrier: offers [${offers.join(', ')}] vs needs [${needs.join(', ')}]; lists named "${offersLabel}" / "${needsLabel}"; axe=${axe.violations.length}`,
   );
+});
+
+/**
+ * The two query overrides are scoped IDENTICALLY — pinned here, symmetrically,
+ * because this is the invariant that was documented and tested for one parameter
+ * and only accidentally true for the other.
+ *
+ * WHAT WAS ACTUALLY WRONG. An earlier report in this session stated that
+ * `?theme=` covers `/e/:path*` while `?lang=` does not, on the grounds that a
+ * themed event page had been observed. That observation was real; the conclusion
+ * was not. Neither override is a channel on `/e/<slug>` — `src/proxy.ts`'s
+ * matcher is the same four entry points for both — and a themed event page is
+ * reached with the COOKIE the query set on a covered page. The main sweep above
+ * cannot tell those two mechanisms apart, because it visits the card (setting the
+ * cookie) immediately before the event, so its `?theme=` on the event is a no-op
+ * that happens to look like it worked. This test removes the ambiguity: it asks
+ * each page for the override DIRECTLY, with no preceding visit to plant a cookie.
+ *
+ * It asserts both directions for both parameters. If someone later widens the
+ * matcher to cover `/e/:path*`, this fails and says so — which is the point:
+ * "the query works everywhere" and "the query works on four entry points and the
+ * cookie carries it" are different products, and the choice between them should
+ * be made deliberately (docs-internal/design/THEMES.md decision 4) rather than
+ * drift in as a side effect.
+ */
+test('design review: ?theme= and ?lang= are channels on exactly the same entry points', async ({ page }) => {
+  test.setTimeout(120_000);
+  const EVENT_SLUG = 'e2e-override-scope';
+  const { cardPath } = await seed(page, {
+    email: 'override-scope@example.org',
+    name: 'Override Scope',
+    slug: EVENT_SLUG,
+  });
+
+  // A clean context: no theme cookie, no locale cookie, nothing planted.
+  await page.context().clearCookies();
+
+  // 1. BOTH work on a covered entry point (/p/*). The card is the entry point the
+  //    product itself uses to enter review mode.
+  await page.goto(`${cardPath}?theme=poster&lang=ru`);
+  await waitHydrated(page);
+  await expect(page.locator('html'), '?theme= must be a channel on /p/*').toHaveAttribute('data-theme', 'poster');
+  await expect(page.locator('html'), '?lang= must be a channel on /p/*').toHaveAttribute('lang', 'ru');
+
+  // 2. NEITHER works on /e/<slug>, with no cookie present. This is the assertion
+  //    the missing half of the pair made it possible to get wrong.
+  await page.context().clearCookies();
+  await page.goto(`/e/${EVENT_SLUG}?theme=poster&lang=ru`);
+  await waitHydrated(page);
+  await expect(page.locator('html'), '?theme= must NOT be a channel on /e/<slug>').not.toHaveAttribute('data-theme', /.*/);
+  await expect(page.locator('html'), '?lang= must NOT be a channel on /e/<slug>').not.toHaveAttribute('lang', 'ru');
+
+  // 3. BOTH arrive on /e/<slug> by COOKIE — the same cookie, set the same way, on
+  //    the same entry point. This is the half that made `?theme=` look like it
+  //    covered the event page.
+  await page.goto(`${cardPath}?theme=poster&lang=ru`);
+  await page.goto(`/e/${EVENT_SLUG}`);
+  await waitHydrated(page);
+  await expect(page.locator('html'), 'the theme cookie must reach /e/<slug>').toHaveAttribute('data-theme', 'poster');
+  await expect(page.locator('html'), 'the locale cookie must reach /e/<slug>').toHaveAttribute('lang', 'ru');
+
+  console.log('[themes] override scope: ?theme= and ?lang= both cover /p/* only; /e/<slug> follows the cookie for both');
 });

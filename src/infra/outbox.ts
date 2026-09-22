@@ -1,6 +1,7 @@
 import type { Sql, TransactionSql } from 'postgres';
 import { getSql } from '../lib/db';
 import { currentRequestId } from '../lib/request-context';
+import { completeCampaignIfDrained, completeCampaignsIfDrained } from '../domain/campaigns';
 
 /**
  * Outbox pattern (spec 04_ARCHITECTURE §7): business transactions enqueue jobs
@@ -221,6 +222,10 @@ export async function applyOutcome(sql: Sql, job: OutboxJobRow, outcome: Transpo
         WHERE id = ${job.id}
       `;
       await bumpCampaignSentCount(tx, job);
+      // The message was the last thing this recipient was waiting for. Checked in
+      // the SAME transaction as the terminal status, so a campaign can never be
+      // observed as running while every recipient has already finished.
+      await completeCampaignForJob(tx, job);
       return 'sent';
     }
 
@@ -229,6 +234,9 @@ export async function applyOutcome(sql: Sql, job: OutboxJobRow, outcome: Transpo
       await tx`
         UPDATE outbox_jobs SET status = 'failed', attempt = ${attempt}, lease_until = NULL WHERE id = ${job.id}
       `;
+      // A permanent rejection is a terminal outcome for this recipient too: a
+      // campaign completes on a failure, not only on a success.
+      await completeCampaignForJob(tx, job);
       return 'failed';
     }
 
@@ -250,6 +258,9 @@ export async function applyOutcome(sql: Sql, job: OutboxJobRow, outcome: Transpo
       await tx`
         UPDATE outbox_jobs SET status = 'unknown', attempt = ${attempt}, lease_until = NULL WHERE id = ${job.id}
       `;
+      // 'unknown' at the cap is terminal (AC-42 give-up): this recipient is
+      // finished, and the campaign may be too.
+      await completeCampaignForJob(tx, job);
       return 'unknown';
     }
     await tx`
@@ -273,6 +284,9 @@ export async function applySuppression(sql: Sql, job: OutboxJobRow, code: string
     await tx`
       UPDATE outbox_jobs SET status = 'suppressed', attempt = ${job.attempt + 1}, lease_until = NULL WHERE id = ${job.id}
     `;
+    // Suppressed is terminal: the recipient will never be tried again, so a
+    // campaign whose last outstanding job was suppressed is finished.
+    await completeCampaignForJob(tx, job);
     return 'suppressed';
   });
 }
@@ -310,22 +324,56 @@ async function bumpCampaignSentCount(tx: SqlLike, job: OutboxJobRow): Promise<vo
 }
 
 /**
+ * The campaign a job belongs to, when it belongs to one. Every finalizer below
+ * uses this to answer "was that the last recipient?" without inventing a second
+ * way to find the link — `payload->>'campaign_id'` is the same key
+ * `campaignJobStats` and `bumpCampaignSentCount` already read.
+ */
+function campaignIdOf(job: OutboxJobRow): string | null {
+  const campaignId = job.payload['campaign_id'];
+  return job.kind === 'campaign_message' && typeof campaignId === 'string' ? campaignId : null;
+}
+
+/** Completes the job's campaign when this job was the last recipient pending. */
+async function completeCampaignForJob(tx: SqlLike, job: OutboxJobRow): Promise<void> {
+  const campaignId = campaignIdOf(job);
+  if (campaignId === null) return;
+  await completeCampaignIfDrained(tx, campaignId);
+}
+
+/** Same, for a set-based update that returned many rows (bulk suppression, leases). */
+async function completeCampaignsForJobs(tx: SqlLike, jobs: readonly OutboxJobRow[]): Promise<void> {
+  const ids = jobs.map(campaignIdOf).filter((id): id is string => id !== null);
+  if (ids.length === 0) return;
+  await completeCampaignsIfDrained(tx, ids);
+}
+
+/**
  * Re-queues leased jobs whose lease expired (worker crash). attempt++ keeps the
  * try count honest; jobs already at the unknown cap go terminal 'unknown'
  * instead of looping forever.
  */
 export async function requeueExpiredLeases(sql: Sql): Promise<number> {
-  const rows = await sql<{ id: string }[]>`
-    UPDATE outbox_jobs
-    SET status = CASE WHEN attempt + 1 >= ${MAX_UNKNOWN_ATTEMPTS} THEN 'unknown' ELSE 'pending' END,
-        attempt = attempt + 1,
-        lease_until = NULL,
-        due_at = CASE WHEN attempt + 1 >= ${MAX_UNKNOWN_ATTEMPTS} THEN due_at
-                      ELSE now() + (${Math.ceil(computeBackoffMs(2) / 1000)} * interval '1 second') END
-    WHERE status = 'leased' AND lease_until < now()
-    RETURNING id
-  `;
-  return rows.length;
+  return sql.begin(async (tx) => {
+    const rows = await tx<OutboxJobRow[]>`
+      UPDATE outbox_jobs
+      SET status = CASE WHEN attempt + 1 >= ${MAX_UNKNOWN_ATTEMPTS} THEN 'unknown' ELSE 'pending' END,
+          attempt = attempt + 1,
+          lease_until = NULL,
+          due_at = CASE WHEN attempt + 1 >= ${MAX_UNKNOWN_ATTEMPTS} THEN due_at
+                        ELSE now() + (${Math.ceil(computeBackoffMs(2) / 1000)} * interval '1 second') END
+      WHERE status = 'leased' AND lease_until < now()
+      RETURNING *
+    `;
+    // A lease that expired AT the cap goes terminal 'unknown' here, i.e. this
+    // sweep can finish a campaign whose worker died before it could — the
+    // recipient is given up on, which is a terminal outcome like any other. Rows
+    // re-queued to 'pending' leave the campaign running, correctly. Both are
+    // covered because the check reads the current statuses rather than assuming
+    // which branch each row took.
+    await completeCampaignsForJobs(tx, rows);
+    return rows.length;
+  });
 }
 
 /**
@@ -367,14 +415,20 @@ export async function suppressJobsForAccountPurpose(
   accountId: string,
   purpose: string,
 ): Promise<string[]> {
-  const rows = await sql<{ id: string }[]>`
+  const rows = await sql<OutboxJobRow[]>`
     UPDATE outbox_jobs
     SET status = 'suppressed', lease_until = NULL
     WHERE status IN ('pending', 'leased')
       AND purpose = ${purpose}
       AND payload->>'account_id' = ${accountId}
-    RETURNING id
+    RETURNING *
   `;
+  // A withdrawal that suppresses the last outstanding recipient of a campaign
+  // ends that campaign, exactly like a send or a failure would: the recipient
+  // will never be tried again. The hook runs in the caller's transaction
+  // (consent revocation), so the suppression and the campaign's completion are
+  // one commit.
+  await completeCampaignsForJobs(sql, rows);
   return rows.map((r) => r.id);
 }
 
@@ -385,17 +439,18 @@ export async function suppressJobsForAccountChannel(
   channel: string,
   code: string,
 ): Promise<string[]> {
-  const rows = await sqlLike<{ id: string }[]>`
+  const rows = await sqlLike<OutboxJobRow[]>`
     UPDATE outbox_jobs
     SET status = 'suppressed', lease_until = NULL
     WHERE status IN ('pending', 'leased')
       AND channel = ${channel}
       AND payload->>'account_id' = ${accountId}
-    RETURNING id
+    RETURNING *
   `;
   for (const r of rows) {
     await recordAttempt(sqlLike, r.id, 'suppressed', code, null);
   }
+  await completeCampaignsForJobs(sqlLike, rows);
   return rows.map((r) => r.id);
 }
 
@@ -417,17 +472,18 @@ export async function suppressJobsForAccountKinds(
   code: string,
 ): Promise<string[]> {
   if (kinds.length === 0) return [];
-  const rows = await sqlLike<{ id: string }[]>`
+  const rows = await sqlLike<OutboxJobRow[]>`
     UPDATE outbox_jobs
     SET status = 'suppressed', lease_until = NULL
     WHERE status IN ('pending', 'leased')
       AND kind IN ${sqlLike(kinds)}
       AND payload->>'account_id' = ${accountId}
-    RETURNING id
+    RETURNING *
   `;
   for (const r of rows) {
     await recordAttempt(sqlLike, r.id, 'suppressed', code, null);
   }
+  await completeCampaignsForJobs(sqlLike, rows);
   return rows.map((r) => r.id);
 }
 

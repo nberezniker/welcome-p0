@@ -269,11 +269,22 @@ test('campaign flow: preview, approve snapshot, edit resets approval, send reval
     counters: Record<string, number>;
     campaign: unknown;
     note: string;
+    state: string;
+    drained: boolean;
   };
   assert.equal(statsBody.counters['sent'], 2);
   assert.equal(statsBody.counters['suppressed'], 1);
   assert.equal(statsBody.counters['pending'], 0);
   assert.match(statsBody.note, /delivered is never claimed/i);
+  // The campaign is FINISHED: a and c were sent, d was suppressed no_channel, b
+  // was excluded before enqueue. Every recipient that exists has reached a
+  // terminal outcome, so running → completed fires here — off the last job's
+  // finalization, not off the send (which reported 'running' above). This is the
+  // state that was declared in the union, the CHECK, the UI and the immutability
+  // guard and written by nothing; see tests/integration/campaign-completion.test.ts
+  // for the three shapes of the transition.
+  assert.equal(statsBody.drained, true);
+  assert.equal(statsBody.state, 'completed');
 });
 
 // ---------------------------------------------------------------------------

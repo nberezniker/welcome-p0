@@ -5,9 +5,11 @@ import { internalError, jsonError, jsonOk, withApi } from '../../../../../../lib
 import { recordAudit } from '../../../../../../lib/audit';
 import {
   canSend,
+  completeCampaignIfDrained,
   currentEligibleAudience,
   loadCampaignWithRole,
   normalizeAudienceFilter,
+  type CampaignState,
 } from '../../../../../../domain/campaigns';
 import { enqueueOutbox } from '../../../../../../infra/outbox';
 
@@ -87,6 +89,15 @@ async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: s
         UPDATE campaigns SET state = 'running', queued_count = queued_count + ${created}
         WHERE id = ${campaign.id}
       `;
+      // A campaign with NO recipients is FINISHED, not running: every recipient it
+      // has (none) has reached a terminal outcome. That is what happens whenever
+      // the live revalidation above excludes the whole frozen snapshot, and it
+      // used to leave the campaign 'running' permanently — immutable, unsendable
+      // and unapprovable, i.e. parked in a state that describes work nobody is
+      // doing. The helper is a no-op while `created > 0` (those jobs are pending),
+      // so it is safe unconditionally, and it runs in the SAME transaction as the
+      // send so the two cannot be observed apart.
+      await completeCampaignIfDrained(tx, campaign.id);
       await recordAudit(tx, auth.accountId, 'campaign.send', 'campaign', campaign.id, {
         content_revision: campaign.content_revision,
         snapshot_size: snapshot.length,
@@ -96,8 +107,15 @@ async function postRoute(req: NextRequest, { params }: { params: Promise<{ id: s
       return created;
     });
 
+    // The state the transaction actually left behind — 'completed' when nothing
+    // was queued, 'running' when the worker now owns the work. Reporting a
+    // hardcoded 'running' would contradict the row the caller is about to read.
+    const [after] = await sql<{ state: CampaignState }[]>`
+      SELECT state FROM campaigns WHERE id = ${campaign.id}
+    `;
+
     // 202 Accepted: the work is queued, not done.
-    return jsonOk({ ok: true, campaign_id: campaign.id, queued, state: 'running' }, { status: 202 });
+    return jsonOk({ ok: true, campaign_id: campaign.id, queued, state: after?.state ?? 'running' }, { status: 202 });
   } catch (err) {
     return internalError(err);
   }

@@ -354,6 +354,20 @@ body {
 .btn-small {
   @apply min-h-9 px-3 py-1.5 text-xs;
 }
+/* The same compact button, at the 44px minimum height every touch-facing control
+   here holds to. It exists because `.btn-small` is UNLAYERED CSS and therefore
+   beats the layered `min-h-11` utility (see the note on `.btn-*` above), so
+   "btn-small plus a taller utility" silently stays 36px — which is exactly how
+   the event member panel's two links ended up below the minimum. `.btn-nav` was
+   created for the same reason; this is the second instance of that pattern, kept
+   as its own class rather than growing `.btn-small` itself, because `.btn-small`
+   is used across the cabinet and the organizer console where 36px is a
+   deliberate density choice this change has no business rewriting.
+   A compact button that must be hit with a thumb keeps the compact TYPE and
+   PADDING (px-3 py-1.5 text-xs) and only grows the box. */
+.btn-small-tap {
+  @apply min-h-11 px-3 py-1.5 text-xs;
+}
 
 /* ── Landing (marketing) compression layer ─────────────────────────────────
    Three primitives, and each one exists to stop a specific kind of bloat that

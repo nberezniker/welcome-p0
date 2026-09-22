@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-09-22T00:40:38.893Z",
-  "note": "Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme \"none\" is the visitor pass (no cookie, no query, no bar). overflowPx > 0, a bar above cardBottom, or an event page whose join control is not its first control and on the first screen would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened.",
+  "generated_at": "2026-09-22T01:15:35.427Z",
+  "note": "Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme \"none\" is the visitor pass (no cookie, no query, no bar). overflowPx > 0, a bar above cardBottom, or an event page whose join control is not its first control and on the first screen would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened. member_panel is the second phase: the participation panel, which only a member sees, measured in all four themes and the un-themed pass at both widths — its toggle ROWS (the labels that carry the 44px target, not the 16px boxes inside them) and its two links.",
   "samples": [
     {
       "theme": "none",
@@ -725,6 +725,338 @@
       },
       "axeViolations": [],
       "axeContrastNodes": 0
+    }
+  ],
+  "member_panel": [
+    {
+      "theme": "none",
+      "viewport": "390",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 250,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 250,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 250,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "none",
+      "viewport": "360",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 220,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 220,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 220,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "soft",
+      "viewport": "390",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 250,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 250,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 250,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "soft",
+      "viewport": "360",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 220,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 220,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 220,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "swiss",
+      "viewport": "390",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 246,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 246,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 246,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "swiss",
+      "viewport": "360",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 216,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 216,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 216,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "poster",
+      "viewport": "390",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 246,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 246,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 246,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "poster",
+      "viewport": "360",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 216,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 216,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 216,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "premium",
+      "viewport": "390",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 250,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 250,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 250,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
+    },
+    {
+      "theme": "premium",
+      "viewport": "360",
+      "overflowPx": 0,
+      "axeViolations": [],
+      "targets": [
+        {
+          "name": "attendance-toggle",
+          "width": 220,
+          "height": 44
+        },
+        {
+          "name": "event-directory-toggle",
+          "width": 220,
+          "height": 85
+        },
+        {
+          "name": "event-marketing-toggle",
+          "width": 220,
+          "height": 84
+        },
+        {
+          "name": "event-directory-link",
+          "width": 127,
+          "height": 44
+        },
+        {
+          "name": "link:\"Manage per-event settings\"",
+          "width": 179,
+          "height": 44
+        }
+      ]
     }
   ]
 }

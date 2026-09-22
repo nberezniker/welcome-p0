@@ -109,10 +109,13 @@ HASH_PEPPER=<paste the random pepper>
 > **`ENCRYPTION_KEY` is not rotatable.** It is the AES-256-GCM key for contact
 > fields at rest. Lose it and existing contacts cannot be decrypted. Back it up
 > the way you back up the database. It is one key for everything the app
-> encrypts — contacts, imported emails, OAuth code verifiers and Google grant
-> tokens — and no rotation path exists: the *Known limitations* entry in
-> [SECURITY.md](SECURITY.md) says what a keyring would take. Choose it as though
-> it were permanent, because today it is.
+> encrypts — contacts, imported emails, TOTP secrets, OAuth code verifiers and
+> Google grant tokens — and no rotation path exists: the *Known limitations*
+> entry in [SECURITY.md](SECURITY.md) says what a keyring would take, and
+> [docs-internal/security/KEY_ROTATION_ASSESSMENT.md](docs-internal/security/KEY_ROTATION_ASSESSMENT.md)
+> works it out in full (including the ordering a live rotation would need and why
+> the OAuth `state` is the part everyone forgets). Choose it as though it were
+> permanent, because today it is.
 
 ### 3.4 Apply the migrations
 
@@ -130,6 +133,29 @@ applied 014 014_account_locale.sql
 > `pnpm db:migrate` loads `.env.local` if it exists, **and** a `DATABASE_URL`
 > already exported in your shell wins over the file. That is how you migrate a
 > managed database without editing `.env.local`.
+
+#### Statement timeout (optional)
+
+Every connection the app opens runs with a PostgreSQL `statement_timeout` —
+**10 seconds** by default — so one stuck statement cannot hold a pooled
+connection (there are 10, `max` in [src/lib/db.ts](src/lib/db.ts)) and pin a
+request or a worker tick indefinitely. It is enforced by PostgreSQL, not by the
+client, which is what makes it cover the case the client cannot see: a statement
+parked on a lock is otherwise perfectly healthy from the app's side.
+
+You should not need to change it. If your workload has a legitimately slower
+statement, raise it:
+
+```ini
+STATEMENT_TIMEOUT_MS=30000
+```
+
+Accepted range is `100`…`600000` (0.1s … 10min). Anything outside it is ignored in
+favour of the default, **including `0`** — PostgreSQL reads `statement_timeout=0`
+as "no limit", so honouring it would restore exactly the unbounded behaviour this
+setting exists to remove. Migrations are outside this budget
+(`scripts/migrate.mjs` builds its own client), so a long index build is
+unaffected.
 
 ### 3.5 (Optional) Seed demo data
 

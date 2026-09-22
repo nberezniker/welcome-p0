@@ -110,27 +110,46 @@ export default function EventMemberPanel({
     <section className="card mt-6" aria-label={strings.memberPanelTitle} data-testid="member-panel">
       <h2 className="eyebrow">{strings.memberPanelTitle}</h2>
 
-      <div className="mt-3 flex items-start gap-2">
+      {/* Each toggle is a LABEL, not an input beside a label.
+          The row is the tap target: a bare `size-4` checkbox is a 16x16 box
+          (13x16 as the UA paints it), which is not something a thumb can hit, and
+          the measurement that reported it was reading the input's own box rather
+          than the clickable area. The label carries `min-h-11` (44px) and wraps
+          the control, so clicking anywhere on the row toggles it while the
+          checkbox glyph keeps its size and look.
+
+          `items-start` + symmetric `py-3`, NOT `items-center`. These consent
+          lines wrap to two or three lines on a 390px screen, and centring the
+          control against a multi-line block parks the checkbox in the middle of
+          the paragraph — which is a visible regression, not a bigger target. Top
+          alignment plus `mt-0.5` (2px, half the difference between the 16px box
+          and the 20px line box) keeps the checkbox on the FIRST line, and the
+          padding reaches 44px on a one-line row without shoving the text off
+          centre. Verified by looking at it, not by measuring it. */}
+      <label htmlFor="att-toggle" className="mt-3 flex min-h-11 cursor-pointer items-start gap-2 py-3">
         <input
           id="att-toggle"
           type="checkbox"
-          className="mt-1 size-4"
+          className="mt-0.5 size-4 shrink-0"
           checked={present}
           disabled={busy}
           onChange={(e) => void setAttendance(e.target.checked)}
           data-testid="attendance-toggle"
         />
-        <label htmlFor="att-toggle" className="text-sm font-semibold">
+        <span className="text-sm font-semibold">
           {isOnline ? strings.attendanceToggleOnline : strings.attendanceToggle}
-        </label>
-      </div>
+        </span>
+      </label>
       <p className="mt-1 text-xs text-muted">{strings.attendanceHint}</p>
 
-      <div className="mt-4 flex items-start gap-2 border-t border-line pt-3">
+      <label
+        htmlFor="dir-toggle"
+        className="mt-4 flex min-h-11 cursor-pointer items-start gap-2 border-t border-line py-3"
+      >
         <input
           id="dir-toggle"
           type="checkbox"
-          className="mt-1 size-4"
+          className="mt-0.5 size-4 shrink-0"
           checked={directoryVisible}
           disabled={busy}
           onChange={(e) => {
@@ -139,16 +158,14 @@ export default function EventMemberPanel({
           }}
           data-testid="event-directory-toggle"
         />
-        <label htmlFor="dir-toggle" className="text-sm">
-          {strings.directoryConsentLine}
-        </label>
-      </div>
+        <span className="text-sm">{strings.directoryConsentLine}</span>
+      </label>
 
-      <div className="mt-3 flex items-start gap-2">
+      <label htmlFor="mkt-toggle" className="flex min-h-11 cursor-pointer items-start gap-2 py-3">
         <input
           id="mkt-toggle"
           type="checkbox"
-          className="mt-1 size-4"
+          className="mt-0.5 size-4 shrink-0"
           checked={marketing}
           disabled={busy}
           onChange={(e) => {
@@ -157,10 +174,8 @@ export default function EventMemberPanel({
           }}
           data-testid="event-marketing-toggle"
         />
-        <label htmlFor="mkt-toggle" className="text-sm">
-          {strings.marketingConsentLine}
-        </label>
-      </div>
+        <span className="text-sm">{strings.marketingConsentLine}</span>
+      </label>
 
       {note ? (
         <p className="mt-3 text-sm text-red-700" role="alert">
@@ -169,10 +184,14 @@ export default function EventMemberPanel({
       ) : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <Link href={`/me/events/${eventId}/directory`} className="btn-primary btn-small" data-testid="event-directory-link">
+        {/* btn-small-tap, not btn-small: these two are compact by design but they
+            are still hit with a thumb on the event page, so they take the 44px
+            minimum height (.btn-small is 36px and cannot be overridden by a
+            utility — see the note on the class in globals.css). */}
+        <Link href={`/me/events/${eventId}/directory`} className="btn-primary btn-small-tap" data-testid="event-directory-link">
           {strings.openDirectory}
         </Link>
-        <Link href="/me/events" className="btn-light btn-small">
+        <Link href="/me/events" className="btn-light btn-small-tap">
           {strings.myEventsLink}
         </Link>
       </div>

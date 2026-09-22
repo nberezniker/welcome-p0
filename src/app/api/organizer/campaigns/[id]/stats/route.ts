@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { getSql } from '../../../../../../lib/db';
 import { requireAccount } from '../../../../../../lib/auth';
 import { withRequestContext, privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../../../lib/http';
-import { loadCampaignWithRole } from '../../../../../../domain/campaigns';
+import { campaignIsDrained, loadCampaignWithRole } from '../../../../../../domain/campaigns';
 import { campaignJobStats, OUTBOX_STATUSES, type OutboxStatus } from '../../../../../../infra/outbox';
 
 /**
@@ -53,6 +53,15 @@ async function get(req: NextRequest, { params }: { params: Promise<{ id: string 
         state: loaded.campaign.state,
         queued_total: loaded.campaign.queued_count,
         counters,
+        // Whether the recipient work is FINISHED — the same predicate that decides
+        // the running → completed transition (campaignIsDrained in
+        // src/domain/campaigns.ts), applied to the counters just computed.
+        // Exposed because the state alone does not say WHY: 'running' with
+        // drained=true would mean a completion was missed, and 'completed' with
+        // drained=false is impossible, because the transition and this count read
+        // the same statuses. A caller that must wait for delivery gets a signal
+        // instead of re-deriving the rule from the counter map.
+        drained: campaignIsDrained(counters),
         outcome_codes: codes.map((c) => ({ state: c.state, code: c.code, count: c.count })),
         status_registry: OUTBOX_STATUSES,
         note: 'sent = provider accepted; delivered is never claimed from send acceptance',

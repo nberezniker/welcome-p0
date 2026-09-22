@@ -62,6 +62,15 @@ export async function loadCampaignWithRole(
  * approved_revision → NULL, state back to 'draft'. The audience snapshot
  * frozen at approve time NEVER bypasses a revoke — send re-validates
  * everything against the live DB (AC-41).
+ *
+ * Every arrow above is now written by some code path. `draft`/`approved`/
+ * `running` always were; `running → completed` is `completeCampaignsIfDrained`
+ * below, called from the outbox finalization that makes the last recipient
+ * terminal (src/infra/outbox.ts) and from the send route for the zero-recipient
+ * case. `cancelled` remains UNREACHABLE — there is no cancel endpoint, and this
+ * change did not invent one; it is noted here rather than left to look symmetric
+ * with `completed`, because the difference is real and someone deciding whether
+ * to build a cancel flow should see it.
  */
 
 export const CAMPAIGN_PURPOSES = ['organizer_marketing', 'service_channel'] as const;
@@ -273,6 +282,108 @@ export function campaignEditTransition(currentState: CampaignState, currentRevis
  */
 export function canSend(state: CampaignState, contentRevision: number, approvedRevision: number | null): boolean {
   return state === 'approved' && approvedRevision !== null && approvedRevision === contentRevision;
+}
+
+// ---------------------------------------------------------------------------
+// Terminal condition: running → completed
+// ---------------------------------------------------------------------------
+
+/**
+ * The outbox statuses that mean "this recipient is not finished with".
+ *
+ * `pending` is queued-or-retrying, `leased` is in flight. Everything else in
+ * `OUTBOX_STATUSES` (sent, delivered, failed, unknown, suppressed, cancelled) is
+ * terminal for the recipient: the message was accepted, permanently rejected,
+ * given up on, or deliberately withheld. A campaign is over when NO recipient
+ * job is left in this list.
+ *
+ * NOT the same list as `TERMINAL_OUTBOX_STATUSES` in src/infra/cleanup.ts, and
+ * deliberately spelled out rather than imported: that one is a RETENTION list
+ * (which rows may be deleted after 90 days) and this one is a LIVENESS list
+ * (which rows mean work is still outstanding). They agree today; a retention
+ * rule no longer needs to be a liveness rule the moment someone decides to keep
+ * suppressed rows forever.
+ */
+export const NON_TERMINAL_CAMPAIGN_JOB_STATUSES = ['pending', 'leased'] as const;
+
+/**
+ * True when the recipient counters say the campaign has nothing left in flight.
+ *
+ * Note that "no jobs at all" is drained: see `completeCampaignsIfDrained` for why
+ * a campaign with zero recipients is finished rather than running.
+ *
+ * The database is the authority (the transition is a single SQL statement, so it
+ * cannot race a concurrent finalization); this predicate exists to REPORT the
+ * same rule — `GET .../stats` exposes it as `drained`, which is what makes the
+ * difference between "still sending" and "stuck because nothing can reach the
+ * rest" observable instead of a matter of reading the counters and guessing.
+ */
+export function campaignIsDrained(counters: Partial<Record<string, number>>): boolean {
+  return NON_TERMINAL_CAMPAIGN_JOB_STATUSES.every((status) => (counters[status] ?? 0) === 0);
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Marks running campaigns 'completed' once every recipient has reached a terminal
+ * outcome. Returns the ids that transitioned on THIS call.
+ *
+ * WHERE THE HONEST TERMINAL CONDITION COMES FROM. `completed` was declared in four
+ * places (the `CampaignState` union, the `campaigns_state_check`, the UI labels,
+ * `campaignEditTransition`'s immutability guard) and written by nothing, so
+ * `running` was not a state a campaign passed through — it was where a campaign
+ * stopped, forever, with no way back: `canSend` requires `approved`, and the edit
+ * path treats `running` as immutable. The condition the machine always described
+ * is "all recipients reached a terminal outcome", and that is what this asserts.
+ *
+ * WHY A SINGLE STATEMENT. `NOT EXISTS (... pending|leased ...)` is evaluated by
+ * PostgreSQL inside the UPDATE, so the check and the write cannot be separated by
+ * a job that finalizes in between. Reading the counters and then deciding in
+ * TypeScript would leave exactly that window: the last job goes terminal after
+ * the read, the read sees one pending job, and the campaign is left running with
+ * nothing running. This runs inside the SAME TRANSACTION as the job finalization
+ * that triggered it (see the call sites in src/infra/outbox.ts), so the last
+ * recipient's terminal status and the campaign's completion are one commit.
+ *
+ * ZERO RECIPIENTS IS COMPLETE, NOT RUNNING. A campaign whose live revalidation
+ * excluded every snapshot member (`queued = 0`) has no recipients at all — every
+ * one of them, vacuously, has reached a terminal outcome. Leaving it 'running'
+ * would be a claim that something is in flight, and it would be uneditable and
+ * unsendable forever. The send route calls this immediately after setting
+ * 'running', so that case transitions in the same transaction as the send.
+ *
+ * IDEMPOTENT AND CHEAP: the `state = 'running'` guard means a second call writes
+ * nothing, and `campaign_message` + `payload->>'campaign_id'` is the same access
+ * path `campaignJobStats` already uses.
+ */
+export async function completeCampaignsIfDrained(
+  sql: Sql | TransactionSql,
+  campaignIds: readonly string[],
+): Promise<string[]> {
+  const ids = [...new Set(campaignIds)].filter((id) => UUID_RE.test(id));
+  if (ids.length === 0) return [];
+  const rows = await sql<{ id: string }[]>`
+    UPDATE campaigns c
+    SET state = 'completed'
+    WHERE c.id = ANY(${ids}::uuid[])
+      AND c.state = 'running'
+      AND NOT EXISTS (
+        SELECT 1 FROM outbox_jobs j
+        WHERE j.kind = 'campaign_message'
+          AND j.payload->>'campaign_id' = c.id::text
+          AND j.status = ANY(${[...NON_TERMINAL_CAMPAIGN_JOB_STATUSES]}::text[])
+      )
+    RETURNING c.id
+  `;
+  return rows.map((r) => r.id);
+}
+
+/** One-campaign form of `completeCampaignsIfDrained`. */
+export async function completeCampaignIfDrained(
+  sql: Sql | TransactionSql,
+  campaignId: string,
+): Promise<boolean> {
+  return (await completeCampaignsIfDrained(sql, [campaignId])).length > 0;
 }
 
 export interface AudienceMember {
