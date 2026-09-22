@@ -217,10 +217,10 @@ async function box(page: Page, selector: string) {
 }
 
 /**
- * The primary action each page exists for: the card's accent CTA (the intro when
- * the viewer shares an event, the honest no-shared-event state when the viewer is
- * signed in without one, sign-in when the viewer is anonymous) and the event's
- * join button.
+ * The primary action each page exists for: the card's accent CTA — the own-card
+ * state when the viewer owns the page, the intro when the viewer shares an event,
+ * the honest no-shared-event state when the viewer is signed in without one,
+ * sign-in when the viewer is anonymous — and the event's join button.
  */
 async function measure(page: Page): Promise<Omit<Sample, 'page' | 'viewport' | 'axeViolations' | 'axeContrastNodes' | 'minTapTarget'>> {
   const pageWidth = await page.evaluate(() => window.innerWidth);
@@ -237,7 +237,7 @@ async function measure(page: Page): Promise<Omit<Sample, 'page' | 'viewport' | '
   const action =
     (await box(
       page,
-      '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-noconnection-cta"] a, [data-testid="pubcard-intro-cta"]',
+      '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-noconnection-cta"] a, [data-testid="pubcard-owncard-cta"] a, [data-testid="pubcard-intro-cta"]',
     )) ??
     (await box(page, '[data-testid="join-button"]'));
   const order = await page.evaluate(() =>
@@ -298,14 +298,16 @@ async function cardActionTargets(page: Page): Promise<{ name: string; width: num
     if (!b) continue;
     out.push({ name: id, width: Math.round(b.width), height: Math.round(b.height) });
   }
-  // The two non-intro card actions are both <a>s inside a testid'd wrapper (the
-  // signed-in-with-a-shared-event one is the wrapper's own button), so they are
-  // addressed by role. Which of the two a run sees depends on the viewer: the
-  // gate's fixture is signed in and owns the card, so it is the no-shared-event
-  // one here — the anonymous pass is measured in the locale loop below by the
-  // same locator list.
+  // The three non-intro card actions are each an <a> inside a testid'd wrapper
+  // (the introduction, when it renders, is the wrapper's own button), so they are
+  // reached by role. Which of the three a run sees depends on the viewer, and the
+  // gate's fixture is signed in AND owns the card it measures — so this is the
+  // own-card state's editor link here. Listing it is what holds that state to the
+  // 44px floor like every other control, instead of it falling into the generic
+  // sweep or, worse, rendering no measurable control at all. The anonymous pass is
+  // measured in the locale loop below by the same locator list.
   const signIn = page.locator(
-    '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-noconnection-cta"] a',
+    '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-noconnection-cta"] a, [data-testid="pubcard-owncard-cta"] a',
   );
   if ((await signIn.count()) > 0) {
     const name = (await signIn.first().evaluate((el) => el.closest('[data-testid]')?.getAttribute('data-testid'))) ?? 'pubcard-signin-cta';
@@ -743,13 +745,16 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
     heroBottom: number;
     ctaText: string;
   }[] = [];
-  // The three card-action states, each with the dictionary key that must be on
+  // The four card-action states, each with the dictionary key that must be on
   // screen when it is the one rendered. Which state a run sees depends on the
-  // VIEWER (shared event / signed in with no shared event / anonymous), so the
-  // oracle below reads whichever one is present instead of assuming one: a gate
-  // that hard-coded `ctaSignIn` would have passed a page that told a signed-in
-  // visitor to sign in, which is exactly the lie the third state removes.
+  // VIEWER (own card / shared event / signed in with no shared event / anonymous),
+  // so the oracle below reads whichever one is present instead of assuming one: a
+  // gate that hard-coded `ctaSignIn` would have passed a page that told a
+  // signed-in visitor to sign in, which is exactly the lie the third state
+  // removes — and the fixture here is signed in AND owns the card, so the own-card
+  // state is the one this loop actually measures.
   const CARD_ACTION_STATES = [
+    { testid: 'pubcard-owncard-cta', key: 'pubcard.ctaOwnCard' },
     { testid: 'pubcard-intro-cta', key: 'pubcard.ctaIntro' },
     { testid: 'pubcard-noconnection-cta', key: 'pubcard.ctaNothingYet' },
     { testid: 'pubcard-signin-cta', key: 'pubcard.ctaSignIn' },
@@ -778,12 +783,12 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
     // actually changes with the language is the dictionary copy in the hero: the
     // action's label and the hint under it. The hint is the longest of them, so
     // its bottom edge (and the hero's) is where a longer Russian or Spanish string
-    // would push the block down. `p:last-of-type` is the hint in both <a>-based
-    // states (the intro CTA's hint is its sibling instead), so every state's
-    // longest line is the one measured.
+    // would push the block down. `p:last-of-type` is the hint in all three
+    // <a>-based states (the intro CTA's hint is its sibling instead), so every
+    // state's longest line is the one measured.
     const hint = await box(
       page,
-      '[data-testid="pubcard-signin-cta"] p:last-of-type, [data-testid="pubcard-noconnection-cta"] p:last-of-type, [data-testid="pubcard-intro-cta"] + p',
+      '[data-testid="pubcard-signin-cta"] p:last-of-type, [data-testid="pubcard-noconnection-cta"] p:last-of-type, [data-testid="pubcard-owncard-cta"] p:last-of-type, [data-testid="pubcard-intro-cta"] + p',
     );
     const hero = await box(page, '[data-testid="pubcard"] header');
     foldSamples.push({

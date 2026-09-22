@@ -131,6 +131,39 @@ export async function findSharedEvent(
   return row ? { eventId: row.event_id, targetProfileId: row.profile_id } : null;
 }
 
+/**
+ * True when the signed-in viewer's account OWNS the profile behind this slug —
+ * i.e. the viewer is looking at their own card.
+ *
+ * WHY IT IS A SEPARATE LOOKUP AND NOT A FIELD OF `PublicProfile`. The public
+ * projection must not carry an account id: it is served to anonymous visitors
+ * and crawlers, and "which account owns this card" is exactly the identifier
+ * that projection exists to withhold. The ownership question is therefore asked
+ * about the VIEWER's own account — a boolean whose only subject is the person
+ * asking, which is why answering it leaks nothing about anybody. It is also
+ * outside the `hidden_fields` deny list on purpose: the owner may hide their
+ * company from the world, but the fact that the card is theirs is not a published
+ * field, it is how the page decides what to offer them.
+ *
+ * WHY AN OWN CARD NEEDS ITS OWN ANSWER. `findSharedEvent` answers "is there an
+ * event the two of us are both in" with a self-join in its query, so for the
+ * owner's own card it answers YES (the viewer and the target are the same
+ * profile) and hands back the viewer's own profile id. The card then offered an
+ * introduction to itself, and `POST /api/introductions` answered `400 self_intro`
+ * — an affordance that could only fail. The card asks this first now.
+ */
+export async function viewerOwnsCard(slug: string, viewerAccountId: string): Promise<boolean> {
+  const sql = getSql();
+  const rows = await sql<{ id: string }[]>`
+    SELECT p.id
+    FROM profiles p
+    JOIN accounts a ON a.id = p.account_id AND a.status = 'active'
+    WHERE p.public_slug = ${slug} AND p.account_id = ${viewerAccountId}
+    LIMIT 1
+  `;
+  return rows.length > 0;
+}
+
 /** Minimal response headers for public endpoints. */
 export function publicCacheHeaders(): Record<string, string> {
   return {

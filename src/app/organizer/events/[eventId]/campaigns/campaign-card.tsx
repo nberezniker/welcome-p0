@@ -58,6 +58,15 @@ type Strings = {
   sendCta: string;
   sending: string;
   sentTemplate: string;
+  /** The stop button: label, confirm, in-flight and the two numbers it reports. */
+  cancelCampaign: string;
+  cancelTitle: string;
+  cancelConfirmText: string;
+  cancelCta: string;
+  cancelling: string;
+  cancelResultTemplate: string;
+  cancelResultSentTemplate: string;
+  cancelTooLate: string;
   statsTitle: string;
   statsLabels: Record<keyof StatsCounters, string>;
   statsNote: string;
@@ -103,6 +112,7 @@ export function CampaignCard({
   const [audience, setAudience] = useState<AudienceData | null>(null);
   const [stats, setStats] = useState<{ counters: StatsCounters; outcome_codes: { state: string; code: string; count: number }[]; state: string } | null>(null);
   const [sendOpen, setSendOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -212,6 +222,36 @@ export function CampaignCard({
     if (res.status === 202) {
       setNote(fill(strings.sentTemplate, { queued: payload?.queued ?? 0 }));
       await loadStats();
+      router.refresh();
+    } else {
+      setError(strings.errorGeneric);
+    }
+  };
+
+  /**
+   * The stop button. The API owns the semantics (queued work suppressed, sent
+   * work untouched) and reports both numbers back; this only has to say them
+   * without rounding one of them to zero. A 409 means the campaign moved out of
+   * 'running' between render and click — almost always because it drained — and
+   * gets its own sentence rather than the generic error, because "there is
+   * nothing left to stop" is a true and useful answer.
+   */
+  const doCancel = async () => {
+    setCancelOpen(false);
+    const res = await call(`/api/organizer/campaigns/${campaign.id}/cancel`, { method: 'POST' });
+    if (!res) return;
+    if (res.ok) {
+      const payload = (await res.json().catch(() => null)) as { suppressed?: number; sent?: number } | null;
+      setNote(
+        `${fill(strings.cancelResultTemplate, { suppressed: payload?.suppressed ?? 0 })} ${fill(
+          strings.cancelResultSentTemplate,
+          { sent: payload?.sent ?? 0 },
+        )}`,
+      );
+      await loadStats();
+      router.refresh();
+    } else if (res.status === 409) {
+      setError(strings.cancelTooLate);
       router.refresh();
     } else {
       setError(strings.errorGeneric);
@@ -366,6 +406,41 @@ export function CampaignCard({
 
         </>
       ) : null}
+
+      {/*
+        THE STOP BUTTON, and where it is NOT offered. It sits OUTSIDE the
+        `canEdit` block above on purpose: that block is the campaign's EDITING
+        surface and it is closed to a `running` campaign, while `running` is
+        exactly the one state this button exists for.
+
+        It renders exactly when the API can carry it out — `running`, the state
+        that has queued sends to stop — so the affordance is never a button that
+        can only fail. Everything else is answered honestly instead: `draft`/
+        `approved` have nothing queued (editing resets an approval), `completed`
+        has nothing left to stop, and `cancelled` is already the outcome. The
+        server enforces the same rule (409 with the state named), because the UI
+        is not the defence; this is the difference between a defence and an
+        invitation.
+      */}
+      {campaign.state === 'running' ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {/* btn-small-tap, not btn-small: the rest of this console is compact by
+              design (36px is a deliberate density choice there), but a stop
+              button is pressed in a hurry and mid-send, so it takes the 44px
+              minimum every touch-facing control here holds to. Compact type,
+              bigger box — the same class the card's share strip and the member
+              panel's links use, and for the same reason. */}
+          <button
+            type="button"
+            className="btn-light btn-small-tap"
+            disabled={busy}
+            onClick={() => setCancelOpen(true)}
+            data-testid={`campaign-cancel-${campaign.id}`}
+          >
+            {strings.cancelCampaign}
+          </button>
+        </div>
+      ) : null}
       </div>
 
       {audience ? (
@@ -414,6 +489,27 @@ export function CampaignCard({
           </button>
           <button type="button" className="btn-accent btn-small" disabled={busy} onClick={() => void doSend()} data-testid="confirm-send">
             {busy ? strings.sending : strings.sendCta}
+          </button>
+        </div>
+      </Modal>
+      <Modal open={cancelOpen} onClose={() => setCancelOpen(false)} title={strings.cancelTitle}>
+        {/* The confirm text is where the honest semantics live: what a cancel
+            does (suppress what has not been handed to a channel) and what it
+            cannot do (recall what has). A confirmation that promised to "stop
+            the messages" would be the flattering version of that sentence. */}
+        <p className="text-sm">{strings.cancelConfirmText}</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" className="btn-light btn-small" onClick={() => setCancelOpen(false)}>
+            {strings.cancel}
+          </button>
+          <button
+            type="button"
+            className="btn-primary btn-small-tap"
+            disabled={busy}
+            onClick={() => void doCancel()}
+            data-testid="confirm-cancel"
+          >
+            {busy ? strings.cancelling : strings.cancelCta}
           </button>
         </div>
       </Modal>

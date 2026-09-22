@@ -738,6 +738,17 @@ export const es: Partial<Dictionary> = {
   'camp.sendCta': 'Enviar ahora',
   'camp.sending': 'Enviando…',
   'camp.sent': 'Mensajes en cola: {queued}.',
+  // El botón de parada: la confirmación dice primero lo que una cancelación NO
+  // puede hacer (recuperar un mensaje ya aceptado) y después lo que sí hace.
+  'camp.cancelCampaign': 'Detener el envío',
+  'camp.cancelTitle': 'Detener esta campaña',
+  'camp.cancelConfirmText':
+    '¿Detener el envío de esta campaña? Los mensajes que aún no se hayan entregado a un canal se suprimirán. Lo ya enviado sigue enviado y no se puede recuperar.',
+  'camp.cancelCta': 'Detener el envío ahora',
+  'camp.cancelling': 'Deteniendo…',
+  'camp.cancelResult': 'Detenida. Mensajes en cola suprimidos: {suppressed}.',
+  'camp.cancelResultSent': 'Ya enviados: {sent}: siguen enviados y no se pueden recuperar.',
+  'camp.cancelTooLate': 'Esta campaña ya no está en marcha, así que no queda nada que detener.',
   'camp.statsTitle': 'Estadísticas de entrega',
   'camp.stats.pending': 'En cola',
   'camp.stats.leased': 'En proceso',
@@ -955,6 +966,12 @@ export const es: Partial<Dictionary> = {
   'pubcard.ctaNothingYetHint':
     'Las presentaciones se proponen dentro de un evento al que os hayáis unido los dos. Cuando compartáis un evento, esta tarjeta ofrecerá una.',
   'pubcard.ctaMyEvents': 'Ver tus eventos',
+  // Tu propia tarjeta: no hay nadie a quien presentarse, y lo útil aquí son el
+  // editor del perfil y la vía de compartir/imprimir que la tarjeta ya tiene.
+  'pubcard.ctaOwnCard': 'Esta es tu tarjeta',
+  'pubcard.ctaOwnCardHint':
+    'Edita tu perfil para cambiar lo que aparece, o usa los botones de compartir y el código QR de abajo para pasarla.',
+  'pubcard.ctaEditProfile': 'Editar tu perfil',
   'pubcard.revealTitle': 'Proponer un contacto a {name}',
   'pubcard.revealHint': 'Elige qué estás dispuesto a revelar si la otra persona acepta.',
   'pubcard.sendRequest': 'Enviar solicitud',

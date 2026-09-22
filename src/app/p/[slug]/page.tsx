@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import {
   findSharedEvent,
   loadPublicProfile,
+  viewerOwnsCard,
   type PublicContact,
 } from '../../../lib/public-profile';
 import { getT } from '../../../i18n';
@@ -13,7 +14,7 @@ import { labelsForIds, parseCatalog, type TaxonomyCatalog, type UiLocale } from 
 import { taxonomyPayload } from '../../../domain/taxonomy';
 import { appBaseUrl } from '../../../lib/env';
 import { ShareLinks } from '../../../components/share-links';
-import { IntroCta, NoConnectionCta, SignInCta } from './intro-cta';
+import { IntroCta, NoConnectionCta, OwnCardCta, SignInCta } from './intro-cta';
 import { QrPanel } from './qr-panel';
 
 export const dynamic = 'force-dynamic';
@@ -171,6 +172,12 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
   const sharedEvent = accountId
     ? await findSharedEvent(profile.slug, accountId).catch(() => null)
     : null;
+  // ...and it exists only between TWO people. `findSharedEvent` self-joins, so an
+  // owner who joined an event of their own comes back with a "shared event" whose
+  // other party is themselves; this is what the card asks first, so the viewer's
+  // own card can never reach the introduction (see the note in the state chain
+  // below). A lookup failure means "not their card", which keeps the page public.
+  const ownCard = accountId ? await viewerOwnsCard(profile.slug, accountId).catch(() => false) : false;
 
   const kindLabels: Record<LinkKind, string> = {
     linkedin_url: t('contacts.kind.linkedin_url'),
@@ -266,15 +273,30 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           ) : null}
 
           {/* The card's primary action, in the hero — see the block comment above.
-              THREE STATES, and the middle one is not a sign-in:
+              FOUR STATES, and the first one exists so no other state has to lie:
+                · the viewer's OWN card → the card says so and points at the editor
+                  behind it and at its own share/QR controls (OwnCardCta). It is
+                  first because the introduction would otherwise win here:
+                  `findSharedEvent` self-joins, so an owner who joined their own
+                  event was offered an introduction to themselves, and pressing it
+                  could only ever answer `400 self_intro`;
                 · a shared event → the introduction (the ids it needs are ones
                   that viewer can already see in that event's directory);
                 · signed in, no shared event → "nothing to connect here yet",
                   with the visitor's own events as the honest way forward
                   (NoConnectionCta; "Sign in to connect" was a lie to someone who
                   is already signed in — see the comment on that component);
-                · anonymous → the sign-in CTA, which is the only true way in. */}
-          {sharedEvent ? (
+                · anonymous → the sign-in CTA, which is the only true way in.
+              It stays ONE chain, not a second parallel condition: every arm is a
+              viewer state, decided in the same place they always were. */}
+          {ownCard ? (
+            <OwnCardCta
+              href="/me/profile"
+              text={t('pubcard.ctaOwnCard')}
+              label={t('pubcard.ctaEditProfile')}
+              hint={t('pubcard.ctaOwnCardHint')}
+            />
+          ) : sharedEvent ? (
             <IntroCta
               profileId={sharedEvent.targetProfileId}
               eventId={sharedEvent.eventId}

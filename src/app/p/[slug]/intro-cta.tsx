@@ -16,7 +16,9 @@ const REVEAL_KINDS: readonly LinkKind[] = ['linkedin_url', 'website', 'github_ur
  * only offers it when the viewer shares an active event membership with the card
  * owner (the server passes both the event id and the target profile id in that
  * case — ids the viewer can already see in that event's directory). Everyone else
- * gets a sign-in link: contacts are never revealed from a public card.
+ * gets a sign-in link: contacts are never revealed from a public card. A viewer
+ * who shares an event with THEMSELVES does not get this component either — the
+ * card answers `ownCard` and renders `OwnCardCta` instead.
  *
  * WHERE IT RENDERS. The card puts this in its HERO, directly under the name and
  * the role, so the page's primary action is on the first screen at 390px (before
@@ -136,6 +138,46 @@ export function SignInCta({ href, label, hint }: { href: string; label: string; 
   return (
     <div className="mt-5" data-testid="pubcard-signin-cta">
       <Link href={href} className="btn-accent w-full sm:w-auto">
+        {label}
+      </Link>
+      <p className="mt-2 text-xs text-muted">{hint}</p>
+    </div>
+  );
+}
+
+/**
+ * The card's FOURTH state, and the first one a viewer can be in when they open
+ * their OWN card: they are signed in, the page belongs to them, and there is
+ * nobody on it to be introduced to.
+ *
+ * WHY IT IS A STATE AND NOT A HIDDEN BUTTON. The introduction affordance used to
+ * render here, because `findSharedEvent` (src/lib/public-profile.ts) resolves
+ * "do these two share an event" with a self-join, so the owner's own card came
+ * back with a shared event whose other party was the viewer. Pressing the button
+ * sent `target_profile_id` = their own profile id and the server answered
+ * `400 self_intro` behind a generic error toast: an affordance that could only
+ * fail, wearing the same face as one that works. Neither of the other two
+ * signed-in-adjacent states tells the truth here either — this visitor is not
+ * owed a sign-in link (they have a session) and "nothing to connect here yet"
+ * describes somebody ELSE's card, not their own.
+ *
+ * WHAT IT OFFERS INSTEAD, which is the whole point of having it: the editor
+ * behind the card (`href`) and the fact that the card's own share and QR
+ * controls, further down the page, are how it gets handed to someone. Nothing is
+ * duplicated here — those controls are already rendered by the card, and a
+ * second copy in the hero would be a second thing to keep in sync.
+ *
+ * WHAT IT DOES NOT DO. It names no event and no third party: the owner's
+ * memberships are irrelevant to their own card, and this component builds no URL
+ * of its own beyond the one it is handed.
+ */
+export function OwnCardCta({ href, text, label, hint }: { href: string; text: string; label: string; hint: string }) {
+  return (
+    <div className="mt-5" data-testid="pubcard-owncard-cta">
+      <p className="text-sm font-semibold text-ink" data-testid="pubcard-owncard-text">
+        {text}
+      </p>
+      <Link href={href} className="btn-light mt-2 w-full sm:w-auto" data-testid="pubcard-edit-profile">
         {label}
       </Link>
       <p className="mt-2 text-xs text-muted">{hint}</p>

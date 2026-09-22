@@ -67,10 +67,12 @@ export async function loadCampaignWithRole(
  * `running` always were; `running → completed` is `completeCampaignsIfDrained`
  * below, called from the outbox finalization that makes the last recipient
  * terminal (src/infra/outbox.ts) and from the send route for the zero-recipient
- * case. `cancelled` remains UNREACHABLE — there is no cancel endpoint, and this
- * change did not invent one; it is noted here rather than left to look symmetric
- * with `completed`, because the difference is real and someone deciding whether
- * to build a cancel flow should see it.
+ * case. `running → cancelled` is `POST /api/organizer/campaigns/[id]/cancel`,
+ * which suppresses the jobs that have not been handed to a channel and records
+ * the transition in the audit log — the stop button a tool that messages real
+ * people needs (see `campaignCancelTransition`). Both terminal states are now
+ * reachable, and they mean different things: `completed` is "every recipient
+ * reached a terminal outcome", `cancelled` is "an organizer stopped it".
  */
 
 export const CAMPAIGN_PURPOSES = ['organizer_marketing', 'service_channel'] as const;
@@ -282,6 +284,53 @@ export function campaignEditTransition(currentState: CampaignState, currentRevis
  */
 export function canSend(state: CampaignState, contentRevision: number, approvedRevision: number | null): boolean {
   return state === 'approved' && approvedRevision !== null && approvedRevision === contentRevision;
+}
+
+// ---------------------------------------------------------------------------
+// Cancellation: running → cancelled
+// ---------------------------------------------------------------------------
+
+/** What a cancel request resolves to, before anything is written. */
+export type CampaignCancelOutcome = 'cancel' | 'already_cancelled' | 'not_cancellable';
+
+export interface CancelTransition {
+  outcome: CampaignCancelOutcome;
+  /** The state the campaign is in afterwards: 'cancelled' for the first two. */
+  nextState: CampaignState;
+}
+
+/**
+ * The stop button's precondition (pure, unit-tested).
+ *
+ * `cancelled` was declared in four places — the `CampaignState` union, the
+ * `campaigns_state_check` constraint, the UI labels and `campaignEditTransition`'s
+ * immutability guard — and written by nothing, so an organizer who approved a
+ * campaign by mistake had no way to stop the sends it was about to queue. This is
+ * the transition the machine always described, and the rules are deliberately
+ * uneven across the five states because the honest answer differs:
+ *
+ *   - `running` → `cancelled`: work is outstanding, so there is something to stop.
+ *   - `cancelled` → `cancelled`: NOT an error. A stop button that answers 409 the
+ *     second time it is pressed is a stop button an operator cannot safely retry
+ *     (a double click, a retried request, two operators looking at the same
+ *     screen) — and "it is already stopped" is the outcome they asked for.
+ *   - `draft` / `approved` → refused. Nothing has been queued yet: no job exists
+ *     to suppress, so "cancelled" would report a stop that stopped nothing, and
+ *     the honest tools are already there (edit resets an approval to draft). The
+ *     API answers 409 with the state named; the UI does not offer the button here
+ *     at all, so the refusal is a server-side defence rather than a route a user
+ *     is invited down.
+ *   - `completed` → refused, and this is the "already drained" case: every
+ *     recipient reached a terminal outcome, there is nothing queued, and calling
+ *     that a cancellation would rewrite a finished campaign as a stopped one.
+ *
+ * Immutability is unaffected: `campaignEditTransition` still refuses edits on
+ * `cancelled`, exactly as it does on `running` and `completed`.
+ */
+export function campaignCancelTransition(state: CampaignState): CancelTransition {
+  if (state === 'running') return { outcome: 'cancel', nextState: 'cancelled' };
+  if (state === 'cancelled') return { outcome: 'already_cancelled', nextState: 'cancelled' };
+  return { outcome: 'not_cancellable', nextState: state };
 }
 
 // ---------------------------------------------------------------------------

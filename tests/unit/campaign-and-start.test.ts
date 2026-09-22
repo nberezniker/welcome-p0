@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  campaignCancelTransition,
   campaignEditTransition,
   canSend,
   validateCampaignCreate,
   validateCampaignEdit,
   isCampaignPurpose,
 } from '../../src/domain/campaigns';
+import type { CampaignState } from '../../src/domain/campaigns';
 import { extractStartToken, startsWithCommand } from '../../src/infra/telegram-handlers';
 
 // ---------------------------------------------------------------------------
@@ -43,6 +45,61 @@ test('canSend: requires approved with matching current revision', () => {
   assert.equal(canSend('approved', 5, 4), false, 'stale approval (revision mismatch) must block send');
   assert.equal(canSend('approved', 4, null), false);
   assert.equal(canSend('running', 4, 4), false);
+});
+
+// ---------------------------------------------------------------------------
+// Cancellation: running → cancelled, and what each other state answers
+// ---------------------------------------------------------------------------
+
+/**
+ * `cancelled` was declared in the state union, the DB check, the UI labels and the
+ * immutability guard, and written by nothing: an organizer who approved a campaign
+ * by mistake could not stop the sends it was about to queue. These assertions fix
+ * the RULE, per state, because the honest answer differs by state and a single
+ * "cancel succeeded" would flatten four different truths.
+ */
+test('campaign cancel: running → cancelled', () => {
+  const t = campaignCancelTransition('running');
+  assert.equal(t.outcome, 'cancel');
+  assert.equal(t.nextState, 'cancelled');
+});
+
+test('campaign cancel: cancelling twice is a no-op, not an error', () => {
+  const t = campaignCancelTransition('cancelled');
+  assert.equal(t.outcome, 'already_cancelled', 'a retried or double-clicked stop must not become a 409');
+  assert.equal(t.nextState, 'cancelled');
+});
+
+test('campaign cancel: draft and approved are refused — nothing is queued to stop', () => {
+  for (const state of ['draft', 'approved'] as const) {
+    const t = campaignCancelTransition(state);
+    assert.equal(t.outcome, 'not_cancellable', `${state} has no queued work, so "cancelled" would be a false report`);
+    assert.equal(t.nextState, state, 'a refused transition must not move the state');
+  }
+});
+
+test('campaign cancel: completed is refused — the already-drained case', () => {
+  const t = campaignCancelTransition('completed');
+  assert.equal(t.outcome, 'not_cancellable', 'a finished campaign has nothing left to stop');
+  assert.equal(t.nextState, 'completed');
+});
+
+test('campaign cancel: every state has an answer, and only running moves', () => {
+  const states: CampaignState[] = ['draft', 'approved', 'running', 'completed', 'cancelled'];
+  const moving = states.filter((s) => campaignCancelTransition(s).nextState !== s);
+  assert.deepEqual(moving, ['running'], 'exactly one state is left behind by a cancel');
+  // A cancel never resurrects a campaign and never un-finishes one: the only
+  // state it can produce is `cancelled`.
+  for (const state of states) {
+    const next = campaignCancelTransition(state).nextState;
+    assert.ok(next === state || next === 'cancelled', `${state} must not become ${next}`);
+  }
+});
+
+test('campaign cancel: cancelled stays immutable to edits (AC-40 intact)', () => {
+  const t = campaignEditTransition('cancelled', 2);
+  assert.equal(t.allowed, false);
+  assert.equal(t.reason, 'immutable_state');
 });
 
 test('validateCampaignCreate: purpose registry is closed to the two spec values', () => {

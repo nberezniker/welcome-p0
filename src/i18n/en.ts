@@ -760,6 +760,19 @@ export const en = {
   'camp.sendCta': 'Send now',
   'camp.sending': 'Sending…',
   'camp.sent': 'Queued messages: {queued}.',
+  // The stop button and the two numbers it reports. The confirm text states what
+  // a cancel CANNOT do (recall an accepted message) before it states what it does,
+  // because a stop button whose copy overpromises is the same defect as an
+  // affordance that can only fail — it just reads better.
+  'camp.cancelCampaign': 'Stop sending',
+  'camp.cancelTitle': 'Stop this campaign',
+  'camp.cancelConfirmText':
+    'Stop sending this campaign? Messages not yet handed to a channel will be suppressed. Anything already sent stays sent and cannot be recalled.',
+  'camp.cancelCta': 'Stop sending now',
+  'camp.cancelling': 'Stopping…',
+  'camp.cancelResult': 'Stopped. Queued messages suppressed: {suppressed}.',
+  'camp.cancelResultSent': 'Already sent: {sent} — those stay sent and cannot be recalled.',
+  'camp.cancelTooLate': 'This campaign is no longer running, so there is nothing left to stop.',
   'camp.statsTitle': 'Delivery stats',
   'camp.stats.pending': 'Pending',
   'camp.stats.leased': 'Leased',
@@ -985,6 +998,13 @@ export const en = {
   'pubcard.ctaNothingYetHint':
     'Introductions happen inside an event you have both joined. Once you share an event, this card offers one.',
   'pubcard.ctaMyEvents': 'See your events',
+  // The OWNER's own card. Its own state because the viewer is the subject: there
+  // is nobody here to be introduced to, and the things that are useful on your
+  // own card are the editor behind it and the share/print path it already has.
+  'pubcard.ctaOwnCard': 'This is your card',
+  'pubcard.ctaOwnCardHint':
+    'Edit your profile to change what is on it, or use the share buttons and the QR code below to pass it on.',
+  'pubcard.ctaEditProfile': 'Edit your profile',
   'pubcard.revealTitle': 'Propose an introduction to {name}',
   'pubcard.revealHint': 'Choose what you are ready to reveal if the other side accepts.',
   'pubcard.sendRequest': 'Send request',

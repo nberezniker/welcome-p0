@@ -487,6 +487,48 @@ export async function suppressJobsForAccountKinds(
   return rows.map((r) => r.id);
 }
 
+/**
+ * Cancels a campaign's QUEUE: suppresses every one of its messages that has not
+ * been handed to a channel yet, and leaves the rest alone.
+ *
+ * This is the mechanical half of the organizer's stop button. The same scope the
+ * other suppression hooks use — `pending` (queued or waiting to retry) and
+ * `leased` (claimed) — restricted to this campaign's own jobs by the
+ * `payload->>'campaign_id'` key the stats and the counters already read, so a
+ * cancel cannot touch a reminder, an introduction notice or another campaign.
+ *
+ * NOT "NOTHING WAS SENT": a `leased` job may already be inside a transport call,
+ * and nothing here can recall a message the channel has accepted. Suppression is
+ * the honest instrument — the job will not be attempted again, and the reason is
+ * recorded as a delivery_attempts row (code, never the message body) — while
+ * `sent`/`delivered`/`failed`/`unknown` rows are terminal and are deliberately
+ * left exactly as they are.
+ *
+ * WHY IT DOES NOT CALL `completeCampaignsIfDrained`. The caller sets the campaign
+ * to `cancelled` in the same transaction; completion is a `running`-only
+ * transition, so running it here would race the transition it is meant to report
+ * (and could write `completed` over a campaign being cancelled). Left to the
+ * caller, which owns both statements and their order.
+ */
+export async function suppressJobsForCampaign(
+  sqlLike: SqlLike,
+  campaignId: string,
+  code: string,
+): Promise<string[]> {
+  const rows = await sqlLike<OutboxJobRow[]>`
+    UPDATE outbox_jobs
+    SET status = 'suppressed', lease_until = NULL
+    WHERE status IN ('pending', 'leased')
+      AND kind = 'campaign_message'
+      AND payload->>'campaign_id' = ${campaignId}
+    RETURNING *
+  `;
+  for (const r of rows) {
+    await recordAttempt(sqlLike, r.id, 'suppressed', code, null);
+  }
+  return rows.map((r) => r.id);
+}
+
 /** Live per-status counters for one campaign's jobs (stats endpoint). */
 export async function campaignJobStats(
   sql: Sql,
