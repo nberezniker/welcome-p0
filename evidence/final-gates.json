@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-22T08:39:46.409Z",
-  "head_sha_at_gate_run": "ab015ec6a3e63b17ef7528e8986368af719afa11",
+  "generated_at": "2026-09-22T09:14:31.098Z",
+  "head_sha_at_gate_run": "bd291118d28bc612454cc3b279f188537e573565",
   "note": "The seven release gates run fresh and sequentially on the working tree; the combined output is evidence/final-gates.log.",
   "previous_run": {
-    "generated_at": "2026-09-22T08:33:59.511Z",
+    "generated_at": "2026-09-22T08:39:46.409Z",
     "head_sha_at_gate_run": "ab015ec6a3e63b17ef7528e8986368af719afa11"
   },
   "gates": [
@@ -19,7 +19,7 @@
     {
       "command": "pnpm lint",
       "exit_code": 0,
-      "duration_s": 9,
+      "duration_s": 10,
       "summary_lines": [
         "> welcome-p0@0.1.0 lint /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> eslint ."
@@ -38,7 +38,7 @@
     {
       "command": "pnpm test:integration",
       "exit_code": 0,
-      "duration_s": 23,
+      "duration_s": 26,
       "summary_lines": [
         "# tests 410",
         "# pass 409",
@@ -49,9 +49,9 @@
     {
       "command": "pnpm test:e2e",
       "exit_code": 0,
-      "duration_s": 130,
+      "duration_s": 149,
       "summary_lines": [
-        "  61 passed (2.2m)"
+        "  62 passed (2.5m)"
       ]
     },
     {
@@ -59,7 +59,7 @@
       "exit_code": 0,
       "duration_s": 5,
       "summary_lines": [
-        "✓ Compiled successfully in 1238ms",
+        "✓ Compiled successfully in 1165ms",
         "  Generating static pages using 9 workers (0/39) ...",
         "  Generating static pages using 9 workers (9/39) \r",
         "  Generating static pages using 9 workers (19/39) \r",
@@ -91,7 +91,7 @@
       "skipped": 1
     },
     "e2e": {
-      "pass": 61,
+      "pass": 62,
       "fail": 0
     }
   }

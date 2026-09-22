@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-22T08:38:11.893Z",
+  "generated_at": "2026-09-22T09:12:39.600Z",
   "note": "Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-gate.spec.ts. One pass per surface: the product ships one design, so there is no theme dimension any more. overflowPx > 0, an event page whose join control is not its first control or is below the first screen, or a control below its touch bar would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minTapTarget is the smallest control-shaped element on the page; minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened. compactTargets lists the documented .btn-small controls (the card share strip among them): they are excluded from the 44px floor and held to the 24px WCAG 2.5.8 minimum, and they are recorded so that exception stays a number rather than an exemption. member_panel is the second phase: the participation panel, which only a member sees — its toggle ROWS (the labels that carry the 44px target, not the 16px boxes inside them) and its two links.",
   "samples": [
     {

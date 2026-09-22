@@ -1,0 +1,715 @@
+{
+  "runs": [
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-22T09:07:15.102Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "steps": [
+        {
+          "name": "A signs in and opens the demo event",
+          "started_at": "2026-09-22T09:07:15.710Z",
+          "shots": [
+            "01-a-event-member-state.png"
+          ],
+          "notes": [
+            "2 console/network error(s)"
+          ],
+          "action_ms": 1542,
+          "nav_to_usable_ms": 228,
+          "fcp_to_usable_ms": 92,
+          "document_fcp_ms": 136,
+          "console_errors": [
+            "request failed: https://welcome.colmogravity.net/legal/terms?_rsc=sW2A7HEmFQnSVIMx (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me?_rsc=Yaku0SukotyQAzL7 (net::ERR_ABORTED)"
+          ]
+        },
+        {
+          "name": "A opens the directory and proposes the introduction",
+          "started_at": "2026-09-22T09:07:17.554Z",
+          "shots": [
+            "02-a-reveal-chooser.png"
+          ],
+          "notes": [
+            "the member panel links to /me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory",
+            "target profile 3f8b8a11-2821-48e8-b145-7031b5512a1e",
+            "POST /api/introductions → 200, already_existed=false",
+            "15 console/network error(s)"
+          ],
+          "action_ms": 1719,
+          "nav_to_usable_ms": 1717,
+          "fcp_to_usable_ms": 1545,
+          "document_fcp_ms": 172,
+          "console_errors": [
+            "request failed: https://welcome.colmogravity.net/me/events?_rsc=-afzbC3FAs6rr0Ng (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?_rsc=-afzbC3FAs6rr0Ng (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?_rsc=3JZRTU79XARq1I4U (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events?_rsc=DtJSV_GbVDuEzaVr (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?_rsc=E2VYcCk_2ikK8KfX (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/introductions?_rsc=SFWuH7ruaSncA5wR (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?mode=all&q=Marta&_rsc=F1FtHCj1-SlBESJq (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/privacy?_rsc=SFWuH7ruaSncA5wR (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/organizer?_rsc=SFWuH7ruaSncA5wR (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?mode=intent&_rsc=F1FtHCj1-SlBESJq (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?mode=all&_rsc=F1FtHCj1-SlBESJq (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/e/welcome-demo-meetup?_rsc=f_p5_oiA9Sp9MwMi (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?mode=all&q=Marta&_rsc=F1FtHCj1-SlBESJq (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/connections?_rsc=f_p5_oiA9Sp9MwMi (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/security?_rsc=f_p5_oiA9Sp9MwMi (net::ERR_ABORTED)"
+          ]
+        },
+        {
+          "name": "B signs in and opens the card from the QR URL",
+          "started_at": "2026-09-22T09:07:19.277Z",
+          "shots": [
+            "04-b-card-from-qr-url.png"
+          ],
+          "notes": [
+            "QR read from /api/public/profiles/F4FL0_fORTXgnUA6Yqh-tA/qr.svg (34 module rows)",
+            "the card opens as \"Дмитрий Ковалёв\"",
+            "the card offers the introduction (B shares the event)",
+            "8 console/network error(s)"
+          ],
+          "action_ms": 1633,
+          "nav_to_usable_ms": 426,
+          "fcp_to_usable_ms": 270,
+          "document_fcp_ms": 156,
+          "console_errors": [
+            "request failed: https://welcome.colmogravity.net/legal/privacy?_rsc=sW2A7HEmFQnSVIMx (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/?_rsc=sW2A7HEmFQnSVIMx (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me?_rsc=Yaku0SukotyQAzL7 (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/profile?_rsc=3N5N6-vrRCdpgc88 (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/introductions?_rsc=3N5N6-vrRCdpgc88 (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/contacts?_rsc=3N5N6-vrRCdpgc88 (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/notes?_rsc=3N5N6-vrRCdpgc88 (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/telegram?_rsc=3N5N6-vrRCdpgc88 (net::ERR_ABORTED)"
+          ]
+        },
+        {
+          "name": "B opens the event",
+          "started_at": "2026-09-22T09:07:20.950Z",
+          "shots": [
+            "05-b-event-already-member.png"
+          ],
+          "notes": [
+            "member state: true, join action offered: false"
+          ],
+          "action_ms": 435,
+          "nav_to_usable_ms": 434,
+          "fcp_to_usable_ms": 46,
+          "document_fcp_ms": 388,
+          "console_errors": []
+        },
+        {
+          "name": "B sees the request waiting and accepts it",
+          "started_at": "2026-09-22T09:07:21.426Z",
+          "shots": [
+            "06-b-proposal-pending.png",
+            "07-b-mutual-reveal.png"
+          ],
+          "notes": [
+            "before consent: state=pending revealed=[] reveal blocks=0",
+            "POST /respond → 200",
+            "B after consent: state=mutual revealed=[{\"kind\":\"telegram_username\",\"value\":\"@dmitry_demo\"}]",
+            "B's revealed rows: 1",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 1853,
+          "nav_to_usable_ms": 1851,
+          "fcp_to_usable_ms": 1707,
+          "document_fcp_ms": 144,
+          "console_errors": [
+            "request failed: https://welcome.colmogravity.net/me/contacts?_rsc=3QzoHmFs8ua4kq6I (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/notes?_rsc=3QzoHmFs8ua4kq6I (net::ERR_ABORTED)"
+          ]
+        },
+        {
+          "name": "A sees the mutual state and the reveal",
+          "started_at": "2026-09-22T09:07:23.347Z",
+          "shots": [
+            "08-a-mutual-reveal.png"
+          ],
+          "notes": [
+            "A after consent: revealed=[{\"kind\":\"telegram_username\",\"value\":\"@marta_demo\"}] revealed rows=1"
+          ],
+          "action_ms": 551,
+          "nav_to_usable_ms": 549,
+          "fcp_to_usable_ms": 409,
+          "document_fcp_ms": 140,
+          "console_errors": []
+        },
+        {
+          "name": "a stranger opens A’s public card at phone size",
+          "started_at": "2026-09-22T09:07:23.935Z",
+          "shots": [
+            "09-a-public-card-stranger.png"
+          ],
+          "notes": [
+            "the card renders as \"Дмитрий Ковалёв\" with 1 public contact row(s)"
+          ],
+          "action_ms": 892,
+          "nav_to_usable_ms": 889,
+          "fcp_to_usable_ms": 569,
+          "document_fcp_ms": 320,
+          "console_errors": []
+        },
+        {
+          "name": "the directory at desktop size",
+          "started_at": "2026-09-22T09:07:24.975Z",
+          "shots": [],
+          "notes": [
+            "the same view at 1280px, narrowed by the same search (A’s session reused, no second sign-in)",
+            "7 console/network error(s)"
+          ],
+          "action_ms": 1605,
+          "nav_to_usable_ms": 1602,
+          "fcp_to_usable_ms": 1334,
+          "document_fcp_ms": 268,
+          "console_errors": [
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?_rsc=3JZRTU79XARq1I4U (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me?_rsc=SFWuH7ruaSncA5wR (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/profile?_rsc=f_p5_oiA9Sp9MwMi (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?mode=intent&_rsc=F1FtHCj1-SlBESJq (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/telegram?_rsc=f_p5_oiA9Sp9MwMi (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/notes?_rsc=f_p5_oiA9Sp9MwMi (net::ERR_ABORTED)",
+            "request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?mode=all&q=Marta&_rsc=F1FtHCj1-SlBESJq (net::ERR_ABORTED)"
+          ]
+        }
+      ],
+      "screenshots": [
+        "01-a-event-member-state.png",
+        "02-a-reveal-chooser.png",
+        "04-b-card-from-qr-url.png",
+        "05-b-event-already-member.png",
+        "06-b-proposal-pending.png",
+        "07-b-mutual-reveal.png",
+        "08-a-mutual-reveal.png",
+        "09-a-public-card-stranger.png"
+      ],
+      "skipped_screenshots": [
+        {
+          "name": "03-a-proposal-sent.png",
+          "reason": "captured text carries \"Nikita Berezniker\""
+        },
+        {
+          "name": "10-directory-desktop-1280.png",
+          "reason": "captured text carries \"Nikita Berezniker\""
+        }
+      ],
+      "friction": [
+        {
+          "severity": "observed",
+          "text": "A signs in and opens the demo event: request failed: https://welcome.colmogravity.net/legal/terms?_rsc=sW2A7HEmFQnSVIMx (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "A signs in and opens the demo event: request failed: https://welcome.colmogravity.net/me?_rsc=Yaku0SukotyQAzL7 (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "blocked",
+          "text": "03-a-proposal-sent.png SKIPPED: the captured text carries the real-person marker \"Nikita Berezniker\""
+        },
+        {
+          "severity": "observed",
+          "text": "A opens the directory and proposes the introduction: request failed: https://welcome.colmogravity.net/me/events?_rsc=-afzbC3FAs6rr0Ng (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "A opens the directory and proposes the introduction: request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?_rsc=-afzbC3FAs6rr0Ng (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "A opens the directory and proposes the introduction: request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?_rsc=3JZRTU79XARq1I4U (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "B signs in and opens the card from the QR URL: request failed: https://welcome.colmogravity.net/legal/privacy?_rsc=sW2A7HEmFQnSVIMx (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "B signs in and opens the card from the QR URL: request failed: https://welcome.colmogravity.net/?_rsc=sW2A7HEmFQnSVIMx (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "B signs in and opens the card from the QR URL: request failed: https://welcome.colmogravity.net/me?_rsc=Yaku0SukotyQAzL7 (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "info",
+          "text": "B was ALREADY a member of this event (seeded), so there was no join to perform: the page shows the member state instead of a join action. The real join on a fresh account is covered by the local spec."
+        },
+        {
+          "severity": "observed",
+          "text": "B sees the request waiting and accepts it: request failed: https://welcome.colmogravity.net/me/contacts?_rsc=3QzoHmFs8ua4kq6I (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "B sees the request waiting and accepts it: request failed: https://welcome.colmogravity.net/me/notes?_rsc=3QzoHmFs8ua4kq6I (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "blocked",
+          "text": "10-directory-desktop-1280.png SKIPPED: the captured text carries the real-person marker \"Nikita Berezniker\""
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at desktop size: request failed: https://welcome.colmogravity.net/me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory?_rsc=3JZRTU79XARq1I4U (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at desktop size: request failed: https://welcome.colmogravity.net/me?_rsc=SFWuH7ruaSncA5wR (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at desktop size: request failed: https://welcome.colmogravity.net/me/profile?_rsc=f_p5_oiA9Sp9MwMi (net::ERR_ABORTED)"
+        },
+        {
+          "severity": "blocked",
+          "text": "the walkthrough stopped: page.goto: Target page, context or browser has been closed"
+        }
+      ],
+      "finished_at": "2026-09-22T09:07:26.591Z",
+      "aborted": true
+    },
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-22T09:09:56.436Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "steps": [
+        {
+          "name": "A signs in and opens the demo event",
+          "started_at": "2026-09-22T09:09:57.059Z",
+          "shots": [
+            "01-a-event-member-state.png"
+          ],
+          "notes": [],
+          "action_ms": 1693,
+          "nav_to_usable_ms": 404,
+          "fcp_to_usable_ms": 88,
+          "document_fcp_ms": 316,
+          "console_errors": []
+        },
+        {
+          "name": "A opens the directory and proposes the introduction",
+          "started_at": "2026-09-22T09:09:59.103Z",
+          "shots": [
+            "02-a-reveal-chooser.png",
+            "03-a-proposal-sent.png"
+          ],
+          "notes": [
+            "the member panel links to /me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory",
+            "target profile 3f8b8a11-2821-48e8-b145-7031b5512a1e",
+            "captured away from the operator's row (h3 in [data-testid=rec-eaff386c-15b0-4a5e-9860-b90260dbae9e]: Nikita Berezniker)",
+            "POST /api/introductions → 200, already_existed=true",
+            "captured away from the operator's row (h3 in [data-testid=rec-eaff386c-15b0-4a5e-9860-b90260dbae9e]: Nikita Berezniker)"
+          ],
+          "action_ms": 1244,
+          "nav_to_usable_ms": 1241,
+          "fcp_to_usable_ms": 1105,
+          "document_fcp_ms": 136,
+          "console_errors": []
+        },
+        {
+          "name": "B signs in and opens the card from the QR URL",
+          "started_at": "2026-09-22T09:10:00.391Z",
+          "shots": [
+            "04-b-card-from-qr-url.png"
+          ],
+          "notes": [
+            "QR read from /api/public/profiles/F4FL0_fORTXgnUA6Yqh-tA/qr.svg (34 module rows)",
+            "the card opens as \"Дмитрий Ковалёв\"",
+            "the card offers the introduction (B shares the event)"
+          ],
+          "action_ms": 1404,
+          "nav_to_usable_ms": 313,
+          "fcp_to_usable_ms": 157,
+          "document_fcp_ms": 156,
+          "console_errors": []
+        },
+        {
+          "name": "B opens the event",
+          "started_at": "2026-09-22T09:10:01.835Z",
+          "shots": [
+            "05-b-event-already-member.png"
+          ],
+          "notes": [
+            "member state: true, join action offered: false"
+          ],
+          "action_ms": 261,
+          "nav_to_usable_ms": 260,
+          "fcp_to_usable_ms": 68,
+          "document_fcp_ms": 192,
+          "console_errors": []
+        },
+        {
+          "name": "B sees the request waiting and accepts it",
+          "started_at": "2026-09-22T09:10:02.149Z",
+          "shots": [
+            "06-b-proposal-pending.png",
+            "07-b-mutual-reveal.png"
+          ],
+          "notes": [
+            "the card reads \"Mutual — contacts revealed\"",
+            "before consent: state=mutual revealed=[{\"kind\":\"telegram_username\",\"value\":\"@dmitry_demo\"}] reveal blocks=1",
+            "captured away from the operator's row (span in [data-testid=intro-revealed-046bcd3f-f913-469f-84b4-06a584c58ea1]: @nik_nikiti4)",
+            "captured away from the operator's row (span in [data-testid=intro-revealed-046bcd3f-f913-469f-84b4-06a584c58ea1]: @nik_nikiti4)"
+          ],
+          "action_ms": 1187,
+          "nav_to_usable_ms": 1185,
+          "fcp_to_usable_ms": 1041,
+          "document_fcp_ms": 144,
+          "console_errors": []
+        },
+        {
+          "name": "A sees the mutual state and the reveal",
+          "started_at": "2026-09-22T09:10:03.370Z",
+          "shots": [
+            "08-a-mutual-reveal.png"
+          ],
+          "notes": [
+            "A after consent: revealed=[{\"kind\":\"telegram_username\",\"value\":\"@marta_demo\"}] revealed rows=1"
+          ],
+          "action_ms": 1109,
+          "nav_to_usable_ms": 1107,
+          "fcp_to_usable_ms": 931,
+          "document_fcp_ms": 176,
+          "console_errors": []
+        },
+        {
+          "name": "a stranger opens A’s public card at phone size",
+          "started_at": "2026-09-22T09:10:04.527Z",
+          "shots": [
+            "09-a-public-card-stranger.png"
+          ],
+          "notes": [
+            "the card renders as \"Дмитрий Ковалёв\" with 1 public contact row(s)"
+          ],
+          "action_ms": 492,
+          "nav_to_usable_ms": 490,
+          "fcp_to_usable_ms": 210,
+          "document_fcp_ms": 280,
+          "console_errors": []
+        },
+        {
+          "name": "the directory at desktop size",
+          "started_at": "2026-09-22T09:10:05.155Z",
+          "shots": [
+            "10-directory-desktop-1280.png"
+          ],
+          "notes": [
+            "the same view at 1280px, narrowed by the same search (A’s session reused, no second sign-in)",
+            "captured away from the operator's row (h3 in [data-testid=rec-eaff386c-15b0-4a5e-9860-b90260dbae9e]: Nikita Berezniker)"
+          ],
+          "action_ms": 1463,
+          "nav_to_usable_ms": 1460,
+          "fcp_to_usable_ms": 1196,
+          "document_fcp_ms": 264,
+          "console_errors": []
+        },
+        {
+          "name": "the directory at its slug URL (the deployed defect)",
+          "started_at": "2026-09-22T09:10:06.672Z",
+          "shots": [
+            "11-defect-directory-slug-url.png"
+          ],
+          "notes": [
+            "slug URL → main=0, directory controls=0",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 3243,
+          "nav_to_usable_ms": 3241,
+          "fcp_to_usable_ms": 3037,
+          "document_fcp_ms": 204,
+          "console_errors": [
+            "Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+            "{\"level\":\"error\",\"msg\":\"[client_error] segment render failed\",\"ts\":\"2026-09-22T09:10:06.906Z\",\"event\":\"client_error\",\"code\":\"3441883038\",\"err\":{\"name\":\"Error\",\"message\":\"Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for ful"
+          ]
+        }
+      ],
+      "screenshots": [
+        "01-a-event-member-state.png",
+        "02-a-reveal-chooser.png",
+        "03-a-proposal-sent.png",
+        "04-b-card-from-qr-url.png",
+        "05-b-event-already-member.png",
+        "06-b-proposal-pending.png",
+        "07-b-mutual-reveal.png",
+        "08-a-mutual-reveal.png",
+        "09-a-public-card-stranger.png",
+        "10-directory-desktop-1280.png",
+        "11-defect-directory-slug-url.png"
+      ],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "blocked",
+          "text": "this pair already had an introduction in this event, so no fresh pending request could be created; the demo seed spends demo1↔demo2 and owner↔Marta, and this pair had already been walked"
+        },
+        {
+          "severity": "info",
+          "text": "B was ALREADY a member of this event (seeded), so there was no join to perform: the page shows the member state instead of a join action. The real join on a fresh account is covered by the local spec."
+        },
+        {
+          "severity": "info",
+          "text": "the introduction for this pair is already mutual (the first run of this walkthrough answered it), so there was no pending request to accept again: the card is captured in the state it is actually in"
+        },
+        {
+          "severity": "defect",
+          "text": "the directory page is a 500 when addressed by event slug (uuid works)"
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at its slug URL (the deployed defect): Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at its slug URL (the deployed defect): {\"level\":\"error\",\"msg\":\"[client_error] segment render failed\",\"ts\":\"2026-09-22T09:10:06.906Z\",\"event\":\"client_error\",\"code\":\"3441883038\",\"err\":{\"name\":\"Error\",\"message\":\"Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for ful"
+        },
+        {
+          "severity": "observed",
+          "text": "the supplement shot could not be taken: page.screenshot: Clipped area is either empty or outside the resulting image\nCall log:\n  - taking page screenshot\n  - waiting for fonts to load...\n  - fonts loaded\n"
+        }
+      ],
+      "finished_at": "2026-09-22T09:10:11.406Z"
+    },
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-22T09:10:37.922Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "steps": [],
+      "screenshots": [],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "blocked",
+          "text": "the walkthrough stopped: demo2@welcome.test: the deployment exposed no demo code (AUTH_EXPOSE_DEMO_OTP/is_demo off, or the 3-codes-per-15-minutes guard already spent for this account)"
+        }
+      ],
+      "finished_at": "2026-09-22T09:10:39.198Z",
+      "aborted": true
+    },
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-22T09:16:21.581Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "steps": [
+        {
+          "name": "A signs in and opens the demo event",
+          "started_at": "2026-09-22T09:16:22.181Z",
+          "shots": [
+            "01-a-event-member-state.png"
+          ],
+          "notes": [],
+          "action_ms": 3219,
+          "nav_to_usable_ms": 479,
+          "fcp_to_usable_ms": 167,
+          "document_fcp_ms": 312,
+          "console_errors": []
+        },
+        {
+          "name": "A opens the directory and proposes the introduction",
+          "started_at": "2026-09-22T09:16:25.692Z",
+          "shots": [
+            "02-a-reveal-chooser.png",
+            "03-a-proposal-sent.png"
+          ],
+          "notes": [
+            "the member panel links to /me/events/36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6/directory",
+            "target profile 3f8b8a11-2821-48e8-b145-7031b5512a1e",
+            "captured away from the operator's row (h3 in [data-testid=rec-eaff386c-15b0-4a5e-9860-b90260dbae9e]: Nikita Berezniker)",
+            "POST /api/introductions → 200, already_existed=true",
+            "captured away from the operator's row (h3 in [data-testid=rec-eaff386c-15b0-4a5e-9860-b90260dbae9e]: Nikita Berezniker)"
+          ],
+          "action_ms": 1669,
+          "nav_to_usable_ms": 1667,
+          "fcp_to_usable_ms": 1567,
+          "document_fcp_ms": 100,
+          "console_errors": []
+        },
+        {
+          "name": "B signs in and opens the card from the QR URL",
+          "started_at": "2026-09-22T09:16:27.429Z",
+          "shots": [
+            "04-b-card-from-qr-url.png"
+          ],
+          "notes": [
+            "QR read from /api/public/profiles/F4FL0_fORTXgnUA6Yqh-tA/qr.svg (34 module rows)",
+            "the card opens as \"Дмитрий Ковалёв\"",
+            "the card offers the introduction (B shares the event)"
+          ],
+          "action_ms": 1724,
+          "nav_to_usable_ms": 361,
+          "fcp_to_usable_ms": 189,
+          "document_fcp_ms": 172,
+          "console_errors": []
+        },
+        {
+          "name": "B opens the event",
+          "started_at": "2026-09-22T09:16:29.194Z",
+          "shots": [
+            "05-b-event-already-member.png"
+          ],
+          "notes": [
+            "member state: true, join action offered: false"
+          ],
+          "action_ms": 225,
+          "nav_to_usable_ms": 223,
+          "fcp_to_usable_ms": 115,
+          "document_fcp_ms": 108,
+          "console_errors": []
+        },
+        {
+          "name": "B sees the request waiting and accepts it",
+          "started_at": "2026-09-22T09:16:29.475Z",
+          "shots": [
+            "06-b-intro-card-already-answered.png",
+            "07-b-mutual-reveal.png"
+          ],
+          "notes": [
+            "the card reads \"Mutual — contacts revealed\"",
+            "before consent: state=mutual revealed=[{\"kind\":\"telegram_username\",\"value\":\"@dmitry_demo\"}] reveal blocks=1",
+            "captured away from the operator's row (span in [data-testid=intro-revealed-046bcd3f-f913-469f-84b4-06a584c58ea1]: @nik_nikiti4)",
+            "captured away from the operator's row (span in [data-testid=intro-revealed-046bcd3f-f913-469f-84b4-06a584c58ea1]: @nik_nikiti4)"
+          ],
+          "action_ms": 1313,
+          "nav_to_usable_ms": 1311,
+          "fcp_to_usable_ms": 1067,
+          "document_fcp_ms": 244,
+          "console_errors": []
+        },
+        {
+          "name": "A sees the mutual state and the reveal",
+          "started_at": "2026-09-22T09:16:30.854Z",
+          "shots": [
+            "08-a-mutual-reveal.png"
+          ],
+          "notes": [
+            "A after consent: revealed=[{\"kind\":\"telegram_username\",\"value\":\"@marta_demo\"}] revealed rows=1"
+          ],
+          "action_ms": 707,
+          "nav_to_usable_ms": 706,
+          "fcp_to_usable_ms": 526,
+          "document_fcp_ms": 180,
+          "console_errors": []
+        },
+        {
+          "name": "a stranger opens A’s public card at phone size",
+          "started_at": "2026-09-22T09:16:31.613Z",
+          "shots": [
+            "09-a-public-card-stranger.png"
+          ],
+          "notes": [
+            "the card renders as \"Дмитрий Ковалёв\" with 1 public contact row(s)"
+          ],
+          "action_ms": 436,
+          "nav_to_usable_ms": 434,
+          "fcp_to_usable_ms": 118,
+          "document_fcp_ms": 316,
+          "console_errors": []
+        },
+        {
+          "name": "the directory at desktop size",
+          "started_at": "2026-09-22T09:16:32.157Z",
+          "shots": [
+            "10-directory-desktop-1280.png"
+          ],
+          "notes": [
+            "the same view at 1280px, narrowed by the same search (A’s session reused, no second sign-in)",
+            "captured away from the operator's row (h3 in [data-testid=rec-eaff386c-15b0-4a5e-9860-b90260dbae9e]: Nikita Berezniker)"
+          ],
+          "action_ms": 1444,
+          "nav_to_usable_ms": 1443,
+          "fcp_to_usable_ms": 1191,
+          "document_fcp_ms": 252,
+          "console_errors": []
+        },
+        {
+          "name": "the directory at its slug URL (the deployed defect)",
+          "started_at": "2026-09-22T09:16:33.664Z",
+          "shots": [
+            "11-defect-directory-slug-url.png"
+          ],
+          "notes": [
+            "slug URL → main=0, directory controls=0",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 3475,
+          "nav_to_usable_ms": 3473,
+          "fcp_to_usable_ms": 3053,
+          "document_fcp_ms": 420,
+          "console_errors": [
+            "Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.",
+            "{\"level\":\"error\",\"msg\":\"[client_error] segment render failed\",\"ts\":\"2026-09-22T09:16:34.119Z\",\"event\":\"client_error\",\"code\":\"3441883038\",\"err\":{\"name\":\"Error\",\"message\":\"Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for ful"
+          ]
+        },
+        {
+          "name": "supplement: a pending request as its recipient sees it",
+          "started_at": "2026-09-22T09:16:37.226Z",
+          "shots": [
+            "12-supplement-pending-card.png"
+          ],
+          "notes": [
+            "captured away from the operator's row (span in [data-testid=intro-revealed-9d3563c8-8c7b-42dc-af69-4d0a3c02651e]: @nik_nikiti4)",
+            "a different pair (seeded outside this walkthrough), captured read-only — nothing was answered"
+          ],
+          "action_ms": 1862,
+          "nav_to_usable_ms": 990,
+          "fcp_to_usable_ms": 902,
+          "document_fcp_ms": 88,
+          "console_errors": []
+        }
+      ],
+      "screenshots": [
+        "01-a-event-member-state.png",
+        "02-a-reveal-chooser.png",
+        "03-a-proposal-sent.png",
+        "04-b-card-from-qr-url.png",
+        "05-b-event-already-member.png",
+        "06-b-intro-card-already-answered.png",
+        "07-b-mutual-reveal.png",
+        "08-a-mutual-reveal.png",
+        "09-a-public-card-stranger.png",
+        "10-directory-desktop-1280.png",
+        "11-defect-directory-slug-url.png",
+        "12-supplement-pending-card.png"
+      ],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "blocked",
+          "text": "this pair already had an introduction in this event, so no fresh pending request could be created; the demo seed spends demo1↔demo2 and owner↔Marta, and this pair had already been walked"
+        },
+        {
+          "severity": "info",
+          "text": "B was ALREADY a member of this event (seeded), so there was no join to perform: the page shows the member state instead of a join action. The real join on a fresh account is covered by the local spec."
+        },
+        {
+          "severity": "info",
+          "text": "the introduction for this pair is already mutual (the first run of this walkthrough answered it), so there was no pending request to accept again: the card is captured in the state it is actually in"
+        },
+        {
+          "severity": "defect",
+          "text": "the directory page is a 500 when addressed by event slug (uuid works)"
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at its slug URL (the deployed defect): Error: Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at its slug URL (the deployed defect): {\"level\":\"error\",\"msg\":\"[client_error] segment render failed\",\"ts\":\"2026-09-22T09:16:34.119Z\",\"event\":\"client_error\",\"code\":\"3441883038\",\"err\":{\"name\":\"Error\",\"message\":\"Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for ful"
+        }
+      ],
+      "finished_at": "2026-09-22T09:16:39.092Z"
+    }
+  ]
+}

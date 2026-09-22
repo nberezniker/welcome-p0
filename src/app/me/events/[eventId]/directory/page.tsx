@@ -6,6 +6,7 @@ import { requireAccountId } from '../../../../../lib/session-page';
 import { getT } from '../../../../../i18n';
 import { DirectoryPanel } from './directory-panel';
 import { filtersFromQuery } from '../../../../../domain/directory-filters';
+import { isUuid } from '../../../../../domain/organizer';
 import type { ReasonTemplates } from '../../../../../domain/reasons';
 import type { ReasonV4Templates } from '../../../../../domain/reasons-v4';
 
@@ -77,8 +78,18 @@ export default async function EventDirectoryPage({
   const sql = getSql();
 
   // The event must exist; directory access itself is enforced by the API.
-  const eventRows = await sql<{ id: string; name: string; slug: string }[]>`
-    SELECT id, name, slug FROM events WHERE id = ${eventId} OR slug = ${eventId} LIMIT 1`;
+  //
+  // The `id` branch is taken only for a real UUID. `id = $1` against a slug
+  // makes Postgres cast the literal to uuid, which is not a failing lookup but a
+  // `PostgresError: invalid input syntax for type uuid` — the whole page then
+  // threw and rendered the segment error surface, so this page's documented
+  // slug support (`OR slug = $1`, and the API route accepts both) was a 500 in
+  // practice. Same guard as src/app/api/events/[eventIdOrSlug]/directory/route.ts.
+  const eventRows = isUuid(eventId)
+    ? await sql<{ id: string; name: string; slug: string }[]>`
+        SELECT id, name, slug FROM events WHERE id = ${eventId}::uuid LIMIT 1`
+    : await sql<{ id: string; name: string; slug: string }[]>`
+        SELECT id, name, slug FROM events WHERE slug = ${eventId} LIMIT 1`;
   const event = eventRows[0];
   if (!event) notFound();
 
