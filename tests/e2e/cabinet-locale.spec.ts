@@ -26,6 +26,7 @@ import { test, expect, type Page } from '@playwright/test';
 const EMAIL_ACCOUNT = 'cabinet-locale-account@example.org';
 const EMAIL_QUERY = 'cabinet-locale-query@example.org';
 const EMAIL_INVALID = 'cabinet-locale-invalid@example.org';
+const EMAIL_SCOPE = 'cabinet-locale-scope@example.org';
 
 async function waitHydrated(page: Page) {
   await expect(page.locator('html[data-hydrated="true"]')).toBeAttached({ timeout: 30_000 });
@@ -161,4 +162,59 @@ test('cabinet locale: an invalid ?lang= never moves anything for a signed-in use
   await expectLang(page, 'es'); // ignored: neither the render nor the account moves
   await page.goto('/me/privacy');
   await expectLang(page, 'es');
+});
+
+/**
+ * WHERE `?lang=` IS A CHANNEL, AND WHERE IT IS NOT.
+ *
+ * The proxy's matcher covers four public entry points (`/`, `/login`, `/p/*`,
+ * `/legal/*`), and `/e/<slug>` is deliberately not one of them: a stray query
+ * parameter must not reshape a signed-in surface, and an event page is reached
+ * with the COOKIE a covered page just set. Both halves are asserted here so the
+ * scoping cannot be "fixed" by accident — a page can look themed, or localized,
+ * because the cookie rode along rather than because the query worked.
+ *
+ * This was previously pinned inside the design-review sweep, which no longer
+ * exists: the sweep compared design directions and is gone, but the locale rule
+ * it happened to assert is a property of the proxy and belongs with the rest of
+ * the language plumbing.
+ */
+test('cabinet locale: ?lang= is a channel on the public entry points, and /e/<slug> only follows the cookie', async ({
+  page,
+}) => {
+  const slug = 'e2e-locale-scope';
+  await loginViaOtp(page, EMAIL_SCOPE);
+  await createProfile(page, 'Locale Scope Owner');
+
+  const created = await page.request.post('/api/organizer/events', {
+    data: { name: 'Locale Scope', slug, mode: 'offline', access_mode: 'public', timezone: 'UTC' },
+  });
+  expect(created.status(), await created.text()).toBe(201);
+
+  await page.goto('/me');
+  await waitHydrated(page);
+  const publicUrl = (await page.getByTestId('public-url').textContent())?.trim() ?? '';
+  expect(publicUrl).toContain('/p/');
+  const cardPath = new URL(publicUrl).pathname;
+
+  // A clean device: no locale cookie, nothing planted.
+  await page.context().clearCookies({ name: 'welcome_locale' });
+
+  // 1. IT IS a channel on a covered entry point (/p/*): the render AND the cookie.
+  await page.goto(`${cardPath}?lang=ru`);
+  await waitHydrated(page);
+  await expectLang(page, 'ru');
+  expect((await page.context().cookies()).some((c) => c.name === 'welcome_locale' && c.value === 'ru')).toBe(true);
+
+  // 2. IT IS NOT a channel on /e/<slug>: with no cookie, the page stays English.
+  await page.context().clearCookies({ name: 'welcome_locale' });
+  await page.goto(`/e/${slug}?lang=ru`);
+  await waitHydrated(page);
+  await expect(page.locator('html'), '?lang= must NOT be a channel on /e/<slug>').not.toHaveAttribute('lang', 'ru');
+
+  // 3. The COOKIE is what reaches it — set the same way, on the entry point above.
+  await page.goto(`${cardPath}?lang=ru`);
+  await page.goto(`/e/${slug}`);
+  await waitHydrated(page);
+  await expectLang(page, 'ru');
 });

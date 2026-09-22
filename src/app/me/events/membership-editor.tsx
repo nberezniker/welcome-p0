@@ -122,7 +122,11 @@ export function MembershipEditor({ membership, strings, catalog, locale }: Membe
   return (
     <section className="card" data-testid={`membership-${membership.eventId}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-lg font-bold tracking-tight">{membership.eventName}</h3>
+        {/* h2, not h3: the page's own heading is the h1 ("My events"), so an h3
+            here skips a level — an axe `heading-order` finding (moderate) on the
+            only page this editor renders on. The tag changed, the classes did
+            not, so nothing about the card's look moves. */}
+        <h2 className="text-lg font-bold tracking-tight">{membership.eventName}</h2>
         <span className={left ? 'chip !bg-paper !text-muted' : 'chip'}>{left ? strings.leftBadge : '✓'}</span>
       </div>
       <p className="mt-1 text-xs uppercase tracking-wide text-muted">{membership.eventMode}</p>
@@ -248,11 +252,31 @@ export function MembershipEditor({ membership, strings, catalog, locale }: Membe
             {busy ? strings.saving : strings.save}
           </button>
 
-          <div className="flex items-start gap-2">
+          {/* The ROW is the tap target — the same pattern as the event page's
+              member panel. A bare `size-4` checkbox is a 16x16 box (13x16 as the
+              UA paints it), and the measurement that reported it below the 44px
+              floor was reading the input's own box rather than the clickable
+              area. The <label> wraps the control and carries `min-h-11`, so a
+              thumb anywhere on the row toggles it while the glyph keeps its size
+              and look. `items-start` + `mt-0.5` (half the difference between the
+              16px box and the 20px line box) keeps the checkbox on the FIRST
+              line instead of centring it against the multi-line hint.
+
+              The title and the hint are <span>s because a <label> may only
+              contain phrasing content; `block` on the outer one reproduces the
+              two-line stack, and under Tailwind's preflight a block <span>
+              renders exactly like the <p> it replaced. The hint is inside the
+              label, so it also contributes to the control's accessible name —
+              which is why it stays a full sentence and `aria-describedby` is
+              kept (the two agree rather than one paraphrasing the other). */}
+          <label
+            htmlFor={`dir-${membership.membershipId}`}
+            className="flex min-h-11 cursor-pointer items-start gap-2"
+          >
             <input
               id={`dir-${membership.membershipId}`}
               type="checkbox"
-              className="mt-1 size-4"
+              className="mt-0.5 size-4 shrink-0"
               checked={directoryVisible}
               disabled={busy}
               onChange={(e) => {
@@ -262,21 +286,22 @@ export function MembershipEditor({ membership, strings, catalog, locale }: Membe
               aria-describedby={`dir-hint-${membership.membershipId}`}
               data-testid={`dir-toggle-${membership.eventId}`}
             />
-            <div>
-              <label htmlFor={`dir-${membership.membershipId}`} className="text-sm font-semibold">
-                {strings.directoryVisible}
-              </label>
-              <p id={`dir-hint-${membership.membershipId}`} className="text-xs leading-relaxed text-muted">
+            <span className="block">
+              <span className="text-sm font-semibold">{strings.directoryVisible}</span>
+              <span id={`dir-hint-${membership.membershipId}`} className="block text-xs leading-relaxed text-muted">
                 {strings.directoryVisibleHint}
-              </p>
-            </div>
-          </div>
+              </span>
+            </span>
+          </label>
 
-          <div className="flex items-start gap-2">
+          <label
+            htmlFor={`match-${membership.membershipId}`}
+            className="flex min-h-11 cursor-pointer items-start gap-2"
+          >
             <input
               id={`match-${membership.membershipId}`}
               type="checkbox"
-              className="mt-1 size-4"
+              className="mt-0.5 size-4 shrink-0"
               checked={matchingEnabled}
               disabled={busy}
               onChange={(e) => {
@@ -286,15 +311,13 @@ export function MembershipEditor({ membership, strings, catalog, locale }: Membe
               aria-describedby={`match-hint-${membership.membershipId}`}
               data-testid={`matching-toggle-${membership.eventId}`}
             />
-            <div>
-              <label htmlFor={`match-${membership.membershipId}`} className="text-sm font-semibold">
-                {strings.matchingEnabled}
-              </label>
-              <p id={`match-hint-${membership.membershipId}`} className="text-xs leading-relaxed text-muted">
+            <span className="block">
+              <span className="text-sm font-semibold">{strings.matchingEnabled}</span>
+              <span id={`match-hint-${membership.membershipId}`} className="block text-xs leading-relaxed text-muted">
                 {strings.matchingEnabledHint}
-              </p>
-            </div>
-          </div>
+              </span>
+            </span>
+          </label>
 
           <div className="flex flex-wrap gap-2 border-t border-line pt-3">
             <a href={`/e/${membership.eventSlug}`} className="btn-light btn-small">

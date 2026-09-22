@@ -114,7 +114,8 @@ test('card: the row-label map is exhaustive over the projection kinds and cannot
  *
  * It was the one labelled-by-nothing list left on the card: the chip groups
  * (help offered / looking for / interests) have each been named by their own
- * heading since the premium-theme work, and the languages row sits ABOVE all of
+ * heading for as long as the chip groups have had headings, and the languages row
+ * sits ABOVE all of
  * them with no heading to borrow — there is no room for a visible one directly
  * under the person's name. It therefore gets its name from `aria-label`, which
  * `role="list"` supports, through the same dictionary key the other locales

@@ -1,24 +1,22 @@
 import { test, expect, type Browser, type BrowserContext, type Locator, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
-import { THEMES, type Theme } from '../../src/lib/theme';
 import { en } from '../../src/i18n/en';
 import { ru } from '../../src/i18n/ru';
 import { es } from '../../src/i18n/es';
 
 /**
  * The public card's contact rows and its QR disclosure — the two things this
- * change touched, verified on a real card in every theme.
+ * change touched, verified on a real card.
  *
- * WHY THIS SPEC IS NOT A SECOND COPY OF tests/e2e/design-themes.spec.ts.
- * That gate measures the card in all four themes and in the un-themed visitor
- * pass, with axe at every impact level, overflow at 390/360 and the review bar's
- * geometry — but it has never seen the card with the QR OPEN, because before
- * this change the QR was always open and the collapsed state is the one a
- * visitor now lands on. So this spec spends its per-theme axe/overflow/tap
- * budget on the EXPANDED state, and checks the collapsed state's overflow and
- * touch targets (the state a phone user actually touches) without paying for a
- * second axe pass on the markup design-themes already scans. Splitting it that
- * way keeps the two gates from asserting the same thing twice and drifting.
+ * WHY THIS SPEC IS NOT A SECOND COPY OF tests/e2e/design-gate.spec.ts.
+ * That gate measures the card with axe at every impact level and overflow at
+ * 390/360 — but it has never seen the card with the QR OPEN, because before this
+ * change the QR was always open and the collapsed state is the one a visitor now
+ * lands on. So this spec spends its axe/overflow/tap budget on the EXPANDED
+ * state, and checks the collapsed state's overflow and touch targets (the state a
+ * phone user actually touches) without paying for a second axe pass on the markup
+ * the design gate already scans. Splitting it that way keeps the two gates from
+ * asserting the same thing twice and drifting.
  *
  * WHAT IS PROVEN HERE RATHER THAN DESCRIBED:
  *   · a row's VISIBLE text is the localized label — extracted from a clone of
@@ -348,7 +346,7 @@ test('card: rows show the localized label, the value stays reachable, and the QR
  * The languages were a bare `<ul>` with no name, which a screen reader announces
  * as an unattached group of items ("list, 2 items") with nothing saying what the
  * two items are; the chip groups below it (help offered, looking for, interests)
- * have carried their own names since the premium-theme work. A name for this one
+ * have each carried their own name since they gained headings. A name for this one
  * has to come from `aria-label`, because the block sits directly under the
  * person's name and there is no room for a visible heading there.
  *
@@ -416,56 +414,52 @@ test('card: every label, including the language list name, is the dictionary wor
   }
 });
 
-test('card: contacts and an open QR hold the bar in all four themes and un-themed', async ({ page, browser }) => {
+test('card: contacts and an open QR hold at 390 and 360', async ({ page, browser }) => {
   test.setTimeout(240_000);
   const cardPath = await seedCard(page);
   const anon = await anonContext(browser);
   const visitor = await anon.newPage();
   const problems: string[] = [];
   try {
-    // `none` FIRST: a themed visit plants the theme cookie in this context, and
-    // the un-themed pass has to be what a stranger actually gets.
-    for (const theme of ['none', ...THEMES] as (Theme | 'none')[]) {
-      for (const viewport of [MOBILE, NARROW]) {
-        await visitor.setViewportSize(viewport);
-        await visitor.goto(theme === 'none' ? cardPath : `${cardPath}?theme=${theme}`);
-        await waitHydrated(visitor);
+    for (const viewport of [MOBILE, NARROW]) {
+      await visitor.setViewportSize(viewport);
+      await visitor.goto(cardPath);
+      await waitHydrated(visitor);
 
-        if (theme === 'none') {
-          await expect(visitor.getByTestId('theme-bar'), 'the visitor pass carries no review bar').toHaveCount(0);
-        } else {
-          await expect(visitor.getByTestId('theme-bar')).toBeVisible();
-          await expect(visitor.locator('html')).toHaveAttribute('data-theme', theme);
-        }
+      // The visitor's page IS the shipped design — one design, so the document
+      // carries no attribute that could select another token set.
+      expect(
+        await visitor.evaluate(() => document.documentElement.getAttribute('data-theme')),
+        'the shipped design must carry no data-theme attribute',
+      ).toBeNull();
 
-        // Collapsed: the state a phone user touches (design-themes.spec.ts owns
-        // the axe pass on this markup, so only overflow and targets are measured).
-        const collapsedProblems: string[] = [];
-        const collapsedOverflow = await overflowPx(visitor);
-        if (collapsedOverflow > 1) collapsedProblems.push(`collapsed overflow ${collapsedOverflow}px`);
-        collapsedProblems.push(...(await smallTargets(visitor)));
+      // Collapsed: the state a phone user touches (design-gate.spec.ts owns
+      // the axe pass on this markup, so only overflow and targets are measured).
+      const collapsedProblems: string[] = [];
+      const collapsedOverflow = await overflowPx(visitor);
+      if (collapsedOverflow > 1) collapsedProblems.push(`collapsed overflow ${collapsedOverflow}px`);
+      collapsedProblems.push(...(await smallTargets(visitor)));
 
-        // Expanded: the state no existing gate has ever measured.
-        await visitor.getByTestId('pubcard-qr').click();
-        await expect(visitor.getByTestId('pubcard-qr-body')).toBeVisible();
-        const expandedProblems: string[] = [];
-        const expandedOverflow = await overflowPx(visitor);
-        if (expandedOverflow > 1) expandedProblems.push(`expanded overflow ${expandedOverflow}px`);
-        expandedProblems.push(...(await smallTargets(visitor)));
-        const axe = await axeViolations(visitor);
-        for (const violation of axe) expandedProblems.push(`axe ${violation}`);
+      // Expanded: the state no existing gate has ever measured.
+      await visitor.getByTestId('pubcard-qr').click();
+      await expect(visitor.getByTestId('pubcard-qr-body')).toBeVisible();
+      const expandedProblems: string[] = [];
+      const expandedOverflow = await overflowPx(visitor);
+      if (expandedOverflow > 1) expandedProblems.push(`expanded overflow ${expandedOverflow}px`);
+      expandedProblems.push(...(await smallTargets(visitor)));
+      const axe = await axeViolations(visitor);
+      for (const violation of axe) expandedProblems.push(`axe ${violation}`);
 
-        const label = `${theme} @${viewport.width}`;
-        console.log(
-          `[card-qr] ${label}: overflow collapsed=${collapsedOverflow}px expanded=${expandedOverflow}px axe=${axe.length} problems=${collapsedProblems.length + expandedProblems.length}`,
-        );
-        problems.push(
-          ...collapsedProblems.map((p) => `${label} (collapsed): ${p}`),
-          ...expandedProblems.map((p) => `${label} (expanded): ${p}`),
-        );
-      }
+      const label = `@${viewport.width}`;
+      console.log(
+        `[card-qr] ${label}: overflow collapsed=${collapsedOverflow}px expanded=${expandedOverflow}px axe=${axe.length} problems=${collapsedProblems.length + expandedProblems.length}`,
+      );
+      problems.push(
+        ...collapsedProblems.map((p) => `${label} (collapsed): ${p}`),
+        ...expandedProblems.map((p) => `${label} (expanded): ${p}`),
+      );
     }
-    expect(problems, 'every theme and viewport must be clean').toEqual([]);
+    expect(problems, 'both viewport passes must be clean').toEqual([]);
   } finally {
     await anon.close();
   }

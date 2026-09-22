@@ -25,13 +25,13 @@ import { es } from '../../src/i18n/es';
  *      separate `Timezone (IANA)` row. The zone now rides on the schedule line,
  *      exactly once, and the IANA row is gone.
  *
- * The non-themed gate is here — 390 and 360, the full page, axe at every impact,
+ * The page-level gate is here — 390 and 360, the full page, axe at every impact,
  * overflow, the 44px rule on the controls this change owns, plus both calendar
- * paths. The FIVE-PASS SWEEP (the four themes and the un-themed visitor pass) is
- * deliberately NOT repeated here: it lives in tests/e2e/design-themes.spec.ts,
- * which is the file that writes evidence/design-themes/measurements.json, and it
- * now asserts the same hierarchy inside every pass. One sweep, one evidence
- * file, and no theme can pass by not being measured.
+ * paths. tests/e2e/design-gate.spec.ts asserts the same hierarchy inside its
+ * single-pass design sweep, and it is the file that writes
+ * evidence/design/measurements.json — that sweep is what the per-theme version
+ * became once the design review was over. One sweep, one evidence file, and the
+ * event page cannot pass by not being measured.
  */
 
 const EMAIL = 'event-actions@example.org';

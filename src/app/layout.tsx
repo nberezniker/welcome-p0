@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { getT } from '../i18n';
 import { appBaseUrl } from '../lib/env';
-import { getTheme } from '../lib/theme-page';
 import { HydrationMarker } from '../components/hydration-marker';
-import { ThemeBar } from '../components/theme-bar';
 import './globals.css';
 
 /**
@@ -45,36 +43,19 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // The ONE place that decides `<html data-theme>` and the only place that may
-  // render the review bar — a theme is a document-level fact (the token sets in
-  // globals.css hang off `html[data-theme]`), and the bar has to be outside every
-  // page's own containers so it can never sit on top of what is being reviewed.
-  const [{ locale, t }, theme] = await Promise.all([getT(), getTheme()]);
+  // The `--t-*` token layer in globals.css lives on `:root`, so the one design
+  // that ships IS the default — there is no `data-theme` attribute anywhere and
+  // no query, cookie or switcher that could select a second one. The mechanism
+  // that would carry a second look (an `html[data-theme="…"]` token block, a
+  // `Theme` type, the `?theme=` plumbing) is documented in
+  // docs-internal/design/THEMES.md, so a future design direction can be added
+  // back without rediscovering it.
+  const { locale } = await getT();
   return (
-    // No theme → NO attribute at all, so a page with no explicit theme is
-    // byte-identical to the pre-theme one (the `soft` tokens live on `:root`).
-    <html lang={locale} data-theme={theme ?? undefined}>
+    <html lang={locale}>
       <body className="min-h-screen antialiased">
         <HydrationMarker />
         {children}
-        {theme ? (
-          <ThemeBar
-            current={theme}
-            labels={{
-              title: t('theme.bar'),
-              group: t('theme.group'),
-              option: t('theme.option'),
-              hint: t('theme.barHint'),
-              exit: t('theme.exit'),
-              names: {
-                soft: t('theme.soft'),
-                swiss: t('theme.swiss'),
-                poster: t('theme.poster'),
-                premium: t('theme.premium'),
-              },
-            }}
-          />
-        ) : null}
       </body>
     </html>
   );

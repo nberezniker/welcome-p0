@@ -174,14 +174,15 @@ test('onboarding path: the card renders the axes as labels, not raw ids', async 
   assert.match(html, /<h2[^>]*id="pubcard-needs-title"[^>]*>Looking for<\/h2>/);
   assert.match(html, /data-testid="pubcard-interests"/);
   assert.ok(html.includes('foodtech'), 'keywords are shown as expertise');
-  // ...and each chip list is NAMED BY its own heading. In the `premium` theme the
-  // offers and needs chips are the same colour by design, so this is the only
+  // ...and each chip list is NAMED BY its own heading. The design paints the
+  // offers and needs chips with the same value by design (globals.css says why),
+  // so this is the only
   // thing that tells a screen reader user which group a chip belongs to.
   // Asserted on rendered HTML, not merely in the source.
   for (const group of ['offers', 'needs', 'interests'] as const) {
     assert.ok(
       html.includes(`aria-labelledby="pubcard-${group}-title"`),
-      `the ${group} chip list must be labelled by its heading — premium tells its groups apart by name, not by hue`,
+      `the ${group} chip list must be labelled by its heading — the groups are told apart by name, not by hue`,
     );
   }
 });

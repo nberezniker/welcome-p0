@@ -87,13 +87,14 @@ function ContactIcon({ kind }: { kind: PublicContact['kind'] }) {
  * Chip row with a heading; renders nothing when there is nothing to show.
  *
  * COLOUR IS NEVER THE ONLY CARRIER HERE, and the wiring below is what makes that
- * true rather than aspirational. In the `premium` theme an offer chip and a need
- * chip are the SAME colour value (globals.css says why), so the only thing that
- * tells them apart is their label. A heading sitting above a list does not name
- * that list on its own — a screen reader moving by list would hear three
- * unattached chips — so the heading is given an id and the list is labelled BY
- * it: "Help offered, list, 3 items". The `<section>` is named too, which also
- * makes it a `region` landmark. tests/unit/theme.test.ts pins both the naming and
+ * true rather than aspirational. The token layer lets a design paint the offer
+ * chips and the need chips with the same value (globals.css says why that is a
+ * choice rather than a bug), so the label has to be a carrier in its own right:
+ * a heading sitting above a list does not name that list — a screen reader moving
+ * by list would hear three unattached chips — so the heading is given an id and
+ * the list is labelled BY it: "Help offered, list, 3 items". The `<section>` is
+ * named too, which also makes it a `region` landmark.
+ * tests/unit/design-tokens.test.ts pins both the naming and
  * the fact that the two group labels are distinct strings in all three locales,
  * so a later "cleanup" cannot strip the difference and leave position as the only
  * thing separating the groups.
@@ -291,9 +292,8 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           An `aria-label` alone would have flattened the value out of a copy,
           and `title` alone is mouse-only, so the span carries the contract.
           Why not show the value: a real profile's URL wrapped mid-word and
-          competed with the QR block for the eye (see the owner's "premium, no
-          clutter" direction) — the label names the destination, the link opens
-          it. `min-h-11` + `min-w-11` make each row a 44px touch target in both
+          competed with the QR block for the eye (the owner's "no clutter"
+          direction) — the label names the destination, the link opens it. `min-h-11` + `min-w-11` make each row a 44px touch target in both
           directions — the minimum WIDTH is what keeps a short label ("Сайт")
           honest: the box grows to the right of the text, so it costs nothing
           visually. It also replaces the `min-w-0` a truncating flex item

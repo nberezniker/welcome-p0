@@ -20,7 +20,6 @@
     "worker": "node --env-file-if-exists=.env.local --import tsx scripts/worker.mts",
     "scan:secrets": "node --env-file-if-exists=.env.local scripts/scan-secrets.mjs",
     "gates": "node scripts/run-gates.mjs",
-    "capture:themes": "node --import tsx scripts/capture-theme-evidence.mjs",
     "audit:deps": "pnpm audit --prod --audit-level high",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test tests/e2e/a11y.spec.ts",
