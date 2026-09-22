@@ -217,8 +217,10 @@ async function box(page: Page, selector: string) {
 }
 
 /**
- * The primary action each page exists for: the card's accent CTA (intro when the
- * viewer shares an event, sign-in otherwise) and the event's join button.
+ * The primary action each page exists for: the card's accent CTA (the intro when
+ * the viewer shares an event, the honest no-shared-event state when the viewer is
+ * signed in without one, sign-in when the viewer is anonymous) and the event's
+ * join button.
  */
 async function measure(page: Page): Promise<Omit<Sample, 'page' | 'viewport' | 'axeViolations' | 'axeContrastNodes' | 'minTapTarget'>> {
   const pageWidth = await page.evaluate(() => window.innerWidth);
@@ -233,7 +235,10 @@ async function measure(page: Page): Promise<Omit<Sample, 'page' | 'viewport' | '
   const role = await box(page, '[data-testid="pubcard-headline"]');
   const company = await box(page, '[data-testid="pubcard-company"]');
   const action =
-    (await box(page, '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-intro-cta"]')) ??
+    (await box(
+      page,
+      '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-noconnection-cta"] a, [data-testid="pubcard-intro-cta"]',
+    )) ??
     (await box(page, '[data-testid="join-button"]'));
   const order = await page.evaluate(() =>
     [...document.querySelectorAll('main a.btn-light, main a.btn-accent, main a.btn-primary, main a.btn-outline, main button.btn-light, main button.btn-accent, main button.btn-primary')]
@@ -293,12 +298,19 @@ async function cardActionTargets(page: Page): Promise<{ name: string; width: num
     if (!b) continue;
     out.push({ name: id, width: Math.round(b.width), height: Math.round(b.height) });
   }
-  // The anonymous visitor's action is an <a> inside a testid'd wrapper (the
-  // signed-in one is the wrapper's own button), so it is addressed by role.
-  const signIn = page.locator('[data-testid="pubcard-signin-cta"] a');
+  // The two non-intro card actions are both <a>s inside a testid'd wrapper (the
+  // signed-in-with-a-shared-event one is the wrapper's own button), so they are
+  // addressed by role. Which of the two a run sees depends on the viewer: the
+  // gate's fixture is signed in and owns the card, so it is the no-shared-event
+  // one here — the anonymous pass is measured in the locale loop below by the
+  // same locator list.
+  const signIn = page.locator(
+    '[data-testid="pubcard-signin-cta"] a, [data-testid="pubcard-noconnection-cta"] a',
+  );
   if ((await signIn.count()) > 0) {
+    const name = (await signIn.first().evaluate((el) => el.closest('[data-testid]')?.getAttribute('data-testid'))) ?? 'pubcard-signin-cta';
     const b = await signIn.first().boundingBox();
-    if (b) out.push({ name: 'pubcard-signin-cta', width: Math.round(b.width), height: Math.round(b.height) });
+    if (b) out.push({ name, width: Math.round(b.width), height: Math.round(b.height) });
   }
   return out;
 }
@@ -708,8 +720,9 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
   // the company AND the primary action, and the fold rule for all four is what
   // says the restructuring worked rather than traded one problem for another.
   // English is the shortest of the three languages, so measuring it alone would
-  // be measuring the easiest case: Russian ("Войти, чтобы связаться", and much
-  // longer role strings) and Spanish wrap earlier, and a hero that grows by two
+  // be measuring the easiest case: Russian ("Здесь пока не с чем знакомиться" in
+  // the state the fixture actually renders, and much longer role strings) and
+  // Spanish wrap earlier, and a hero that grows by two
   // lines can push its own bottom — or the name it exists to introduce — past the
   // 844px fold. The dictionary strings are imported from the real dictionaries and
   // the rendered CTA text is compared to them, so a pass that silently kept
@@ -730,6 +743,24 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
     heroBottom: number;
     ctaText: string;
   }[] = [];
+  // The three card-action states, each with the dictionary key that must be on
+  // screen when it is the one rendered. Which state a run sees depends on the
+  // VIEWER (shared event / signed in with no shared event / anonymous), so the
+  // oracle below reads whichever one is present instead of assuming one: a gate
+  // that hard-coded `ctaSignIn` would have passed a page that told a signed-in
+  // visitor to sign in, which is exactly the lie the third state removes.
+  const CARD_ACTION_STATES = [
+    { testid: 'pubcard-intro-cta', key: 'pubcard.ctaIntro' },
+    { testid: 'pubcard-noconnection-cta', key: 'pubcard.ctaNothingYet' },
+    { testid: 'pubcard-signin-cta', key: 'pubcard.ctaSignIn' },
+  ] as const;
+  const cardActionState = async (): Promise<(typeof CARD_ACTION_STATES)[number] | null> => {
+    for (const state of CARD_ACTION_STATES) {
+      if ((await page.getByTestId(state.testid).count()) > 0) return state;
+    }
+    return null;
+  };
+
   for (const locale of ['en', 'ru', 'es'] as const) {
     await page.setViewportSize(MOBILE);
     const response = await page.goto(`${cardPath}?lang=${locale}`);
@@ -739,15 +770,21 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
 
     const fold = await page.evaluate(() => window.innerHeight);
     const measuredLocale = await measure(page);
-    const ctaText = ((await page.getByTestId('pubcard-signin-cta').innerText()) ?? '').trim();
+    const state = await cardActionState();
+    const ctaText = state ? ((await page.getByTestId(state.testid).innerText()) ?? '').trim() : '';
     // THE LOCALE-SENSITIVE HALF OF THE HERO. The name, role and company lines are
     // the PROFILE's own text — they are identical in all three languages, and the
     // identical numbers below are a fact about the fixture rather than a bug. What
     // actually changes with the language is the dictionary copy in the hero: the
     // action's label and the hint under it. The hint is the longest of them, so
     // its bottom edge (and the hero's) is where a longer Russian or Spanish string
-    // would push the block down.
-    const hint = await box(page, '[data-testid="pubcard-signin-cta"] p, [data-testid="pubcard-intro-cta"] + p');
+    // would push the block down. `p:last-of-type` is the hint in both <a>-based
+    // states (the intro CTA's hint is its sibling instead), so every state's
+    // longest line is the one measured.
+    const hint = await box(
+      page,
+      '[data-testid="pubcard-signin-cta"] p:last-of-type, [data-testid="pubcard-noconnection-cta"] p:last-of-type, [data-testid="pubcard-intro-cta"] + p',
+    );
     const hero = await box(page, '[data-testid="pubcard"] header');
     foldSamples.push({
       locale,
@@ -766,9 +803,12 @@ test('design gate: the card, the event and the member panel hold at 390 and 360'
     const where = `card @${MOBILE.width} ${locale}`;
     // The dictionary is the oracle: the numbers below are only "measured in
     // Russian" if the page really rendered Russian.
-    const expectedCta = { en, ru, es }[locale]['pubcard.ctaSignIn'];
+    if (!state) {
+      problems.push(`${where}: the card rendered none of its three action states`);
+    }
+    const expectedCta = state ? { en, ru, es }[locale][state.key] : undefined;
     if (!expectedCta) {
-      problems.push(`${where}: the ${locale} dictionary has no pubcard.ctaSignIn string to compare the page against`);
+      problems.push(`${where}: the ${locale} dictionary has no ${state?.key ?? 'card action'} string to compare the page against`);
     } else if (!ctaText.includes(expectedCta)) {
       problems.push(`${where}: the page did not render the ${locale} dictionary (CTA reads "${ctaText.slice(0, 60)}", expected "${expectedCta}")`);
     }

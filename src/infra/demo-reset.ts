@@ -3,10 +3,14 @@ import { emailLookupHash } from '../lib/crypto';
 import {
   demoResetScope,
   INTRO_NOTICE_KINDS,
+  membershipResetScope,
   qualifyDemoAccounts,
+  qualifyMembershipPersona,
   selectIntroductionsToReset,
   type DemoAccountRow,
   type IntroductionRow,
+  type MembershipCounts,
+  type MembershipScope,
   type Parsed,
   type ResetCounts,
   type ResetScope,
@@ -47,7 +51,21 @@ interface EventRow {
  */
 export async function loadDemoTarget(
   sql: Sql,
-  options: { eventSlug: string; pair: readonly [string, string]; pepper: string },
+  options: {
+    eventSlug: string;
+    pair: readonly [string, string];
+    pepper: string;
+    /**
+     * Addresses this run is DELIBERATELY returning to the non-member state — the
+     * same invocation's `--unjoin` target. They are exempt from the "must be an
+     * active member" requirement, because the run itself removes that
+     * membership: without the exemption the documented restore command would
+     * work once and then refuse itself on the second (idempotent) run. The
+     * account-level gates below still apply to them, unchanged — is_demo,
+     * active, with a profile.
+     */
+    allowNonMember?: readonly string[];
+  },
 ): Promise<Parsed<DemoResetTarget>> {
   const eventRows = await sql<EventRow[]>`
     SELECT id, slug, intro_cooldown_days FROM events WHERE slug = ${options.eventSlug} LIMIT 1
@@ -91,7 +109,8 @@ export async function loadDemoTarget(
     WHERE event_id = ${event.id} AND state = 'active' AND profile_id = ANY(${profileIds}::uuid[])
   `;
   const active = new Set(memberships.map((m) => m.profile_id));
-  const missing = options.pair.filter((_, i) => !active.has(profileIds[i]!));
+  const exempt = new Set(options.allowNonMember ?? []);
+  const missing = options.pair.filter((email, i) => !active.has(profileIds[i]!) && !exempt.has(email));
   if (missing.length > 0) {
     return {
       ok: false,
@@ -99,7 +118,9 @@ export async function loadDemoTarget(
       message:
         `REFUSED: ${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} not an active member of ` +
         `"${options.eventSlug}" — the pair cannot be demonstrated in an event one of them has not joined, and this ` +
-        'command will not infer a different event.',
+        'command will not infer a different event. (Run the introductions part once both are in the event — the ' +
+        `walkthrough brings the second person in — or add --unjoin=<email> if this run is about returning that ` +
+        'persona to the non-member state.)',
     };
   }
 
@@ -218,4 +239,122 @@ export async function applyReset(
     `;
     return { notices: notices.length, introductions: introductions.length };
   });
+}
+
+// ---------------------------------------------------------------------------
+// The membership part (`--unjoin`): the row, its plan, and its deletion
+// ---------------------------------------------------------------------------
+
+/** The membership row as the plan needs to name it before it goes. */
+export interface MembershipRow {
+  id: string;
+  state: string;
+  directory_visible: boolean;
+  matching_enabled: boolean;
+  attendance_source: string;
+  created_at: Date | string;
+}
+
+export interface MembershipResetTarget {
+  scope: MembershipScope;
+  accountId: string;
+  /** The row this run would remove, or null when the persona is already outside
+   *  the event (the no-op this command reports instead of refusing). */
+  membership: MembershipRow | null;
+}
+
+/**
+ * Resolves the named event and the named persona and applies the account gate
+ * (exists / is_demo / active / has a profile) — the same gate the introduction
+ * part applies, without its membership requirement (see
+ * qualifyMembershipPersona). Runs before anything is selected or deleted.
+ */
+export async function loadMembershipTarget(
+  sql: Sql,
+  options: { eventSlug: string; email: string; pepper: string },
+): Promise<Parsed<MembershipResetTarget>> {
+  const eventRows = await sql<{ id: string; slug: string }[]>`
+    SELECT id, slug FROM events WHERE slug = ${options.eventSlug} LIMIT 1
+  `;
+  const event = eventRows[0];
+  if (!event) {
+    return {
+      ok: false,
+      code: 'refused_event_missing',
+      message: `REFUSED: no event with slug "${options.eventSlug}" on this database`,
+    };
+  }
+
+  const hash = emailLookupHash(options.email, options.pepper);
+  const accountRows = await sql<
+    { email_lookup_hash: string; account_id: string; is_demo: boolean; account_status: string; profile_id: string | null }[]
+  >`
+    SELECT a.email_lookup_hash, a.id AS account_id, a.is_demo, a.status AS account_status,
+           (SELECT p.id FROM profiles p WHERE p.account_id = a.id LIMIT 1) AS profile_id
+    FROM accounts a
+    WHERE a.email_lookup_hash = ${hash}
+  `;
+  const row = accountRows[0];
+  const rows: DemoAccountRow[] = [
+    {
+      email: options.email,
+      account_id: row?.account_id ?? null,
+      is_demo: row?.is_demo ?? null,
+      account_status: row?.account_status ?? null,
+      profile_id: row?.profile_id ?? null,
+    },
+  ];
+  const qualified = qualifyMembershipPersona(rows, options.email);
+  if (!qualified.ok) return qualified;
+
+  const membershipRows = await sql<MembershipRow[]>`
+    SELECT id, state, directory_visible, matching_enabled, attendance_source, created_at
+    FROM event_memberships
+    WHERE event_id = ${event.id} AND profile_id = ${qualified.value.profileId}
+    LIMIT 1
+  `;
+
+  return {
+    ok: true,
+    value: {
+      scope: membershipResetScope({ id: event.id, slug: event.slug }, qualified.value.profileId, options.email),
+      accountId: qualified.value.accountId,
+      membership: membershipRows[0] ?? null,
+    },
+  };
+}
+
+/**
+ * The single counter the membership report publishes, in two dimensions: the
+ * named persona's row in the named event, and the whole table. Both are read
+ * with the SAME scope before and after, so "exactly one row, and nothing else"
+ * is checkable by the reader instead of asserted by the tool.
+ */
+export async function countMembershipRows(
+  sql: Sql | TransactionSql,
+  scope: MembershipScope,
+): Promise<{ scoped: MembershipCounts; totals: MembershipCounts }> {
+  const scoped = await sql<{ memberships: number }[]>`
+    SELECT count(*)::int AS memberships FROM event_memberships
+    WHERE event_id = ${scope.eventId} AND profile_id = ${scope.profileId}
+  `;
+  const totals = await sql<{ memberships: number }[]>`
+    SELECT count(*)::int AS memberships FROM event_memberships
+  `;
+  return { scoped: { memberships: scoped[0]!.memberships }, totals: { memberships: totals[0]!.memberships } };
+}
+
+/**
+ * The deletion: ONE statement, scoped by BOTH columns that define the target
+ * (event_id AND profile_id), so it cannot reach another persona's membership in
+ * this event or this persona's membership in another event. Returns the ids it
+ * removed (0 or 1 — the schema has UNIQUE(event_id, profile_id)).
+ */
+export async function applyMembershipReset(sql: Sql, scope: MembershipScope): Promise<readonly string[]> {
+  const removed = await sql<{ id: string }[]>`
+    DELETE FROM event_memberships
+    WHERE event_id = ${scope.eventId} AND profile_id = ${scope.profileId}
+    RETURNING id
+  `;
+  return removed.map((row) => row.id);
 }

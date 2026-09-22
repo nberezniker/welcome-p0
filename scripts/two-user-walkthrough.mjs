@@ -3,11 +3,28 @@
  * THE TWO-PERSON WALKTHROUGH, LIVE, WITH SCREENSHOTS.
  *
  * Drives the whole journey the owner asked to see — A proposes an introduction,
- * B arrives at the card through the QR code a scanner would read, B accepts, and
- * the contact opens on both sides — against a REAL deployment, in a real browser,
- * and records what a person would have seen: one screenshot per meaningful step,
- * the measured wall-clock time from first paint to each step being usable, and
- * the console errors along the way.
+ * B arrives at the card through the QR code a scanner would read, B JOINS the
+ * event, B accepts, and the contact opens on both sides — against a REAL
+ * deployment, in a real browser, and records what a person would have seen: one
+ * screenshot per meaningful step, the measured wall-clock time from first paint
+ * to each step being usable, and the console errors along the way.
+ *
+ * THE JOIN IS THE STEP THIS RUN EXISTS FOR. Both older demo personas are seeded
+ * MEMBERS of the demo event, so the join could never be shown live: the event
+ * page honestly rendered the member state and offered no join action. B is now
+ * `lucia.demo@welcome.test` — a demo persona the seeder deliberately gives no
+ * membership (scripts/seed-demo-event.mts) — so this run performs the real join
+ * and captures both sides of it: the non-member state with the join affordance
+ * BEFORE, the member state AFTER, and the card's introduction affordance
+ * appearing in between (it is event-scoped, so the join is what turns it on).
+ * `pnpm demo:reset --unjoin=lucia.demo@welcome.test` returns her to the
+ * non-member state afterwards.
+ *
+ * THE ORDER IS THE PRODUCT'S, NOT THE BRIEF'S. An event-context proposal answers
+ * `403 target_not_member` unless the OTHER side is already an active member
+ * (src/app/api/introductions/route.ts), and both UI entry points always send an
+ * `event_id`. So B is in the room first, then A proposes — asserted in
+ * tests/e2e/two-user-walkthrough.spec.ts rather than stepped around here.
  *
  * WHY THIS IS NOT A SPEC IN tests/e2e. That directory is the release gate, and a
  * gate that writes to a live deployment is not a gate. This is the evidence run
@@ -23,13 +40,14 @@
  *
  * WHAT IT TOUCHES ON THE TARGET. Demo accounts only, whose OTP codes the
  * deployment exposes BY DESIGN (AUTH_EXPOSE_DEMO_OTP + a demo account's is_demo:
- * src/integrations/email/index.ts, scripts/seed-demo.mts): sign-ins, ONE
- * introduction between two synthetic demo personas in the existing demo event,
- * and the two consents that make it mutual. No identity is created, no profile or
- * contact is edited, and nothing else on the deployment is modified. The
- * per-account OTP guard allows 3 codes per 15 minutes, so the script can be
- * re-run at most ~3 times per quarter-hour per persona — that is the product
- * guarding its own door, not a limitation of this script.
+ * src/integrations/email/index.ts, scripts/seed-demo.mts): sign-ins, ONE join
+ * (+ the member's own directory-visibility toggle), ONE introduction between two
+ * synthetic demo personas in the existing demo event, and the two consents that
+ * make it mutual. No identity is created, no profile or contact is edited, and
+ * nothing else on the deployment is modified. The per-account OTP guard allows 3
+ * codes per 15 minutes, so the script can be re-run at most ~3 times per
+ * quarter-hour per persona — that is the product guarding its own door, not a
+ * limitation of this script.
  *
  * THE ONE THING THIS SCRIPT REFUSES TO CAPTURE. The operator's own account is a
  * member of the same demo event and has a mutual introduction of its own, and
@@ -57,8 +75,14 @@ const MOBILE = { width: 390, height: 844 };
 const DESKTOP = { width: 1280, height: 900 };
 
 /** The personas and the place: demo accounts this deployment already has. */
-const A_EMAIL = 'demo2@welcome.test'; // Дмитрий Ковалёв — proposes
-const B_EMAIL = 'marta.demo@welcome.test'; // Marta Ruiz — arrives through the QR, accepts
+const A_EMAIL = 'demo2@welcome.test'; // Дмитрий Ковалёв — proposes, owns the QR
+const B_EMAIL = 'lucia.demo@welcome.test'; // Lucía Ferrer — arrives through the QR, joins, accepts
+/** The persona `pnpm demo:reset --unjoin=` returns to the non-member state.
+ *  Spelled out rather than aliased to B_EMAIL so that
+ *  tests/unit/demo-reset.test.ts can pin BOTH names to the same address: a
+ *  change to one of them has to be a conscious change to the other. */
+const NON_MEMBER_EMAIL = 'lucia.demo@welcome.test';
+const B_NAME = 'Lucía Ferrer';
 const EVENT_SLUG = 'welcome-demo-meetup';
 
 /**
@@ -83,6 +107,7 @@ const log = {
   target: base,
   started_at: new Date().toISOString(),
   viewport: MOBILE,
+  personas: { a: A_EMAIL, b: B_EMAIL, non_member_reset_target: NON_MEMBER_EMAIL, event: EVENT_SLUG },
   steps: [],
   screenshots: [],
   skipped_screenshots: [],
@@ -257,7 +282,100 @@ try {
   const cardUrl = `${base}/p/${aSlug}`;
   console.log(`  A's public card: ${cardUrl}`);
 
-  // ── 2. A proposes the introduction, choosing what to reveal ───────────────
+  // ── 2. B signs in and opens the card at the URL the QR encodes ────────────
+  await step('B signs in and opens the card from the QR URL', pageB, async (entry) => {
+    await signIn(pageB, B_EMAIL);
+    // The code the badge carries is the profile's QR (src/lib/qr.ts and the
+    // qr.svg endpoint); the URL it encodes is the card URL, which Part A's local
+    // spec proves by comparing the served module matrix with the encoder's. Here
+    // the endpoint is read so the run records that the code was what was opened.
+    const qr = await pageB.request.get(`${base}/api/public/profiles/${aSlug}/qr.svg`);
+    if (!qr.ok()) throw new Error(`the QR endpoint answered ${qr.status()}`);
+    const rows = (await qr.text()).split('M').length - 1;
+    entry.notes.push(`QR read from /api/public/profiles/${aSlug}/qr.svg (${rows} module rows)`);
+
+    await pageB.goto(cardUrl); // the URL the code encodes, opened as a scanner would
+    await pageB.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
+    await pageB.getByTestId('pubcard-name').waitFor({ state: 'visible', timeout: 30_000 });
+    const name = (await pageB.getByTestId('pubcard-name').textContent())?.trim();
+    entry.notes.push(`the card opens as "${name}"`);
+    // B is signed in and shares NO event yet: the card must say what is true
+    // ("nothing to connect here yet") and offer the way forward that works — B's
+    // own events — instead of telling a signed-in visitor to sign in.
+    const noConnection = await pageB.getByTestId('pubcard-noconnection-cta').isVisible().catch(() => false);
+    const signInCta = await pageB.getByTestId('pubcard-signin-cta').isVisible().catch(() => false);
+    const introCta = await pageB.getByTestId('pubcard-intro-cta').isVisible().catch(() => false);
+    entry.notes.push(
+      `card CTAs before the join: no-connection=${noConnection}, sign-in=${signInCta}, intro=${introCta}`,
+    );
+    if (signInCta) note('defect', 'a SIGNED-IN visitor with no shared event was told to sign in');
+    if (introCta) note('defect', 'the card offered an introduction before B was a member of the event');
+    await pageB.getByTestId('pubcard-qr').click();
+    await pageB.getByTestId('pubcard-qr-image').waitFor({ state: 'visible', timeout: 15_000 });
+  }, [{ name: '02-b-card-from-qr-url' }]);
+
+  // ── 3. B opens the event and JOINS it (the step this run exists for) ──────
+  await step('B opens the event and joins it for real', pageB, async (entry) => {
+    await pageB.goto(url(`/e/${EVENT_SLUG}`));
+    await pageB.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
+
+    // BEFORE: the non-member state, with the join affordance on it. Captured
+    // HERE, not among the step's own shots: those are taken when the step is
+    // done, and by then the page IS the member state — the "before" picture has
+    // to be taken while it is still true.
+    await pageB.getByTestId('join-button').waitFor({ state: 'visible', timeout: 30_000 });
+    const memberBefore = await pageB.getByTestId('member-state').isVisible().catch(() => false);
+    if (memberBefore) throw new Error('B is already a member of the demo event — the join cannot be shown');
+    entry.notes.push('BEFORE the join: no member state, the join action is the page’s primary control');
+    const beforeShot = await capture(pageB, null, '03-b-event-before-join-nonmember');
+    if (beforeShot.file) entry.shots.push(beforeShot.file);
+    if (beforeShot.note) entry.notes.push(beforeShot.note);
+
+    const joined = pageB.waitForResponse((r) => r.request().method() === 'POST' && r.url().includes('/join'));
+    await pageB.getByTestId('join-button').click();
+    const response = await joined;
+    const payload = await response.json().catch(() => ({}));
+    entry.notes.push(`POST ${new URL(response.url()).pathname} → ${response.status()}, already_member=${payload.already_member}`);
+    if (!response.ok()) throw new Error(`the join was refused: ${response.status()} ${JSON.stringify(payload)}`);
+    if (payload.already_member) note('info', 'the join answered already_member=true — this persona was already in the event');
+
+    // AFTER: the member state, and the participation panel it brings. (The join
+    // button reloads the page, so this waits for the server-rendered panel.)
+    await pageB.getByTestId('member-panel').waitFor({ state: 'visible', timeout: 30_000 });
+    await pageB.getByTestId('member-state').waitFor({ state: 'visible', timeout: 15_000 });
+    const memberState = (await pageB.getByTestId('member-state').textContent())?.trim();
+    const joinGone = await pageB.getByTestId('join-button').count();
+    entry.notes.push(`AFTER the join: member state "${memberState}", join action rendered ${joinGone} time(s)`);
+
+    // A participant who wants to be found has to say so: joining leaves
+    // directory_visible = false (src/app/api/events/[eventIdOrSlug]/join/route.ts),
+    // so this is the second half of "B is in the room" — and the write is
+    // confirmed against its own response, not the optimistic checkbox.
+    const patched = pageB.waitForResponse(
+      (r) => r.request().method() === 'PATCH' && r.url().includes('/api/me/memberships/'),
+    );
+    await pageB.getByTestId('event-directory-toggle').check();
+    const patchResponse = await patched;
+    entry.notes.push(`PATCH membership (directory_visible) → ${patchResponse.status()}`);
+    if (!patchResponse.ok()) throw new Error(`the directory-visibility toggle was refused: ${patchResponse.status()}`);
+  }, [{ name: '04-b-event-after-join-member' }]);
+
+  // ── 4. The join is what turns the card's introduction on ──────────────────
+  await step('the card now offers the introduction (the join turned it on)', pageB, async (entry) => {
+    await pageB.goto(cardUrl);
+    await pageB.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
+    await pageB.getByTestId('pubcard-intro-cta').waitFor({ state: 'visible', timeout: 30_000 });
+    const noConnection = await pageB.getByTestId('pubcard-noconnection-cta').count();
+    const signInCta = await pageB.getByTestId('pubcard-signin-cta').count();
+    entry.notes.push(
+      `the same URL that showed no affordance now offers the introduction; no-connection=${noConnection}, sign-in=${signInCta}`,
+    );
+    if (noConnection > 0 || signInCta > 0) note('defect', 'the card kept a no-connection/sign-in CTA after the join');
+  }, [{ name: '05-b-card-intro-after-join' }]);
+
+  // ── 5. A proposes the introduction, choosing what to reveal ───────────────
+  // Only possible now: an event-context proposal refuses `403 target_not_member`
+  // until the counterparty is an active member (src/app/api/introductions/route.ts).
   let introId = null;
   await step('A opens the directory and proposes the introduction', pageA, async (entry) => {
     // The product's OWN path to the directory: the event page's member panel
@@ -276,24 +394,24 @@ try {
     // to everyone, then narrow by search — both are the page's own controls, and
     // the narrowing keeps the operator's member row out of every capture.
     await pageA.getByTestId('dir-mode-all').click();
-    await pageA.getByTestId('dir-search').fill('Marta');
+    await pageA.getByTestId('dir-search').fill(B_NAME);
     await pageA.getByTestId('dir-search').press('Enter');
 
     const directory = await (await pageA.request.get(url(`/api/events/${EVENT_SLUG}/directory?mode=all`))).json();
-    const marta = (directory.members ?? []).find((m) => m.display_name === 'Marta Ruiz');
-    if (!marta) {
-      throw new Error(`Marta Ruiz is not in the directory: ${JSON.stringify(directory.members?.map((m) => m.display_name))}`);
+    const bMember = (directory.members ?? []).find((m) => m.display_name === B_NAME);
+    if (!bMember) {
+      throw new Error(`${B_NAME} is not in the directory: ${JSON.stringify(directory.members?.map((m) => m.display_name))}`);
     }
-    entry.notes.push(`target profile ${marta.profile_id}`);
+    entry.notes.push(`target profile ${bMember.profile_id} (found in the directory — B joined in this run)`);
 
-    const card = pageA.getByTestId(`member-${marta.profile_id}`);
+    const card = pageA.getByTestId(`member-${bMember.profile_id}`);
     await card.waitFor({ state: 'visible', timeout: 30_000 });
-    await card.getByTestId(`propose-${marta.profile_id}`).click();
+    await card.getByTestId(`propose-${bMember.profile_id}`).click();
 
     const chooser = pageA.getByRole('dialog');
     await chooser.waitFor({ state: 'visible', timeout: 15_000 });
     await chooser.getByLabel('Telegram username').check();
-    const chooserShot = await capture(pageA, chooser, '02-a-reveal-chooser');
+    const chooserShot = await capture(pageA, chooser, '06-a-reveal-chooser');
     if (chooserShot.file) entry.shots.push(chooserShot.file);
     if (chooserShot.note) entry.notes.push(chooserShot.note);
 
@@ -307,60 +425,20 @@ try {
       note(
         'blocked',
         'this pair already had an introduction in this event, so no fresh pending request could be created; '
-        + 'the demo seed spends demo1↔demo2 and owner↔Marta, and this pair had already been walked',
+        + 'run `pnpm demo:reset --unjoin=lucia.demo@welcome.test` before the demo to return the pair AND the joiner '
+        + 'to their starting state',
       );
     }
     introId = payload.introduction.id;
-    await card.getByTestId(`propose-${marta.profile_id}`).getByText('Request sent').waitFor({ timeout: 15_000 });
+    await card.getByTestId(`propose-${bMember.profile_id}`).getByText('Request sent').waitFor({ timeout: 15_000 });
   }, [
     // Framed on the directory's own section (modes + search + member list) rather
     // than the whole page: the recommendation strip above it lists other members
     // of the same event, and nothing is gained by publishing their cards here.
-    { name: '03-a-proposal-sent', scope: () => pageA.locator('section[aria-labelledby="dir-heading"]') },
+    { name: '07-a-proposal-sent', scope: () => pageA.locator('section[aria-labelledby="dir-heading"]') },
   ]);
 
-  // ── 3. B opens the card at the URL the QR encodes ────────────────────────
-  await step('B signs in and opens the card from the QR URL', pageB, async (entry) => {
-    await signIn(pageB, B_EMAIL);
-    // The code the badge carries is the profile's QR (src/lib/qr.ts and the
-    // qr.svg endpoint); the URL it encodes is the card URL, which Part A's local
-    // spec proves by comparing the served module matrix with the encoder's. Here
-    // the endpoint is read so the run records that the code was what was opened.
-    const qr = await pageB.request.get(`${base}/api/public/profiles/${aSlug}/qr.svg`);
-    if (!qr.ok()) throw new Error(`the QR endpoint answered ${qr.status()}`);
-    const rows = (await qr.text()).split('M').length - 1;
-    entry.notes.push(`QR read from /api/public/profiles/${aSlug}/qr.svg (${rows} module rows)`);
-
-    await pageB.goto(cardUrl); // the URL the code encodes, opened as a scanner would
-    await pageB.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
-    await pageB.getByTestId('pubcard-name').waitFor({ state: 'visible', timeout: 30_000 });
-    const name = (await pageB.getByTestId('pubcard-name').textContent())?.trim();
-    entry.notes.push(`the card opens as "${name}"`);
-    const cta = await pageB.getByTestId('pubcard-intro-cta').isVisible().catch(() => false);
-    await pageB.getByTestId('pubcard-qr').click();
-    await pageB.getByTestId('pubcard-qr-image').waitFor({ state: 'visible', timeout: 15_000 });
-    entry.notes.push(cta ? 'the card offers the introduction (B shares the event)' : 'the card offered no introduction affordance');
-    if (!cta) note('observed', 'B is already a member of this event, yet the card showed no introduction affordance');
-  }, [{ name: '04-b-card-from-qr-url' }]);
-
-  // ── 4. B opens the event ────────────────────────────────────────────────
-  await step('B opens the event', pageB, async (entry) => {
-    await pageB.goto(url(`/e/${EVENT_SLUG}`));
-    await pageB.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
-    await pageB.getByTestId('member-panel').waitFor({ state: 'visible', timeout: 30_000 });
-    const memberState = await pageB.getByTestId('member-state').isVisible().catch(() => false);
-    const joinButton = await pageB.getByTestId('join-button').isVisible().catch(() => false);
-    entry.notes.push(`member state: ${memberState}, join action offered: ${joinButton}`);
-    if (memberState && !joinButton) {
-      note(
-        'info',
-        'B was ALREADY a member of this event (seeded), so there was no join to perform: the page shows the '
-        + 'member state instead of a join action. The real join on a fresh account is covered by the local spec.',
-      );
-    }
-  }, [{ name: '05-b-event-already-member' }]);
-
-  // ── 5. B sees the request and accepts ────────────────────────────────────
+  // ── 6. B sees the request and accepts ────────────────────────────────────
   let acceptedLive = false;
   await step('B sees the request waiting and accepts it', pageB, async (entry) => {
     await pageB.goto(url('/me/introductions'));
@@ -384,7 +462,7 @@ try {
     const pendingShot = await capture(
       pageB,
       section,
-      drawerBefore.introduction.state === 'pending' ? '06-b-proposal-pending' : '06-b-intro-card-already-answered',
+      drawerBefore.introduction.state === 'pending' ? '08-b-proposal-pending' : '08-b-intro-card-already-answered',
     );
     if (pendingShot.file) entry.shots.push(pendingShot.file);
     if (pendingShot.note) entry.notes.push(pendingShot.note);
@@ -418,9 +496,9 @@ try {
     const rows = await section.getByTestId(`intro-revealed-${introId}`).locator('li').count();
     entry.notes.push(`B's revealed rows: ${rows}`);
     if (rows === 0) note('defect', "B's mutual card rendered no revealed contact");
-  }, [{ name: '07-b-mutual-reveal', scope: () => pageB.getByTestId(`intro-${introId}`) }]);
+  }, [{ name: '09-b-mutual-reveal', scope: () => pageB.getByTestId(`intro-${introId}`) }]);
 
-  // ── 6. A's side of the mutual moment ─────────────────────────────────────
+  // ── 7. A's side of the mutual moment ─────────────────────────────────────
   await step('A sees the mutual state and the reveal', pageA, async (entry) => {
     await pageA.goto(url('/me/introductions'));
     await pageA.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
@@ -431,9 +509,9 @@ try {
     const drawer = await (await pageA.request.get(url(`/api/introductions/${introId}`))).json();
     entry.notes.push(`A after consent: revealed=${JSON.stringify(drawer.revealed)} revealed rows=${rows}`);
     if (rows === 0) note('defect', "A's mutual card rendered no revealed contact");
-  }, [{ name: '08-a-mutual-reveal', scope: () => pageA.getByTestId(`intro-${introId}`) }]);
+  }, [{ name: '10-a-mutual-reveal', scope: () => pageA.getByTestId(`intro-${introId}`) }]);
 
-  // ── 7. A's public card as a stranger sees it ─────────────────────────────
+  // ── 8. A's public card as a stranger sees it ─────────────────────────────
   await step('a stranger opens A’s public card at phone size', pageAnon, async (entry) => {
     await pageAnon.goto(cardUrl);
     await pageAnon.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
@@ -442,10 +520,12 @@ try {
     await pageAnon.getByTestId('pubcard-qr-image').waitFor({ state: 'visible', timeout: 15_000 });
     const name = (await pageAnon.getByTestId('pubcard-name').textContent())?.trim();
     const contacts = await pageAnon.getByTestId('pubcard-links').count();
-    entry.notes.push(`the card renders as "${name}" with ${contacts} public contact row(s)`);
-  }, [{ name: '09-a-public-card-stranger' }]);
+    const signInCta = await pageAnon.getByTestId('pubcard-signin-cta').isVisible().catch(() => false);
+    entry.notes.push(`the card renders as "${name}" with ${contacts} public contact row(s); anonymous sign-in CTA=${signInCta}`);
+    if (!signInCta) note('defect', 'an ANONYMOUS visitor was not offered the sign-in CTA');
+  }, [{ name: '11-a-public-card-stranger' }]);
 
-  // ── 8. The same directory on a desktop viewport ───────────────────────────
+  // ── 9. The same directory on a desktop viewport ───────────────────────────
   const contextDesktop = await browser.newContext({ viewport: DESKTOP, storageState: await contextA.storageState() });
   const pageDesktop = await contextDesktop.newPage();
   try {
@@ -454,13 +534,13 @@ try {
       await pageDesktop.waitForSelector('html[data-hydrated="true"]', { timeout: 30_000 });
       await pageDesktop.getByTestId('event-directory-link').click();
       await pageDesktop.getByTestId('dir-mode-all').click();
-      await pageDesktop.getByTestId('dir-search').fill('Marta');
+      await pageDesktop.getByTestId('dir-search').fill(B_NAME);
       await pageDesktop.getByTestId('dir-search').press('Enter');
       await pageDesktop.getByTestId('member-list').waitFor({ state: 'visible', timeout: 30_000 });
       entry.notes.push('the same view at 1280px, narrowed by the same search (A’s session reused, no second sign-in)');
-    }, [{ name: '10-directory-desktop-1280', scope: () => pageDesktop.locator('section[aria-labelledby="dir-heading"]') }]);
+    }, [{ name: '12-directory-desktop-1280', scope: () => pageDesktop.locator('section[aria-labelledby="dir-heading"]') }]);
 
-    // ── 9. THE DEFECT THIS RUN FOUND: the same page at its slug URL ─────────
+    // ── 10. THE DEFECT THIS RUN FOUND EARLIER: the same page at its slug URL ─
     // `/me/events/<slug>/directory` is a URL a person can paste or bookmark, and
     // the API route behind it accepts a slug — but the PAGE queried
     // `WHERE id = $1 OR slug = $1`, and Postgres casts that literal to uuid, so
@@ -477,12 +557,12 @@ try {
       const tabs = await pageDesktop.getByTestId('dir-mode-all').count();
       entry.notes.push(`slug URL → main=${main}, directory controls=${tabs}`);
       if (tabs === 0) note('defect', 'the directory page is a 500 when addressed by event slug (uuid works)');
-    }, [{ name: '11-defect-directory-slug-url' }]);
+    }, [{ name: '13-defect-directory-slug-url' }]);
   } finally {
     await contextDesktop.close();
   }
 
-  // ── 10. A pending card, seen by its recipient, on a pair this run did not
+  // ── 11. A pending card, seen by its recipient, on a pair this run did not
   //     spend. Only when B could not accept above: the walkthrough's own pair is
   //     mutual by now (the product keeps one introduction per pair per event), so
   //     the pending STATE would otherwise be missing from the picture.
@@ -498,7 +578,7 @@ try {
           .locator('section[data-testid^="intro-"]')
           .filter({ hasText: 'Waiting for your answer' });
         await pending.first().waitFor({ state: 'visible', timeout: 30_000 });
-        const shot = await capture(pageC, pending.first(), '12-supplement-pending-card');
+        const shot = await capture(pageC, pending.first(), '14-supplement-pending-card');
         if (shot.file) entry.shots.push(shot.file);
         if (shot.note) entry.notes.push(shot.note);
         entry.notes.push('a different pair (seeded outside this walkthrough), captured read-only — nothing was answered');

@@ -1,0 +1,89 @@
+{
+ "measured_at": "2026-09-22T14:20:38.325Z",
+ "event": {
+  "id": "36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6",
+  "starts_at": "2026-09-26T16:00:00.000Z",
+  "ends_at": "2026-09-26T19:00:00.000Z"
+ },
+ "lucia": {
+  "account_id": "fddefa32-d9f5-43f6-bd05-9f31587f00e9",
+  "profile_id": "5cb094bd-b2e0-495c-80dc-3b5620cde9c2",
+  "display_name": "Lucía Ferrer"
+ },
+ "memberships_for_lucia": [
+  {
+   "id": "95024b32-cd8c-4dc9-a1eb-fbeac4164107",
+   "state": "active",
+   "directory_visible": true,
+   "matching_enabled": true,
+   "attendance_source": "none",
+   "created_at": "2026-09-22T14:18:24.456Z"
+  }
+ ],
+ "introductions_pair": [
+  {
+   "id": "1112d4c6-109c-43e2-8582-93e8f2afa1b4",
+   "state": "mutual",
+   "created_at": "2026-09-22T14:18:26.774Z"
+  }
+ ],
+ "consents": [
+  {
+   "profile_id": "f3a2bd19-e1e8-444d-86f2-1bf754febfa9",
+   "decision": "accept",
+   "reveal_fields": [
+    "telegram_username"
+   ],
+   "source": "implicit_by_initiation"
+  },
+  {
+   "profile_id": "5cb094bd-b2e0-495c-80dc-3b5620cde9c2",
+   "decision": "accept",
+   "reveal_fields": [
+    "telegram_username",
+    "whatsapp"
+   ],
+   "source": "explicit"
+  }
+ ],
+ "notices": [
+  {
+   "id": "a47a5629-c407-4266-81a5-e30e602996b1",
+   "kind": "intro_requested_notice",
+   "status": "pending"
+  },
+  {
+   "id": "34df59fd-4e62-424b-a167-0ec7ceaedee9",
+   "kind": "intro_mutual_notice",
+   "status": "pending"
+  },
+  {
+   "id": "782eac8f-0887-479a-9374-d0cabfbb24c3",
+   "kind": "intro_mutual_notice",
+   "status": "pending"
+  }
+ ],
+ "audit_on_the_intro": [
+  {
+   "action": "intro.consent_implicit"
+  },
+  {
+   "action": "intro.requested"
+  },
+  {
+   "action": "intro.mutual"
+  }
+ ],
+ "lucia_audit_trail": [
+  {
+   "action": "event.joined",
+   "created_at": "2026-09-22T14:18:24.487Z"
+  },
+  {
+   "action": "intro.mutual",
+   "created_at": "2026-09-22T14:18:27.964Z"
+  }
+ ],
+ "event_memberships_total": 5,
+ "event_introductions_total": 6
+}

@@ -56,8 +56,10 @@ import { en } from '../../src/i18n/en';
  *     answers `revealed: []` (and does not carry the values in its body);
  *   · after consent — exactly ONE revealed row per side, the expected value,
  *     and no other contact value anywhere on the page;
- *   · a stranger's card — the private values are absent, and the only CTA a
- *     visitor without a shared event gets is the sign-in one.
+ *   · a stranger's card — the private values are absent, and the CTA tells the
+ *     truth about the visitor: an anonymous one is offered sign-in, while a
+ *     signed-in one who shares no event is told there is nothing to connect here
+ *     yet (never "Sign in", which B would have been told while already signed in).
  */
 
 const A_EMAIL = 'walkthrough-anna@example.org';
@@ -292,12 +294,20 @@ test('two users: A proposes, B arrives through the QR and accepts, and the conta
     await pageB.goto(cardUrl);
     await waitHydrated(pageB);
     await expect(pageB.getByTestId('pubcard-name')).toHaveText(A_NAME);
-    // Signed in, but in no event with A yet: the card offers sign-in, because the
-    // introduction affordance is event-scoped. Honest, and a friction worth
-    // recording: B is already signed in when B reads "Sign in to connect".
-    await expect(pageB.getByTestId('pubcard-signin-cta')).toBeVisible();
+    // Signed in, but in no event with A yet: there is nothing to connect here
+    // YET, and the card says so. It used to say "Sign in to connect" to a visitor
+    // who was already signed in — the label named a state B is not in and a link
+    // that cannot change it. The two other states must NOT render here: the
+    // introduction needs a shared event, and the sign-in CTA is for visitors with
+    // no session at all.
+    const noConnection = pageB.getByTestId('pubcard-noconnection-cta');
+    await expect(noConnection).toBeVisible();
+    await expect(noConnection).toContainText(en['pubcard.ctaNothingYet']);
+    await expect(noConnection).toContainText(en['pubcard.ctaNothingYetHint']);
+    await expect(noConnection.locator('a')).toHaveAttribute('href', '/me/events');
+    await expect(pageB.getByTestId('pubcard-signin-cta'), 'the signed-in visitor is not told to sign in').toHaveCount(0);
     await expect(pageB.getByTestId('pubcard-intro-cta'), 'no shared event, no intro affordance').toHaveCount(0);
-    console.log('[walkthrough] B: arrived at the card from the QR URL (no shared event yet → sign-in CTA)');
+    console.log('[walkthrough] B: arrived at the card from the QR URL (no shared event yet → honest no-connection state)');
 
     // ── B: opens the event and joins it through the join button ───────────────
     await pageB.goto(`/e/${event.slug}`);
@@ -312,11 +322,13 @@ test('two users: A proposes, B arrives through the QR and accepts, and the conta
     await expect(pageB.getByTestId('member-panel')).toContainText(en['event.memberPanelTitle']);
     console.log('[walkthrough] B: joined the event, directory-visible');
 
-    // Now that B is in the room, the QR card offers the introduction — the same
-    // URL B scanned a moment ago, with one more affordance on it.
+    // Now that B is in the room, the SAME URL B scanned a moment ago offers the
+    // introduction — the state the card was missing a moment before, replaced by
+    // the affordance it exists for.
     await pageB.goto(cardUrl);
     await waitHydrated(pageB);
     await expect(pageB.getByTestId('pubcard-intro-cta'), 'a shared event turns the card into an intro').toBeVisible();
+    await expect(pageB.getByTestId('pubcard-noconnection-cta'), 'the honest state is gone once it is untrue').toHaveCount(0);
     await expect(pageB.getByTestId('pubcard-signin-cta')).toHaveCount(0);
 
     // ── A: proposes the introduction, choosing what to reveal ────────────────

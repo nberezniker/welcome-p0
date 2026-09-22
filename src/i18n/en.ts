@@ -979,6 +979,12 @@ export const en = {
   'pubcard.ctaIntroAlready': 'You already have a request with this person',
   'pubcard.ctaSignIn': 'Sign in to connect',
   'pubcard.ctaSignInHint': 'Contacts are shared only with mutual consent.',
+  // The signed-in visitor who shares no event with the card's owner: there is
+  // nothing to offer them here YET, and telling them to sign in would be false.
+  'pubcard.ctaNothingYet': 'Nothing to connect here yet',
+  'pubcard.ctaNothingYetHint':
+    'Introductions happen inside an event you have both joined. Once you share an event, this card offers one.',
+  'pubcard.ctaMyEvents': 'See your events',
   'pubcard.revealTitle': 'Propose an introduction to {name}',
   'pubcard.revealHint': 'Choose what you are ready to reveal if the other side accepts.',
   'pubcard.sendRequest': 'Send request',

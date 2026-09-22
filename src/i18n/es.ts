@@ -949,6 +949,12 @@ export const es: Partial<Dictionary> = {
   'pubcard.ctaIntroAlready': 'Ya tienes una solicitud con esta persona',
   'pubcard.ctaSignIn': 'Inicia sesión para contactar',
   'pubcard.ctaSignInHint': 'Los contactos solo se comparten con consentimiento mutuo.',
+  // Visitante con sesión iniciada pero sin evento en común: pedirle que inicie
+  // sesión sería falso.
+  'pubcard.ctaNothingYet': 'Aquí todavía no hay nada que conectar',
+  'pubcard.ctaNothingYetHint':
+    'Las presentaciones se proponen dentro de un evento al que os hayáis unido los dos. Cuando compartáis un evento, esta tarjeta ofrecerá una.',
+  'pubcard.ctaMyEvents': 'Ver tus eventos',
   'pubcard.revealTitle': 'Proponer un contacto a {name}',
   'pubcard.revealHint': 'Elige qué estás dispuesto a revelar si la otra persona acepta.',
   'pubcard.sendRequest': 'Enviar solicitud',

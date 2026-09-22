@@ -1,0 +1,85 @@
+DEMO RESET — returns the demo personas to a demonstrable state
+==============================================================
+target       PRODUCTION-LIKE — acknowledged with --i-know-this-is-production (APP_ENV=unset)
+mode         APPLY
+event        welcome-demo-meetup
+pair         Дмитрий Ковалёв <demo2@welcome.test>  ↔  Lucía Ferrer <lucia.demo@welcome.test>
+parts        introductions (the pair) + membership (--unjoin)
+unjoin       Lucía Ferrer <lucia.demo@welcome.test> — returned to the NON-MEMBER state
+scope        ONE event context × ONE canonical pair — introductions WHERE context_key = 'event:<event-id>' AND profile_a = <min> AND profile_b = <max>; their consents (FK cascade) and their own outbox notices.
+             ONE event × ONE profile — event_memberships WHERE event_id = <event-id> AND profile_id = <profile-id>.
+
+PART 1/2 — INTRODUCTIONS (the spent pair)
+----------------------------------------
+event id     36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6
+cooldown     30 days — an introduction in this context keeps the pair out of recommendations
+profiles     5cb094bd-b2e0-495c-80dc-3b5620cde9c2 (demo2@welcome.test)  ↔  f3a2bd19-e1e8-444d-86f2-1bf754febfa9 (lucia.demo@welcome.test)
+accounts     both is_demo = true, active, with a profile, active members of this event
+context key  event:36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6
+waiver       lucia.demo@welcome.test is NOT required to be an active member: this run removes that membership (--unjoin), so requiring it would block the restore it exists for
+
+WILL REMOVE
+  nothing — this pair has no introduction in this event context (already demonstrable)
+  consents      0 (ON DELETE CASCADE from the introductions above)
+  notices       0 (outbox jobs whose subject_id is one of those introductions)
+  attempts      0 (delivery attempts of those notices — cascade)
+  audit rows    0 — append-only; the 0 row(s) recording these actions are KEPT
+
+COUNTS BEFORE  introductions/consents/notices/audit/attempts  scoped=0/0/0/0/0  totals=5/10/7/1120/261
+
+WHY THIS MUCH AND NO MORE: introductions has UNIQUE(context_key, profile_a, profile_b), so a row that stayed would make the next proposal answer already_existed=true instead of creating a fresh pending card; and the event intro cooldown excludes a pair that has ANY introduction in the context, so recommendations would never offer the pair again. Those two rules are exactly what makes the pair undemonstrable, and deleting the ONE introduction row for this pair in this event context is the least destructive change that lifts both. The consent rows go with it by the schema's own ON DELETE CASCADE; the introduction's own outbox notices go because each one's subject_id and dedupe key IS that introduction, so keeping them would let the worker announce an introduction that no longer exists. audit_events is append-only by design: the actions DID happen, and deleting their record would be a bigger lie than the leftover row, so the audit delta is expected to be zero.
+
+Nothing to remove: the pair is already demonstrable.
+
+COUNTS AFTER
+  scoped (the named pair in this event context)
+    introductions      0 → 0  (0)
+    consents           0 → 0  (0)
+    notices            0 → 0  (0)
+    audit rows         0 → 0  (0)
+    delivery attempts  0 → 0  (0, cascade of the notices)
+  totals (whole table)
+    introductions      5 → 5  (0)
+    consents           10 → 10  (0)
+    notices            7 → 7  (0)
+    audit rows         1120 → 1120  (0)
+    delivery attempts  261 → 261  (0, cascade of the notices)
+
+SCOPE CHECK  (scoped delta vs whole-table delta)
+  introductions   MATCH
+  consents        MATCH
+  notices         MATCH
+  audit rows      MATCH
+  attempts        MATCH
+
+IDEMPOTENT: every delta is zero — this run changed nothing.
+
+PART 2/2 — MEMBERSHIP (the spent join)
+-------------------------------------
+event id     36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6 (welcome-demo-meetup)
+persona      Lucía Ferrer <lucia.demo@welcome.test>
+profile      5cb094bd-b2e0-495c-80dc-3b5620cde9c2
+account      is_demo = true, active, with a profile (the same gate the introductions part applies)
+state        ALREADY a non-member of this event
+
+WILL REMOVE
+  nothing — this persona already has no membership in this event (the non-member state is already true)
+  cascade       none — no table references event_memberships (its own columns go with the row)
+  untouched     introductions, consents, blocks, notes and audit rows that mention this persona
+
+COUNTS BEFORE  event memberships  scoped=0  totals=4
+
+WHY THIS MUCH AND NO MORE: the event page decides whether to offer the join action from ONE fact — an event_memberships row in state 'active' for this profile and this event (src/lib/event-view.ts) — so that single row is the whole difference between the member state and the non-member state the demo needs. Deleting it removes nothing else: no table has a foreign key to event_memberships, so the schema cascades nothing, and the persona's own introductions, consents, blocks, notes and audit rows are rows about OTHER things (relationships, moderation, history) that happen to involve her — they are not part of "is she in this event", and deleting them would erase facts the demo must not invent or destroy. The membership row's own columns (offer/need tags, directory_visible, matching_enabled, attendance_source, registration_id) go with it because the row IS those values; the event.joined audit row stays, because the join DID happen. The command writes no audit row of its own: it runs without an actor account, and inventing one would put a person's name on an operator's maintenance run.
+
+Nothing to remove: the persona is already outside this event.
+
+COUNTS AFTER
+  scoped (the named persona in the named event)
+    event memberships  0 → 0  (0)
+  totals (whole table)
+    event memberships  4 → 4  (0)
+
+SCOPE CHECK  (scoped delta vs whole-table delta)
+  memberships     MATCH — a whole-table movement larger than this run's means somebody else joined or left mid-run
+
+IDEMPOTENT: every delta is zero — this run changed nothing.

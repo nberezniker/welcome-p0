@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-09-22T11:07:26.033Z",
-  "head_sha_at_gate_run": "c3a1015cc320b1f731cdc834219a1ab97f5dd93f",
+  "generated_at": "2026-09-22T14:17:00.633Z",
+  "head_sha_at_gate_run": "4bd435ef04e0fddf3e643f1d19700a5325afa924",
   "note": "The seven release gates run fresh and sequentially on the working tree; the combined output is evidence/final-gates.log.",
   "previous_run": {
-    "generated_at": "2026-09-22T10:58:07.282Z",
+    "generated_at": "2026-09-22T11:07:26.033Z",
     "head_sha_at_gate_run": "c3a1015cc320b1f731cdc834219a1ab97f5dd93f"
   },
   "gates": [
@@ -28,29 +28,30 @@
     {
       "command": "pnpm test:unit",
       "exit_code": 0,
-      "duration_s": 13,
+      "duration_s": 12,
       "summary_lines": [
-        "ℹ skipped 0",
-        "ℹ todo 0",
-        "ℹ duration_ms 12792.373542"
+        "# tests 705",
+        "# pass 705",
+        "# fail 0"
       ]
     },
     {
       "command": "pnpm test:integration",
       "exit_code": 0,
-      "duration_s": 28,
+      "duration_s": 25,
       "summary_lines": [
-        "applied 013 013_oauth_grants.sql",
-        "applied 014 014_account_locale.sql",
-        "applied 015 015_outbox_correlation_id.sql"
+        "# tests 417",
+        "# pass 416",
+        "# fail 0",
+        "# skipped 1"
       ]
     },
     {
       "command": "pnpm test:e2e",
       "exit_code": 0,
-      "duration_s": 154,
+      "duration_s": 140,
       "summary_lines": [
-        "  67 passed (2.6m)",
+        "  67 passed (2.3m)",
         "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
         "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
         "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
@@ -60,14 +61,14 @@
     {
       "command": "pnpm build",
       "exit_code": 0,
-      "duration_s": 7,
+      "duration_s": 8,
       "summary_lines": [
-        "✓ Compiled successfully in 1717ms",
+        "✓ Compiled successfully in 1615ms",
         "  Generating static pages using 9 workers (0/39) ...",
         "  Generating static pages using 9 workers (9/39) \r",
         "  Generating static pages using 9 workers (19/39) \r",
         "  Generating static pages using 9 workers (29/39) \r",
-        "✓ Generating static pages using 9 workers (39/39) in 180ms",
+        "✓ Generating static pages using 9 workers (39/39) in 212ms",
         "Route (app)"
       ]
     },
@@ -85,13 +86,13 @@
     "gates_total": 7,
     "gates_exit_zero": 7,
     "unit": {
-      "pass": 0,
+      "pass": 705,
       "fail": 0
     },
     "integration": {
-      "pass": 0,
+      "pass": 416,
       "fail": 0,
-      "skipped": 0
+      "skipped": 1
     },
     "e2e": {
       "pass": 67,

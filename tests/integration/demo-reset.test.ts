@@ -10,9 +10,24 @@ import { PATCH as membershipPatchRoute } from '../../src/app/api/me/memberships/
 import { POST as createIntroRoute } from '../../src/app/api/introductions/route';
 import { POST as respondRoute } from '../../src/app/api/introductions/[id]/respond/route';
 import { getSql, closeSql } from '../../src/lib/db';
+import { loadEventView } from '../../src/lib/event-view';
 import { recommendForEvent } from '../../src/domain/recommendations';
-import { deltas, isNoOp, selectIntroductionsToReset } from '../../src/domain/demo-reset';
-import { applyReset, countResetRows, loadDemoTarget, selectResetIntroductions } from '../../src/infra/demo-reset';
+import {
+  deltas,
+  isMembershipNoOp,
+  isNoOp,
+  membershipDeltas,
+  selectIntroductionsToReset,
+} from '../../src/domain/demo-reset';
+import {
+  applyMembershipReset,
+  applyReset,
+  countMembershipRows,
+  countResetRows,
+  loadDemoTarget,
+  loadMembershipTarget,
+  selectResetIntroductions,
+} from '../../src/infra/demo-reset';
 import { accountIdFromCookie, assertStatus, loginViaOtp, makeRequest, uniqueEmail } from './helpers';
 
 /**
@@ -298,4 +313,133 @@ test('demo reset: the selection cannot be widened by rows the scope does not nam
   // And the selector on the raw rows of the OTHER pair selects nothing.
   const other = all.filter((row) => row.id === outsiderIntroId);
   assert.deepEqual(selectIntroductionsToReset(other, scope), []);
+});
+
+/**
+ * THE MEMBERSHIP PART (`--unjoin`), against the test database.
+ *
+ * The scenario is the one the live walkthrough now ends in: a persona has JOINED
+ * the demo event (through the product's own route), and the next demo needs her
+ * outside it again — the join affordance, the non-member state and the card's
+ * "nothing to connect here yet" are exactly what the step demonstrates. This
+ * test proves the reset removes ONE row, that the product's own view of her
+ * flips with it, that nothing else follows it, that the introductions part knows
+ * the order it must run in, and that a second run is a no-op.
+ */
+test('demo reset: the membership part returns the joiner to the non-member state, and nothing else moves', async () => {
+  const { eventId, eventSlug, a, b } = await seedSpentPair('unjoin1');
+  const sql = getSql();
+  const pepper = process.env.HASH_PEPPER!;
+
+  // The fixture joined her through POST /api/events/<id>/join; the product's own
+  // view of the event confirms she is in the room.
+  const beforeView = await loadEventView(sql, eventSlug, b.accountId);
+  assert.equal(beforeView?.viewer.is_member, true, 'the fixture must leave her a member');
+
+  const target = await loadMembershipTarget(sql, { eventSlug, email: b.email, pepper });
+  assert.equal(target.ok, true, target.ok ? '' : target.message);
+  assert.ok(target.ok);
+  const scope = target.value.scope;
+  assert.equal(scope.profileId, b.profileId, 'the scope names the profile behind the address');
+  assert.equal(target.value.membership?.state, 'active');
+
+  const before = await countMembershipRows(sql, scope);
+  assert.equal(before.scoped.memberships, 1, 'one membership for this persona in this event');
+  const membershipsInEventBefore = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM event_memberships WHERE event_id = ${eventId}
+  `;
+  const introductionsBefore = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM introductions WHERE event_id = ${eventId}
+  `;
+  const auditBefore = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM audit_events WHERE actor_account_id = ${b.accountId}
+  `;
+
+  // ── the removal, scoped by BOTH columns ──────────────────────────────────
+  const removed = await applyMembershipReset(sql, scope);
+  assert.equal(removed.length, 1);
+
+  const after = await countMembershipRows(sql, scope);
+  assert.deepEqual(membershipDeltas(before.scoped, after.scoped), { memberships: -1 });
+  assert.deepEqual(
+    membershipDeltas(before.totals, after.totals),
+    { memberships: -1 },
+    'the whole table moved by exactly the scoped amount — nothing else changed memberships',
+  );
+
+  // ── the product agrees: the join affordance is back ──────────────────────
+  const afterView = await loadEventView(sql, eventSlug, b.accountId);
+  assert.equal(afterView?.viewer.is_member, false, 'the event page must offer the join action again');
+  assert.equal(afterView?.viewer.online_link, null, 'and no member-only value may leak with the row gone');
+
+  // ── nothing else followed it ─────────────────────────────────────────────
+  // No table references event_memberships, so the schema cascades nothing, and
+  // every other row about this persona is a row about something else.
+  const membershipsInEventAfter = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM event_memberships WHERE event_id = ${eventId}
+  `;
+  assert.equal(membershipsInEventAfter[0]!.count, membershipsInEventBefore[0]!.count - 1, 'the other members are untouched');
+  const introductionsAfter = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM introductions WHERE event_id = ${eventId}
+  `;
+  assert.equal(introductionsAfter[0]!.count, introductionsBefore[0]!.count, 'her introductions are NOT part of her membership');
+  const profile = await sql<{ id: string }[]>`SELECT id FROM profiles WHERE id = ${b.profileId}`;
+  assert.equal(profile.length, 1, 'her profile survives');
+  const account = await sql<{ status: string }[]>`SELECT status FROM accounts WHERE id = ${b.accountId}`;
+  assert.equal(account[0]!.status, 'active', 'her account survives');
+  const auditAfter = await sql<{ count: number }[]>`
+    SELECT count(*)::int AS count FROM audit_events WHERE actor_account_id = ${b.accountId}
+  `;
+  assert.equal(auditAfter[0]!.count, auditBefore[0]!.count, 'audit_events is append-only: the join DID happen');
+
+  // ── the order the two parts must run in, and the one exemption ───────────
+  // The introductions part needs both personas to be members, so on its own it
+  // refuses once she is outside — which is why one invocation runs it FIRST.
+  const pairAfter = await loadDemoTarget(sql, { eventSlug, pair: [a.email, b.email], pepper });
+  assert.equal(pairAfter.ok === false && pairAfter.code, 'refused_not_a_member');
+  // …and the run that removes her membership is allowed to say so: the exemption
+  // is what makes the documented restore command repeatable.
+  const combined = await loadDemoTarget(sql, {
+    eventSlug,
+    pair: [a.email, b.email],
+    pepper,
+    allowNonMember: [b.email],
+  });
+  assert.equal(combined.ok, true, combined.ok ? '' : combined.message);
+
+  // ── a second run is a no-op ─────────────────────────────────────────────
+  const again = await loadMembershipTarget(sql, { eventSlug, email: b.email, pepper });
+  assert.equal(again.ok, true);
+  assert.ok(again.ok);
+  assert.equal(again.value.membership, null, 'there is nothing left to remove');
+  assert.deepEqual(await applyMembershipReset(sql, again.value.scope), []);
+  const third = await countMembershipRows(sql, again.value.scope);
+  assert.equal(isMembershipNoOp(membershipDeltas(after.scoped, third.scoped)), true);
+  assert.equal(isMembershipNoOp(membershipDeltas(after.totals, third.totals)), true);
+});
+
+/**
+ * …and the state she is returned to is the state the PRODUCT requires before a
+ * proposal can be made: `POST /api/introductions` with an `event_id` answers
+ * `403 target_not_member` while she is outside the event. That is the product
+ * rule that makes the walkthrough's order (join first, propose second) the only
+ * reachable one — and the reason the join step is the missing live evidence.
+ */
+test('demo reset: after the membership part, a proposal is refused 403 — the join is what makes the pair demonstrable', async () => {
+  const { eventId, eventSlug, a, b } = await seedSpentPair('unjoin2');
+  const sql = getSql();
+  const pepper = process.env.HASH_PEPPER!;
+
+  const target = await loadMembershipTarget(sql, { eventSlug, email: b.email, pepper });
+  assert.ok(target.ok);
+  await applyMembershipReset(sql, target.value.scope);
+
+  const refused = await createIntroRoute(
+    makeRequest('/api/introductions', {
+      body: { target_profile_id: b.profileId, event_id: eventId },
+      cookie: a.cookie,
+    }),
+  );
+  assertStatus(refused, 403);
+  assert.equal(((await refused.json()) as { code: string }).code, 'target_not_member');
 });

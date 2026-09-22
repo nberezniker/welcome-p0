@@ -13,7 +13,7 @@ import { labelsForIds, parseCatalog, type TaxonomyCatalog, type UiLocale } from 
 import { taxonomyPayload } from '../../../domain/taxonomy';
 import { appBaseUrl } from '../../../lib/env';
 import { ShareLinks } from '../../../components/share-links';
-import { IntroCta, SignInCta } from './intro-cta';
+import { IntroCta, NoConnectionCta, SignInCta } from './intro-cta';
 import { QrPanel } from './qr-panel';
 
 export const dynamic = 'force-dynamic';
@@ -265,7 +265,15 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
             </ul>
           ) : null}
 
-          {/* The card's primary action, in the hero — see the block comment above. */}
+          {/* The card's primary action, in the hero — see the block comment above.
+              THREE STATES, and the middle one is not a sign-in:
+                · a shared event → the introduction (the ids it needs are ones
+                  that viewer can already see in that event's directory);
+                · signed in, no shared event → "nothing to connect here yet",
+                  with the visitor's own events as the honest way forward
+                  (NoConnectionCta; "Sign in to connect" was a lie to someone who
+                  is already signed in — see the comment on that component);
+                · anonymous → the sign-in CTA, which is the only true way in. */}
           {sharedEvent ? (
             <IntroCta
               profileId={sharedEvent.targetProfileId}
@@ -286,6 +294,13 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
                 errorNetwork: t('common.errorNetwork'),
                 errorGeneric: t('common.errorGeneric'),
               }}
+            />
+          ) : accountId ? (
+            <NoConnectionCta
+              href="/me/events"
+              text={t('pubcard.ctaNothingYet')}
+              label={t('pubcard.ctaMyEvents')}
+              hint={t('pubcard.ctaNothingYetHint')}
             />
           ) : (
             <SignInCta

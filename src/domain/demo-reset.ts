@@ -10,8 +10,19 @@
  * return the demo personas to a demonstrable state may proceed — and which rows
  * exactly it may touch.
  *
+ * TWO PARTS, EACH WITH ITS OWN GUARDS:
+ *   1. the INTRODUCTION part (default): removes the one introduction row of a
+ *      named pair in a named event context, plus its own consents and notices;
+ *   2. the MEMBERSHIP part (`--unjoin=<email>`): removes the named persona's
+ *      event_memberships row for the named event, so the event page offers the
+ *      join affordance again. Nothing else — no table references
+ *      event_memberships, so no cascade follows (see WHY_THIS_MUCH_MEMBERSHIP).
+ * The two run in ONE invocation (introductions first: that part requires both
+ * personas to be members, which is exactly the state `--unjoin` ends), and each
+ * one's plan is printed and its deltas checked separately.
+ *
  * THE THREE GATES, IN ORDER (all of them are refusals, never warnings):
- *   1. the addresses involved must be on a hard-coded allowlist of synthetic
+ *   1. every address involved must be on a hard-coded allowlist of synthetic
  *      demo personas;
  *   2. the target must be explicitly acknowledged when it looks
  *      production-like (APP_ENV=production, or a non-local database host, or a
@@ -50,6 +61,10 @@ export const DEMO_PERSONAS: readonly DemoPersona[] = [
   { email: 'demo1@welcome.test', label: 'Анна Смирнова' },
   { email: 'demo2@welcome.test', label: 'Дмитрий Ковалёв' },
   { email: 'marta.demo@welcome.test', label: 'Marta Ruiz' },
+  // The NON-MEMBER persona of the demo event (scripts/seed-demo-event.mts): the
+  // one the two-person walkthrough's join step is demonstrated with, and the
+  // reason this command grew a membership part at all.
+  { email: 'lucia.demo@welcome.test', label: 'Lucía Ferrer' },
 ];
 
 export const DEMO_EMAIL_ALLOWLIST: readonly string[] = DEMO_PERSONAS.map((p) => p.email);
@@ -64,15 +79,20 @@ export function demoPersonaLabel(email: string): string {
 export const DEFAULT_DEMO_EVENT_SLUG = 'welcome-demo-meetup';
 
 /** The pair the two-person walkthrough spends (scripts/two-user-walkthrough.mjs:
- *  A = demo2, B = marta.demo). */
-export const DEFAULT_DEMO_PAIR: readonly [string, string] = ['demo2@welcome.test', 'marta.demo@welcome.test'];
+ *  A = demo2, B = lucia.demo — the persona who arrives through the QR and JOINS
+ *  the event, which is why the pair changed when the join step became live). */
+export const DEFAULT_DEMO_PAIR: readonly [string, string] = ['demo2@welcome.test', 'lucia.demo@welcome.test'];
 
 /** The explicit acknowledgement required when the target looks production-like. */
 export const PRODUCTION_ACK_FLAG = '--i-know-this-is-production';
 
+/** The flag that returns ONE persona to the non-member state of the named event. */
+export const UNJOIN_FLAG = '--unjoin';
+
 /** The outbox kinds that exist only *because* an introduction does: each one's
  *  subject_id is the introduction id, and each one's dedupe key contains it. */
 export const INTRO_NOTICE_KINDS: readonly string[] = SERVICE_NOTICE_KINDS;
+
 
 // ---------------------------------------------------------------------------
 // Arguments
@@ -83,6 +103,9 @@ export interface DemoResetArgs {
   acknowledged: boolean;
   eventSlug: string;
   pair: readonly [string, string];
+  /** The address to return to the non-member state of the named event, or null
+   *  when the membership part was not asked for. */
+  unjoin: string | null;
 }
 
 export type Parsed<T> = { ok: true; value: T } | { ok: false; code: string; message: string };
@@ -100,7 +123,7 @@ function flagValue(argv: readonly string[], name: string): { found: boolean; val
  */
 export function parseDemoResetArgs(argv: readonly string[]): Parsed<DemoResetArgs> {
   const flags = new Set(['--dry-run', PRODUCTION_ACK_FLAG]);
-  const valueFlags = new Set(['--event', '--pair']);
+  const valueFlags = new Set(['--event', '--pair', UNJOIN_FLAG]);
 
   for (const arg of argv) {
     if (!arg.startsWith('--')) return { ok: false, code: 'unexpected_argument', message: `unexpected argument: ${arg}` };
@@ -119,11 +142,15 @@ export function parseDemoResetArgs(argv: readonly string[]): Parsed<DemoResetArg
 
   const event = flagValue(argv, 'event');
   const pair = flagValue(argv, 'pair');
+  const unjoin = flagValue(argv, 'unjoin');
   if (event.found && (event.value === null || event.value.length === 0)) {
     return { ok: false, code: 'empty_event', message: '--event= requires an event slug' };
   }
   if (pair.found && (pair.value === null || pair.value.length === 0)) {
     return { ok: false, code: 'empty_pair', message: '--pair= requires two comma-separated addresses' };
+  }
+  if (unjoin.found && (unjoin.value === null || unjoin.value.trim().length === 0)) {
+    return { ok: false, code: 'empty_unjoin', message: `${UNJOIN_FLAG}= requires the address to return to the non-member state` };
   }
 
   let emails: readonly [string, string] = DEFAULT_DEMO_PAIR;
@@ -142,6 +169,7 @@ export function parseDemoResetArgs(argv: readonly string[]): Parsed<DemoResetArg
       acknowledged: argv.includes(PRODUCTION_ACK_FLAG),
       eventSlug: event.value ?? DEFAULT_DEMO_EVENT_SLUG,
       pair: emails,
+      unjoin: unjoin.value === null ? null : unjoin.value.trim(),
     },
   };
 }
@@ -202,7 +230,11 @@ export function guardDemoReset(input: GuardInput): Guard {
     };
   }
 
-  const offList = args.pair.filter((email) => !DEMO_EMAIL_ALLOWLIST.includes(email));
+  // Both parts name addresses, and EVERY address involved is checked — the
+  // membership part's address included, which is why this reads the pair and the
+  // unjoin target together rather than one at a time.
+  const named = args.unjoin === null ? [...args.pair] : [...args.pair, args.unjoin];
+  const offList = named.filter((email) => !DEMO_EMAIL_ALLOWLIST.includes(email));
   if (offList.length > 0) {
     return {
       ok: false,
@@ -236,6 +268,106 @@ export function guardDemoReset(input: GuardInput): Guard {
 
   return { ok: true, value: { productionLike } };
 }
+
+// ---------------------------------------------------------------------------
+// The membership part (--unjoin): which persona qualifies, and its scope
+// ---------------------------------------------------------------------------
+
+export interface MembershipTarget {
+  accountId: string;
+  profileId: string;
+}
+
+/**
+ * The account gate for the membership part. The SAME properties the
+ * introduction part reads (exists, is_demo, active, has a profile) with one
+ * deliberate difference: the membership itself is NOT required. Being outside
+ * the event is the state this part produces, so a persona who is already
+ * outside it is a NO-OP to report, never a refusal — that is what makes a second
+ * run of the same command honest instead of an error.
+ */
+export function qualifyMembershipPersona(rows: readonly DemoAccountRow[], email: string): Parsed<MembershipTarget> {
+  const row = rows.find((r) => r.email === email);
+  if (!row || row.account_id === null) {
+    return { ok: false, code: 'refused_account_missing', message: `REFUSED: no account for ${email} on this database` };
+  }
+  if (row.is_demo !== true) {
+    return {
+      ok: false,
+      code: 'refused_not_demo',
+      message: `REFUSED: the account for ${email} is not flagged as a demo account (accounts.is_demo), so this command will not touch it`,
+    };
+  }
+  if (row.account_status !== 'active') {
+    return {
+      ok: false,
+      code: 'refused_account_inactive',
+      message: `REFUSED: the account for ${email} is ${row.account_status ?? 'unknown'}, not active`,
+    };
+  }
+  if (row.profile_id === null) {
+    return { ok: false, code: 'refused_no_profile', message: `REFUSED: the account for ${email} has no profile` };
+  }
+  return { ok: true, value: { accountId: row.account_id, profileId: row.profile_id } };
+}
+
+/** The exact scope of the membership part: ONE event × ONE profile. Both columns
+ *  are named in the WHERE clause of every statement that touches it. */
+export interface MembershipScope {
+  eventId: string;
+  eventSlug: string;
+  profileId: string;
+  email: string;
+}
+
+export function membershipResetScope(
+  event: { id: string; slug: string },
+  profileId: string,
+  email: string,
+): MembershipScope {
+  return { eventId: event.id, eventSlug: event.slug, profileId, email };
+}
+
+/** The one counter the membership part moves. */
+export interface MembershipCounts {
+  memberships: number;
+}
+
+export function membershipDeltas(before: MembershipCounts, after: MembershipCounts): MembershipCounts {
+  return { memberships: after.memberships - before.memberships };
+}
+
+/** True when the membership part changed nothing — the property a second run has. */
+export function isMembershipNoOp(d: MembershipCounts): boolean {
+  return d.memberships === 0;
+}
+
+/** One line per counter, in the membership report's fixed order. */
+export function formatMembershipCounts(label: string, before: MembershipCounts, after: MembershipCounts): string[] {
+  const d = membershipDeltas(before, after);
+  const sign = (n: number) => (n > 0 ? `+${n}` : String(n));
+  return [
+    `  ${label}`,
+    `    event memberships  ${before.memberships} → ${after.memberships}  (${sign(d.memberships)})`,
+  ];
+}
+
+/**
+ * Why the membership part removes the row and nothing else — stated where the
+ * operator reads it, because "and nothing more" only means something if the
+ * floor is named.
+ */
+export const WHY_THIS_MUCH_MEMBERSHIP =
+  'WHY THIS MUCH AND NO MORE: the event page decides whether to offer the join action from ONE fact — an ' +
+  'event_memberships row in state \'active\' for this profile and this event (src/lib/event-view.ts) — so that single ' +
+  'row is the whole difference between the member state and the non-member state the demo needs. Deleting it removes ' +
+  'nothing else: no table has a foreign key to event_memberships, so the schema cascades nothing, and the persona\'s ' +
+  'own introductions, consents, blocks, notes and audit rows are rows about OTHER things (relationships, moderation, ' +
+  'history) that happen to involve her — they are not part of "is she in this event", and deleting them would erase ' +
+  'facts the demo must not invent or destroy. The membership row\'s own columns (offer/need tags, directory_visible, ' +
+  'matching_enabled, attendance_source, registration_id) go with it because the row IS those values; the ' +
+  'event.joined audit row stays, because the join DID happen. The command writes no audit row of its own: it runs ' +
+  'without an actor account, and inventing one would put a person\'s name on an operator\'s maintenance run.';
 
 // ---------------------------------------------------------------------------
 // Which accounts qualify

@@ -128,13 +128,58 @@ export function IntroCta({
   );
 }
 
-/** Sign-in CTA shown when there is no shared event (or the viewer is anonymous).
- * Renders in the card's hero, beside (never instead of) the introduction
- * affordance — see the note on `IntroCta` for why it carries no top rule. */
+/** Sign-in CTA shown when the visitor is ANONYMOUS — a visitor with no session
+ * has exactly one way to reach the introduction, and this names it. Renders in
+ * the card's hero, beside (never instead of) the introduction affordance — see
+ * the note on `IntroCta` for why it carries no top rule. */
 export function SignInCta({ href, label, hint }: { href: string; label: string; hint: string }) {
   return (
     <div className="mt-5" data-testid="pubcard-signin-cta">
       <Link href={href} className="btn-accent w-full sm:w-auto">
+        {label}
+      </Link>
+      <p className="mt-2 text-xs text-muted">{hint}</p>
+    </div>
+  );
+}
+
+/**
+ * The card's third state: the visitor IS signed in, and shares no event with the
+ * card's owner — so there is nothing to connect here YET.
+ *
+ * WHY THIS EXISTS AS A STATE OF ITS OWN. This visitor used to be handed
+ * `SignInCta` — "Sign in to connect" — which is a lie: they are already signed
+ * in, the link cannot sign them in again, and the action it points at cannot
+ * produce a connection. The button that means something to them (propose an
+ * introduction) is event-scoped and correctly absent, because there is no event
+ * the two of them are both in. What is TRUE here is smaller than a call to
+ * action, so this state says it plainly and then names the one honest way
+ * forward: the visitor's own events (`href`), because an introduction becomes
+ * possible exactly when the two of them are in the same one.
+ *
+ * WHAT IT DOES NOT DO. It does not reveal which events the card's owner belongs
+ * to. `findSharedEvent` (src/lib/public-profile.ts) is the single place that
+ * decides a shared event exists, and a negative answer here means no event is
+ * named on this page at all — the same privacy boundary the introduction
+ * affordance keeps.
+ */
+export function NoConnectionCta({
+  href,
+  text,
+  label,
+  hint,
+}: {
+  href: string;
+  text: string;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <div className="mt-5" data-testid="pubcard-noconnection-cta">
+      <p className="text-sm font-semibold text-ink" data-testid="pubcard-noconnection-text">
+        {text}
+      </p>
+      <Link href={href} className="btn-accent mt-2 w-full sm:w-auto">
         {label}
       </Link>
       <p className="mt-2 text-xs text-muted">{hint}</p>

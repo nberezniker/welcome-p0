@@ -11,12 +11,19 @@
 // enable it (the name is never hardcoded — see OWNER_DISPLAY_NAME below). The
 // operator's profile/membership is only READ + verified, never written.
 //
+// And it seeds ONE demo persona who is deliberately NOT a member of the event
+// (Lucía Ferrer, is_demo, same account/profile/contacts path as Marta) — the
+// person the live join is demonstrated with. Both other demo personas are
+// seeded members, so without her the event page can only ever show the member
+// state. `pnpm demo:reset --unjoin=<email>` returns her to the non-member state
+// a demo run spends; this seeder never deletes a membership.
+//
 // All seeded rows are demo data (is_demo accounts, synthetic guests under
-// demo-csv-N@welcome.test, synthetic partner under marta.demo@welcome.test).
-// The script prints what it created / updated / skipped and is idempotent:
-// re-running upserts by event slug, (event_id, provider, external_guest_id),
-// the synthetic email lookup hash / account_id and the canonical introduction
-// pair — never duplicates.
+// demo-csv-N@welcome.test, synthetic partner under marta.demo@welcome.test,
+// synthetic joiner under lucia.demo@welcome.test). The script prints what it
+// created / updated / skipped and is idempotent: re-running upserts by event
+// slug, (event_id, provider, external_guest_id), the synthetic email lookup
+// hash / account_id and the canonical introduction pair — never duplicates.
 //
 // Safety: refuses to run against APP_ENV=production OR a non-local database
 // unless --allow-production-demo is passed (staging-test only; data is_demo).
@@ -115,6 +122,54 @@ const PARTNER = {
     { kind: 'whatsapp', value: '+34600000000', public_enabled: true },
   ],
 } as const;
+
+// ---------------------------------------------------------------------------
+// The NON-MEMBER demo persona — the join the live walkthrough needs
+// ---------------------------------------------------------------------------
+// THE GAP THIS FILLS. The two-person walkthrough could not show one step on the
+// live deployment: THE SECOND PERSON JOINING THE EVENT. Both demo personas are
+// seeded members of the demo event, so /e/welcome-demo-meetup honestly rendered
+// the member state and offered no join action — the join was only covered by the
+// local spec. Lucía is a full demo persona (an account in the app's OWN email
+// account shape — the same `email:<HMAC>` auth_subject the OTP sign-in resolves —
+// plus a profile and encrypted contacts) whose one deliberate difference from
+// Marta is that this seeder creates NO event membership for her. She is
+// therefore reachable by the harness's sign-in flow and starts outside the room.
+//
+// HER TAGS ARE THE MIRROR OF demo2's (the walkthrough's proposer): demo2's
+// membership offers EVENT_NEEDS and needs EVENT_OFFERS, so a persona offering
+// product design / ux and needing pilot users / feedback is a two-way tag match
+// — the proposal made to her carries real structural reasons, not an empty
+// object. Nothing else about her is special: she is NOT in the directory (no
+// membership), gets no recommendations (no membership), and the seeder prints
+// her state so a leftover membership from an earlier demo cannot hide.
+const NONMEMBER_EMAIL = 'lucia.demo@welcome.test'; // stable synthetic email = idempotency key
+const NONMEMBER = {
+  display_name: 'Lucía Ferrer',
+  headline: 'Product designer, independent · looking for pilot users',
+  company: 'Ferrer Studio (demo)',
+  short_bio:
+    'Делаю продуктовый дизайн и учусь на быстрых прототипах. Ищу команды, которым нужен дизайн и которые дадут обратную связь.',
+  languages: ['spanish', 'english'],
+  offer_tags: [...EVENT_OFFERS],
+  need_tags: [...EVENT_NEEDS],
+  contacts: [
+    { kind: 'telegram_username', value: '@lucia_demo', public_enabled: true },
+    { kind: 'whatsapp', value: '+34600000001', public_enabled: true },
+  ],
+} as const;
+
+/** A synthetic persona this seeder can create (account + profile + contacts). */
+interface DemoPersonaSeed {
+  readonly display_name: string;
+  readonly headline: string;
+  readonly company: string;
+  readonly short_bio: string;
+  readonly languages: readonly string[];
+  readonly offer_tags: readonly string[];
+  readonly need_tags: readonly string[];
+  readonly contacts: readonly { readonly kind: string; readonly value: string; readonly public_enabled: boolean }[];
+}
 
 /**
  * The real owner profile the demo partner must match with (never modified).
@@ -352,10 +407,18 @@ async function upsertDemoMembership(
 }
 
 // ---------------------------------------------------------------------------
-// Demo partner upserts (synthetic account/profile/contacts)
+// Demo persona upserts (synthetic account/profile/contacts)
 // ---------------------------------------------------------------------------
-async function ensurePartnerAccount(): Promise<{ id: string; created: boolean }> {
-  const lookupHash = emailLookupHash(PARTNER_EMAIL, pepper);
+/**
+ * The account, in the shape the app's OWN sign-in path uses: `auth_subject =
+ * 'email:<HMAC>'` and the same HMAC in `email_lookup_hash`, which is what
+ * /api/auth/otp/request looks an address up by (src/app/api/auth/otp/request
+ * .ts) — so the persona is reachable by the real login form, and `is_demo`
+ * makes the deployment's documented demo-OTP fallback expose the code to it.
+ * Nothing here is a fixture: no other account shape exists in this seeder.
+ */
+async function ensurePersonaAccount(email: string): Promise<{ id: string; created: boolean }> {
+  const lookupHash = emailLookupHash(email, pepper);
   const existing = await sql<{ id: string }[]>`
     SELECT id FROM accounts WHERE email_lookup_hash = ${lookupHash} LIMIT 1
   `;
@@ -370,8 +433,9 @@ async function ensurePartnerAccount(): Promise<{ id: string; created: boolean }>
   return { id: rows[0]!.id, created: true };
 }
 
-async function ensurePartnerProfile(
+async function ensurePersonaProfile(
   accountId: string,
+  persona: DemoPersonaSeed,
 ): Promise<{ id: string; public_slug: string; created: boolean }> {
   const existing = await sql<{ id: string; public_slug: string }[]>`
     SELECT id, public_slug FROM profiles WHERE account_id = ${accountId} LIMIT 1
@@ -379,13 +443,13 @@ async function ensurePartnerProfile(
   if (existing[0]) {
     await sql`
       UPDATE profiles SET
-        display_name = ${PARTNER.display_name},
-        headline = ${PARTNER.headline},
-        company = ${PARTNER.company},
-        short_bio = ${PARTNER.short_bio},
-        languages = ${PARTNER.languages},
-        offer_tags = ${PARTNER.offer_tags},
-        need_tags = ${PARTNER.need_tags},
+        display_name = ${persona.display_name},
+        headline = ${persona.headline},
+        company = ${persona.company},
+        short_bio = ${persona.short_bio},
+        languages = ${persona.languages},
+        offer_tags = ${persona.offer_tags},
+        need_tags = ${persona.need_tags},
         updated_at = now()
       WHERE id = ${existing[0].id}
     `;
@@ -395,18 +459,18 @@ async function ensurePartnerProfile(
   const rows = await sql<{ id: string; public_slug: string }[]>`
     INSERT INTO profiles (account_id, public_slug, display_name, headline, company, short_bio,
                           languages, offer_tags, need_tags)
-    VALUES (${accountId}, ${generatePublicSlug()}, ${PARTNER.display_name}, ${PARTNER.headline},
-            ${PARTNER.company}, ${PARTNER.short_bio}, ${PARTNER.languages},
-            ${PARTNER.offer_tags}, ${PARTNER.need_tags})
+    VALUES (${accountId}, ${generatePublicSlug()}, ${persona.display_name}, ${persona.headline},
+            ${persona.company}, ${persona.short_bio}, ${persona.languages},
+            ${persona.offer_tags}, ${persona.need_tags})
     RETURNING id, public_slug
   `;
   return { id: rows[0]!.id, public_slug: rows[0]!.public_slug, created: true };
 }
 
 /** Contacts are AES-256-GCM ciphertext at rest; upsert per (profile_id, kind). */
-async function upsertPartnerContacts(profileId: string): Promise<string[]> {
+async function upsertPersonaContacts(profileId: string, persona: DemoPersonaSeed): Promise<string[]> {
   const outcomes: string[] = [];
-  for (const c of PARTNER.contacts) {
+  for (const c of persona.contacts) {
     const rows = await sql<{ inserted: boolean }[]>`
       INSERT INTO contact_fields (profile_id, kind, encrypted_value, public_enabled)
       VALUES (${profileId}, ${c.kind}, ${encryptValue(c.value, encKey)}, ${c.public_enabled})
@@ -692,9 +756,9 @@ await verifyAndUpsertIntro(eventId, { ...demo1Account, profile: demo1Profile }, 
 // ---------------------------------------------------------------------------
 // Synthetic demo partner for the REAL owner account (match + intro demo)
 // ---------------------------------------------------------------------------
-const partnerAccount = await ensurePartnerAccount();
-const partnerProfile = await ensurePartnerProfile(partnerAccount.id);
-const contactOutcomes = await upsertPartnerContacts(partnerProfile.id);
+const partnerAccount = await ensurePersonaAccount(PARTNER_EMAIL);
+const partnerProfile = await ensurePersonaProfile(partnerAccount.id, PARTNER);
+const contactOutcomes = await upsertPersonaContacts(partnerProfile.id, PARTNER);
 const pMembership = await upsertDemoMembership(eventId, partnerProfile, PARTNER.offer_tags, PARTNER.need_tags);
 console.log(
   `demo partner ${PARTNER.display_name}: account ${partnerAccount.created ? 'created' : 'reused'} ` +
@@ -703,6 +767,35 @@ console.log(
     `membership ${pMembership} (directory_visible, matching_enabled, offers=${PARTNER.offer_tags.join(',')}, ` +
     `needs=${PARTNER.need_tags.join(',')})`,
 );
+
+// ---------------------------------------------------------------------------
+// The non-member persona (the join step the live walkthrough demonstrates)
+// ---------------------------------------------------------------------------
+// Account + profile + contacts through the SAME functions as the partner above;
+// the one thing deliberately missing is the membership. Nothing is ever deleted
+// here: if an earlier demo left a membership behind, this run says so and names
+// the command that returns her to the non-member state.
+const joinerAccount = await ensurePersonaAccount(NONMEMBER_EMAIL);
+const joinerProfile = await ensurePersonaProfile(joinerAccount.id, NONMEMBER);
+const joinerContacts = await upsertPersonaContacts(joinerProfile.id, NONMEMBER);
+console.log(
+  `demo joiner ${NONMEMBER.display_name}: account ${joinerAccount.created ? 'created' : 'reused'} ` +
+    `(is_demo, ${NONMEMBER_EMAIL}); profile ${joinerProfile.created ? 'created' : 'updated'} ` +
+    `(/p/${joinerProfile.public_slug}, ${joinerProfile.id}); contacts [${joinerContacts.join(', ')}]; ` +
+    `NOT a member of ${EVENT_SLUG} — that is her purpose (the join affordance needs somebody outside the room)`,
+);
+const leftoverMembership = await sql<{ state: string }[]>`
+  SELECT state FROM event_memberships WHERE event_id = ${eventId} AND profile_id = ${joinerProfile.id} LIMIT 1
+`;
+if (leftoverMembership[0]) {
+  console.log(
+    `WARNING: ${NONMEMBER.display_name} currently HAS an event_memberships row in ${EVENT_SLUG} ` +
+      `(state=${leftoverMembership[0].state}), so the event page will show the member state and the walkthrough's ` +
+      `join step cannot be demonstrated. Return her to the non-member state with:\n` +
+      `  pnpm demo:reset --unjoin=${NONMEMBER_EMAIL}\n` +
+      `This seeder never deletes a membership — pnpm demo:reset is the only command allowed to.`,
+  );
+}
 
 const ownerProfile = await findOwnerProfile();
 if (!ownerProfile) {

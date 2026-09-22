@@ -947,6 +947,11 @@ export const ru: Partial<Dictionary> = {
   'pubcard.ctaIntroAlready': 'Запрос этому человеку уже отправлен',
   'pubcard.ctaSignIn': 'Войти, чтобы связаться',
   'pubcard.ctaSignInHint': 'Контакты раскрываются только при взаимном согласии.',
+  // Человек вошёл, но общего события нет: предлагать «войти» ему нечего.
+  'pubcard.ctaNothingYet': 'Здесь пока не с чем знакомиться',
+  'pubcard.ctaNothingYetHint':
+    'Знакомства предлагаются внутри события, куда вы оба вошли. Когда общее событие появится, эта карточка предложит знакомство.',
+  'pubcard.ctaMyEvents': 'Ваши события',
   'pubcard.revealTitle': 'Предложить знакомство: {name}',
   'pubcard.revealHint': 'Выберите, что готовы раскрыть, если человек согласится.',
   'pubcard.sendRequest': 'Отправить запрос',

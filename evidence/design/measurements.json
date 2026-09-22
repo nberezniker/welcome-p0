@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-22T11:05:28.022Z",
+  "generated_at": "2026-09-22T14:15:11.575Z",
   "note": "Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-gate.spec.ts. One pass per surface: the product ships one design, so there is no theme dimension any more. overflowPx > 0, a primary action below the first screen, or a control below its touch bar would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minTapTarget is the smallest control-shaped element on the page; minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened. card_fold is the card hero measured at 390px in all three locales: the fold in CSS pixels plus the bottom edges of the name, the role and the company line, and the box of the primary action — name and role above the fold is the point of moving the action into the hero, and English alone would measure the easiest case. compactTargets lists the documented .btn-small controls (the cabinet/organizer/directory density surfaces): they are excluded from the 44px floor and held to the 24px WCAG 2.5.8 minimum, and they are recorded so that exception stays a number rather than an exemption — the public card is no longer in this bucket (card_action controls are named and asserted at 44px). member_panel is the second phase: the participation panel, which only a member sees — its toggle ROWS (the labels that carry the 44px target, not the 16px boxes inside them) and its two links.",
   "samples": [
     {
@@ -8,12 +8,12 @@
       "pageWidth": 390,
       "scrollWidth": 390,
       "overflowPx": 0,
-      "cardBottom": 1057.875,
+      "cardBottom": 1117.875,
       "titleBottom": 101,
       "roleBottom": 137,
       "companyBottom": 161,
-      "actionTop": 217,
-      "actionBottom": 261,
+      "actionTop": 245,
+      "actionBottom": 289,
       "actionAboveFold": true,
       "order": [
         "pubcard-vcard",
@@ -44,12 +44,12 @@
       "pageWidth": 360,
       "scrollWidth": 360,
       "overflowPx": 0,
-      "cardBottom": 1113.875,
+      "cardBottom": 1173.875,
       "titleBottom": 101,
       "roleBottom": 137,
       "companyBottom": 161,
-      "actionTop": 217,
-      "actionBottom": 261,
+      "actionTop": 245,
+      "actionBottom": 289,
       "actionAboveFold": true,
       "order": [
         "pubcard-vcard",
@@ -155,11 +155,11 @@
       "nameBottom": 101,
       "roleBottom": 137,
       "companyBottom": 161,
-      "actionTop": 217,
-      "actionBottom": 261,
-      "hintBottom": 285,
-      "heroBottom": 346.5,
-      "ctaText": "Sign in to connect\n\nContacts are shared only with mutual consent."
+      "actionTop": 245,
+      "actionBottom": 289,
+      "hintBottom": 345,
+      "heroBottom": 406.5,
+      "ctaText": "Nothing to connect here yet\n\nSee your events\n\nIntroductions happen inside an event you have both joined. Once you share an event, this card offers one."
     },
     {
       "locale": "ru",
@@ -168,11 +168,11 @@
       "nameBottom": 101,
       "roleBottom": 137,
       "companyBottom": 161,
-      "actionTop": 217,
-      "actionBottom": 261,
-      "hintBottom": 301,
-      "heroBottom": 362.5,
-      "ctaText": "Войти, чтобы связаться\n\nКонтакты раскрываются только при взаимном согласии."
+      "actionTop": 245,
+      "actionBottom": 289,
+      "hintBottom": 345,
+      "heroBottom": 406.5,
+      "ctaText": "Здесь пока не с чем знакомиться\n\nВаши события\n\nЗнакомства предлагаются внутри события, куда вы оба вошли. Когда общее событие появится, эта карточка предложит знакомство."
     },
     {
       "locale": "es",
@@ -181,11 +181,11 @@
       "nameBottom": 101,
       "roleBottom": 137,
       "companyBottom": 161,
-      "actionTop": 217,
-      "actionBottom": 261,
-      "hintBottom": 301,
-      "heroBottom": 362.5,
-      "ctaText": "Inicia sesión para contactar\n\nLos contactos solo se comparten con consentimiento mutuo."
+      "actionTop": 245,
+      "actionBottom": 289,
+      "hintBottom": 345,
+      "heroBottom": 406.5,
+      "ctaText": "Aquí todavía no hay nada que conectar\n\nVer tus eventos\n\nLas presentaciones se proponen dentro de un evento al que os hayáis unido los dos. Cuando compartáis un evento, esta tarjeta ofrecerá una."
     }
   ],
   "member_panel": [

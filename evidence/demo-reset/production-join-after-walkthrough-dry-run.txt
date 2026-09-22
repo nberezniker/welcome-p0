@@ -1,0 +1,51 @@
+DEMO RESET — returns the demo personas to a demonstrable state
+==============================================================
+target       PRODUCTION-LIKE — acknowledged with --i-know-this-is-production (APP_ENV=unset)
+mode         DRY RUN — nothing will be written
+event        welcome-demo-meetup
+pair         Дмитрий Ковалёв <demo2@welcome.test>  ↔  Lucía Ferrer <lucia.demo@welcome.test>
+parts        introductions (the pair) + membership (--unjoin)
+unjoin       Lucía Ferrer <lucia.demo@welcome.test> — returned to the NON-MEMBER state
+scope        ONE event context × ONE canonical pair — introductions WHERE context_key = 'event:<event-id>' AND profile_a = <min> AND profile_b = <max>; their consents (FK cascade) and their own outbox notices.
+             ONE event × ONE profile — event_memberships WHERE event_id = <event-id> AND profile_id = <profile-id>.
+
+PART 1/2 — INTRODUCTIONS (the spent pair)
+----------------------------------------
+event id     36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6
+cooldown     30 days — an introduction in this context keeps the pair out of recommendations
+profiles     5cb094bd-b2e0-495c-80dc-3b5620cde9c2 (demo2@welcome.test)  ↔  f3a2bd19-e1e8-444d-86f2-1bf754febfa9 (lucia.demo@welcome.test)
+accounts     both is_demo = true, active, with a profile, active members of this event
+context key  event:36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6
+waiver       lucia.demo@welcome.test is NOT required to be an active member: this run removes that membership (--unjoin), so requiring it would block the restore it exists for
+
+WILL REMOVE
+  introduction  1112d4c6-109c-43e2-8582-93e8f2afa1b4  state=mutual  created=2026-09-22T14:18:26.774Z
+  consents      2 (ON DELETE CASCADE from the introductions above)
+  notices       3 (outbox jobs whose subject_id is one of those introductions)
+  attempts      0 (delivery attempts of those notices — cascade)
+  audit rows    0 — append-only; the 3 row(s) recording these actions are KEPT
+
+COUNTS BEFORE  introductions/consents/notices/audit/attempts  scoped=1/2/3/3/0  totals=6/12/10/1124/261
+
+WHY THIS MUCH AND NO MORE: introductions has UNIQUE(context_key, profile_a, profile_b), so a row that stayed would make the next proposal answer already_existed=true instead of creating a fresh pending card; and the event intro cooldown excludes a pair that has ANY introduction in the context, so recommendations would never offer the pair again. Those two rules are exactly what makes the pair undemonstrable, and deleting the ONE introduction row for this pair in this event context is the least destructive change that lifts both. The consent rows go with it by the schema's own ON DELETE CASCADE; the introduction's own outbox notices go because each one's subject_id and dedupe key IS that introduction, so keeping them would let the worker announce an introduction that no longer exists. audit_events is append-only by design: the actions DID happen, and deleting their record would be a bigger lie than the leftover row, so the audit delta is expected to be zero.
+
+DRY RUN: nothing was removed. Re-run without --dry-run to apply exactly the plan above.
+
+PART 2/2 — MEMBERSHIP (the spent join)
+-------------------------------------
+event id     36b3bad0-f5e6-475c-a8de-8fd80f3c8bb6 (welcome-demo-meetup)
+persona      Lucía Ferrer <lucia.demo@welcome.test>
+profile      5cb094bd-b2e0-495c-80dc-3b5620cde9c2
+account      is_demo = true, active, with a profile (the same gate the introductions part applies)
+state        an event_memberships row is present
+
+WILL REMOVE
+  membership    95024b32-cd8c-4dc9-a1eb-fbeac4164107  state=active  directory_visible=true  matching_enabled=true  attendance=none  created=2026-09-22T14:18:24.456Z
+  cascade       none — no table references event_memberships (its own columns go with the row)
+  untouched     introductions, consents, blocks, notes and audit rows that mention this persona
+
+COUNTS BEFORE  event memberships  scoped=1  totals=5
+
+WHY THIS MUCH AND NO MORE: the event page decides whether to offer the join action from ONE fact — an event_memberships row in state 'active' for this profile and this event (src/lib/event-view.ts) — so that single row is the whole difference between the member state and the non-member state the demo needs. Deleting it removes nothing else: no table has a foreign key to event_memberships, so the schema cascades nothing, and the persona's own introductions, consents, blocks, notes and audit rows are rows about OTHER things (relationships, moderation, history) that happen to involve her — they are not part of "is she in this event", and deleting them would erase facts the demo must not invent or destroy. The membership row's own columns (offer/need tags, directory_visible, matching_enabled, attendance_source, registration_id) go with it because the row IS those values; the event.joined audit row stays, because the join DID happen. The command writes no audit row of its own: it runs without an actor account, and inventing one would put a person's name on an operator's maintenance run.
+
+DRY RUN: nothing was removed. Re-run without --dry-run to apply exactly the plan above.

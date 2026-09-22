@@ -253,6 +253,49 @@ test('v4: every recommendation mode is reachable and stays inside the item allow
   }
 });
 
+/**
+ * THE STRIP IS A LIST OF OTHER PEOPLE, IN EVERY MODE.
+ *
+ * This is the rule the DIRECTORY already holds and that the strip must hold with
+ * it (`tests/integration/directory.test.ts`: "self excluded", in both the default
+ * and the mode=all listing). It is asserted here rather than assumed because the
+ * strip is a different query, a different route and a different ranker, and a
+ * recommendation is the one list where showing the reader themselves is not
+ * merely noise: in mode=similar it is guaranteed (the viewer shares every one of
+ * their own interests), in mode=useful the viewer's own needs would cover their
+ * own offers, and the "score" beside their name would read as a claim about
+ * themselves. Verified over the real HTTP route + real DB, four modes at once,
+ * on a viewer who is deliberately the richest candidate in the event.
+ */
+test('v4: the viewer is never in their own strip — self is excluded in every mode', async () => {
+  const { eventId, viewer, peer, teacher, outsider } = await fourSides('v4-self');
+
+  for (const mode of RECOMMENDATION_MODES) {
+    const { items } = await recommendations(viewer, eventId, mode);
+    assert.equal(
+      items.some((item) => item.profile_id === viewer.profileId),
+      false,
+      `${mode}: the viewer must never be recommended to themselves`,
+    );
+    // The mode is not empty by accident: this viewer is the trap the assertion
+    // above is about — mode=similar pairs them with their own twin, and the
+    // viewer's own row is the one that would otherwise score highest.
+    if (mode === 'similar') {
+      assert.equal(items.some((item) => item.profile_id === peer.profileId), true, 'similar still finds the twin');
+    }
+  }
+
+  // …and the three other members are the ones that DO appear, so the assertion
+  // above is not passing because every list is empty.
+  const seen = new Set<string>();
+  for (const mode of RECOMMENDATION_MODES) {
+    for (const item of (await recommendations(viewer, eventId, mode)).items) seen.add(item.profile_id);
+  }
+  for (const other of [peer, teacher, outsider]) {
+    assert.equal(seen.has(other.profileId), true, 'every other member is recommended in at least one mode');
+  }
+});
+
 test('v4: the viewer\'s own goals change the ranking; other people\'s goals are never read', async () => {
   const eventOwner = await login('v4-goals-owner', { interests: ['ai-ml'] });
   const event = await createEvent(eventOwner.cookie);

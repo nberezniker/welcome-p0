@@ -1,0 +1,10 @@
+organizer owner already exists for demo1 — reusing organizer 91ee394e-3533-43f8-a0d9-2f2d30bf39bb
+event welcome-demo-meetup already exists — updated (schedule rolled to next weekend)
+registrations: 0 created, 8 updated (demo-csv-1..8, unclaimed)
+memberships: demo1 updated (directory_visible, matching_enabled, offers=product design,ux, needs=pilot users,feedback); demo2 updated (offers=pilot users,feedback, needs=product design,ux)
+scorePair demo1<->demo2 = 100 (reasons_for_a: pilot users, feedback; reasons_for_b: product design, ux)
+mutual intro already exists — recommendation check skipped (pair excluded by cooldown rule); scorePair above is the proof
+mutual introduction updated (id e1910c9c-b7c3-4224-a526-568a5140125e); consents accept on 2 side(s), reveal ['telegram_username','whatsapp'] both ways
+demo partner Marta Ruiz: account reused (is_demo, marta.demo@welcome.test); profile updated (/p/70arN7puMkUWMEQrlBbLAQ, 3f8b8a11-2821-48e8-b145-7031b5512a1e); contacts [telegram_username:updated, whatsapp:updated]; membership updated (directory_visible, matching_enabled, offers=b2b-clients,ai-pilots, needs=ai-transformation,automation)
+demo joiner Lucía Ferrer: account created (is_demo, lucia.demo@welcome.test); profile created (/p/tG-fsHADuqw6Md0Egs97eA, 5cb094bd-b2e0-495c-80dc-3b5620cde9c2); contacts [telegram_username:created, whatsapp:created]; NOT a member of welcome-demo-meetup — that is her purpose (the join affordance needs somebody outside the room)
+SKIPPED: owner<->partner intro not seeded (set SEED_OWNER_NAME=<your profile display name> to enable it). Everything else above is seeded and usable.
