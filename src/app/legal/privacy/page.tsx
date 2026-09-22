@@ -193,7 +193,6 @@ export default async function LegalPrivacyPage() {
         privacyHref="/legal/privacy"
         termsLabel={footer.termsLabel}
         termsHref="/legal/terms"
-        localeLinks={[]}
       />
     </>
   );

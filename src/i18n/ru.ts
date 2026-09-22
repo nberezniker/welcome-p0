@@ -62,8 +62,6 @@ export const ru: Partial<Dictionary> = {
   'landing.titleLine1': 'Один QR.',
   'landing.titleLine2': 'Новые знакомства.',
   'landing.titleEmphasis': 'Связи надолго.',
-  'landing.subtitle':
-    'Постоянный профиль и один QR вместо стопки визиток. Контакты открываются только по взаимному согласию, а профиль работает и после того, как встреча закончилась.',
   'landing.heroCtaDemo': 'Попробовать демо',
   'landing.heroCtaOrganizer': 'Я организатор',
   'landing.micro1': 'В браузере. Без отдельного приложения.',

@@ -62,8 +62,6 @@ export const es: Partial<Dictionary> = {
   'landing.titleLine1': 'Un QR.',
   'landing.titleLine2': 'Nuevos contactos.',
   'landing.titleEmphasis': 'Conexiones que duran.',
-  'landing.subtitle':
-    'Un perfil permanente y un QR reutilizable en lugar de una pila de tarjetas. Los contactos se abren solo con acuerdo mutuo, y el perfil sigue funcionando cuando la reunión ya terminó.',
   'landing.heroCtaDemo': 'Probar la demo',
   'landing.heroCtaOrganizer': 'Soy organizador',
   'landing.micro1': 'En el navegador. Sin app aparte.',

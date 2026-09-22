@@ -46,8 +46,17 @@ export function LocaleSwitcher({
           aria-pressed={current === code}
           aria-label={ariaLabel + ': ' + code.toUpperCase()}
           className={
-            'rounded-lg px-2.5 py-1.5 text-xs font-bold uppercase transition-colors ' +
-            (current === code ? 'bg-ink text-white' : 'text-muted hover:bg-white hover:text-ink')
+            // The current language is a LIGHT FIELD with a hairline, not a solid
+            // dark pill: it sits in the header, directly above the page's own
+            // primary action, and a second dark block at that size reads as a
+            // competitor to it (the landing's CTA is the one accented control on
+            // the first screen). `aria-pressed` still states which one is on, so
+            // the difference does not rest on colour alone.
+            // min-h-11 + min-w-11: a two-letter label is a 44x44 touch target.
+            'inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-2 text-xs font-bold uppercase transition-colors ' +
+            (current === code
+              ? 'border border-line bg-white text-ink'
+              : 'border border-transparent text-muted hover:bg-white hover:text-ink')
           }
         >
           {code.toUpperCase()}

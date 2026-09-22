@@ -78,8 +78,6 @@ export const en = {
   'landing.titleLine1': 'One QR.',
   'landing.titleLine2': 'New acquaintances.',
   'landing.titleEmphasis': 'Connections that last.',
-  'landing.subtitle':
-    'A permanent profile with a reusable QR instead of a stack of business cards. Contacts open only when both sides agree, and the profile keeps working long after the event is over.',
   'landing.heroCtaDemo': 'Try the demo',
   'landing.heroCtaOrganizer': 'I organise events',
   'landing.micro1': 'In the browser. No separate app.',

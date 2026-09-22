@@ -206,6 +206,17 @@ html[data-theme="poster"] {
    deliberate opposite of poster: where poster shouts in cobalt at 900 weight and
    3px rules, premium whisper-reads as printed stationery at 700 and a 1px seam.
 
+   `--t-muted` WAS RAISED FROM #6e6c65 TO #64625b, and it is the only value in the
+   four themes that moved for contrast alone. At #6e6c65 the theme cleared AA —
+   4.72:1 on the canvas, 5.26:1 on a card — but it cleared it by a hair, and it
+   was the LOWEST body-text ratio in the product: measured on the marketing page,
+   a 13px paragraph on the pale accent panel came out at 4.67:1, and the language
+   pill on the canvas at 4.52:1. "Above 4.5" is the bar a colour has to clear, not
+   the bar it should sit on, so the value was darkened until the worst pair has
+   the same headroom the other three themes have. Worst pair now: 5.26:1
+   (muted on the chip field, #f4ede4). The ink/muted separation narrows from
+   3.25:1 to 2.84:1, which is still a visible step — the two are not confusable.
+
    THE CHIPS ARE THE POINT, AND THEY CARRY NO HUE AT ALL. `--t-mint`,
    `--t-offer` and `--t-need` are the SAME value here, and so are `--t-pine`,
    `--t-offer-ink` and `--t-need-ink`: an offer chip and a need chip are
@@ -219,10 +230,10 @@ html[data-theme="poster"] {
 
    TWO VALUES HERE WERE CHOSEN BY THE CONSTRAINTS, NOT BY EYE, and they are the
    only two that could have failed:
-     · `--t-muted` is fixed at #6e6c65, and a chip-like language pill paints
-       muted text on the CANVAS (`chip !bg-paper !text-muted`), so the canvas is
-       the binding ground: #f7f2eb is the deepest warm step on which #6e6c65
-       still clears AA (4.72:1). A darker "richer" ground would have broken it.
+     · `--t-muted` is fixed at #64625b (see above), and a chip-like language pill
+       paints muted text on the CANVAS (`chip !bg-paper !text-muted`), so the
+       canvas is the binding ground: #f7f2eb is the deepest warm step on which
+       #64625b still clears AA (5.48:1, against the 4.5:1 bar).
      · `--t-line-strong` / `--t-field-line` are a real UI boundary (an outline
        button's frame, a form control's edge), so they clear 3:1 on the DARKER
        of the two grounds — 3.20:1 on the canvas, 3.57:1 on the surface.
@@ -231,7 +242,8 @@ html[data-theme="poster"] {
 
    Measured (AA bar 4.5:1 for text, 3:1 for a UI boundary):
      ink #1d1a16 on canvas #f7f2eb 15.56:1 · on surface #fff 17.33:1
-     muted #6e6c65 on canvas 4.72:1 · on surface 5.26:1 · on the chip field 4.52:1
+     muted #64625b on canvas 5.48:1 · on surface 6.10:1 · on the chip field 5.26:1
+       · on the pale accent panel #f6efe3 5.34:1
      accent #8a5a2b on surface 5.87:1 · on canvas 5.27:1 · on accent-pale 5.14:1
      white on accent 5.87:1 · white on accent-hover #74491f 7.73:1
      white on ink 17.33:1 · white on ink-hover #34312b 12.96:1
@@ -242,7 +254,7 @@ html[data-theme="premium"] {
   --t-canvas: #f7f2eb;
   --t-surface: #fff;
   --t-ink: #1d1a16;
-  --t-muted: #6e6c65;
+  --t-muted: #64625b;
   --t-line: #dcd6cf;
   --t-line-strong: #8b8782;
   --t-field-line: #8b8782;
@@ -341,6 +353,74 @@ body {
 }
 .btn-small {
   @apply min-h-9 px-3 py-1.5 text-xs;
+}
+
+/* ── Landing (marketing) compression layer ─────────────────────────────────
+   Three primitives, and each one exists to stop a specific kind of bloat that
+   was measurable on a phone at 390px (documented numbers: the landing's height
+   test in tests/e2e/landing.spec.ts).
+
+   1. `.panel` / `.claim` — one panel per SECTION, one row per CLAIM. The page
+      used to be 27 individual cards; each paid 48px of padding and a 16px grid
+      gap for copy that is one sentence long. The panel keeps every claim and
+      every word and pays that chrome once. Rows are separated by a hairline
+      (`.panel-rows`), which is also what keeps the row count — and therefore the
+      height — independent of the theme's card rule width.
+   2. `.cta-row` / `.btn-cta` — ONE width rule for every marketing button: a
+      button is a column of its row's grid, never a content-sized pill, so two
+      buttons in a row are the same width by construction and a lone one takes
+      the row. `grid-cols-2` is deliberate at every breakpoint: stacked
+      full-width buttons would cost a phone ~56px per row, and the labels
+      (measured in all three locales at 360px) fit two columns.
+   3. `.panel-body` — the tinted variant of `.panel` used by the two standing
+      notices (consent guardrail, no-scraping). Same shape, different ground. */
+
+.panel {
+  @apply rounded-2xl border border-line bg-white;
+  border-width: var(--t-rule-card);
+}
+.panel-tinted {
+  @apply bg-mint;
+}
+.panel-pale {
+  @apply bg-accent-pale;
+}
+.panel-rows > * + * {
+  @apply border-t border-line;
+}
+.claim {
+  @apply px-5 py-2.5;
+}
+.claim-title {
+  @apply text-sm font-bold leading-snug tracking-tight;
+}
+.claim-text {
+  @apply mt-0.5 text-xs leading-snug text-muted;
+}
+.cta-row {
+  @apply grid grid-cols-2 gap-3;
+}
+.cta-row-lone {
+  @apply grid grid-cols-1 gap-3 sm:max-w-xs;
+}
+.btn-cta {
+  @apply min-h-11 w-full px-4 text-center;
+}
+
+/* ── Header controls ───────────────────────────────────────────────────────
+   The public header is what a visitor sees BEFORE the page's own primary
+   action, so nothing in it may look heavier than that action: the account link
+   is an outline button and never a second solid pill next to the accent CTA, and
+   the language control's current choice is a light field with a hairline rather
+   than a second dark block. The header therefore reads as [quiet controls] +
+   [one accent action].
+   Both are 44px tall AND 44px wide where the label is two letters, which is
+   what the mobile header spends a second row on (`SiteHeader` explains it): a
+   control the owner has to hit with a thumb is not a place to save 8px.
+   A class rather than `btn-small min-h-11` because `btn-small` is unlayered CSS
+   and would beat the layered `min-h-11` utility — see the note on `.btn-*`. */
+.btn-nav {
+  @apply inline-flex min-h-11 items-center rounded-xl border border-line-strong bg-transparent px-3 text-xs font-semibold text-ink transition-colors hover:bg-white;
 }
 
 /* Form controls. The placeholder keeps its literal grey on purpose: it is not

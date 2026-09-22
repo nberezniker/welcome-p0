@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-21T23:30:18.920Z",
+  "generated_at": "2026-09-22T00:30:01.598Z",
   "note": "Measured in Chromium at 390x844 and 360x740 by tests/e2e/design-themes.spec.ts. Theme \"none\" is the visitor pass (no cookie, no query, no bar). overflowPx > 0, a bar above cardBottom, or an event page whose join control is not its first control and on the first screen would be a failure, not a tolerance. axeViolations and expandedAxeViolations list EVERY violation of any impact: they must be empty, so any entry here is a failure, not a note. minEventTarget/expandedOverflowPx describe the controls the event action hierarchy owns, before and after its two disclosures are opened.",
   "samples": [
     {

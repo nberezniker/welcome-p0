@@ -108,3 +108,44 @@ test('card: the row-label map is exhaustive over the projection kinds and cannot
     "the contact row lookup must not fall back to t('pubcard.contacts'): a missing label has to be a test failure, not a generic word rendered on a real card",
   );
 });
+
+/**
+ * The card's LANGUAGE LIST carries an accessible name, and the name is localized.
+ *
+ * It was the one labelled-by-nothing list left on the card: the chip groups
+ * (help offered / looking for / interests) have each been named by their own
+ * heading since the premium-theme work, and the languages row sits ABOVE all of
+ * them with no heading to borrow — there is no room for a visible one directly
+ * under the person's name. It therefore gets its name from `aria-label`, which
+ * `role="list"` supports, through the same dictionary key the other locales
+ * already carry.
+ *
+ * WHY A SOURCE PIN AND NOT ONLY THE E2E ASSERTION. tests/e2e/card-contacts-qr.spec.ts
+ * proves the live behaviour (the list is findable by name in all three locales).
+ * This pin exists for the failure mode that e2e cannot see: the attribute being
+ * dropped in a refactor while an English `aria-label="Languages"` literal — which
+ * would still pass a single-locale test — takes its place. The string here has to
+ * be the dictionary lookup, and the key has to exist in all three dictionaries.
+ */
+test('card: the language list is named through the dictionary, not a literal', () => {
+  const source = readFileSync(CARD_PAGE, 'utf8');
+
+  assert.ok(
+    source.includes("aria-label={t('pubcard.languages')}"),
+    "the card's language list must be named with t('pubcard.languages'); an unnamed list is announced as an unattached group of items, and a hardcoded label would ship English into a Russian card",
+  );
+  assert.ok(
+    /<ul[^>]*aria-label=\{t\('pubcard\.languages'\)\}/.test(source),
+    'the name must be on the <ul> (the list itself), not on an enclosing element: a name on the wrapper names nothing for a screen reader moving between lists',
+  );
+
+  for (const { locale, dict } of DICTIONARIES) {
+    const value = dict['pubcard.languages'];
+    assert.ok(
+      typeof value === 'string' && value.trim().length > 0,
+      `${locale} has no non-empty pubcard.languages: the card can render a language list, so it needs a name for it in every locale`,
+    );
+  }
+  assert.notEqual(es['pubcard.languages'], en['pubcard.languages'], 'es must not fall back to the English word');
+  assert.notEqual(ru['pubcard.languages'], en['pubcard.languages'], 'ru must not fall back to the English word');
+});

@@ -84,7 +84,6 @@ export default async function LoginPage({
         privacyHref="/legal/privacy"
         termsLabel={t('landing.footerTerms')}
         termsHref="/legal/terms"
-        localeLinks={[]}
       />
     </>
   );

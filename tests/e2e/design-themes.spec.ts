@@ -382,6 +382,117 @@ test.beforeAll(() => {
   mkdirSync(EVIDENCE_DIR, { recursive: true });
 });
 
+/**
+ * THE CONTROL-SHAPED ELEMENTS OF A PAGE — what the 44px rule is applied to.
+ *
+ * Deliberately NOT `main a`. The landing's links and the legal pages' links are
+ * mostly LINKS IN A SENTENCE ("Privacy Policy", the repository URL, a contact
+ * address in the middle of a paragraph of policy text), and WCAG 2.5.8 exempts
+ * exactly that case from the target-size rule: an inline link's box is the line
+ * box, and padding it out to 44px would break the sentence it lives in. What the
+ * rule IS applied to is the controls a thumb is meant to hit — the site chrome,
+ * the page's own actions, and a disclosure's row — which is the set below.
+ */
+const CONTROL_SELECTOR = [
+  '[data-testid="theme-bar"] button',
+  'header a',
+  'header button',
+  'main summary',
+  'main a.btn-accent',
+  'main a.btn-outline',
+  'main a.btn-light',
+  'main a.btn-primary',
+  'main a.btn-nav',
+].join(', ');
+
+/** Every visible control on the page, with its measured box. */
+async function controls(page: Page): Promise<{ name: string; width: number; height: number }[]> {
+  return page.locator(CONTROL_SELECTOR).evaluateAll((els) =>
+    els
+      .filter((el) => (el as HTMLElement).offsetParent !== null)
+      .map((el) => {
+        const b = el.getBoundingClientRect();
+        return {
+          name:
+            el.getAttribute('data-testid') ??
+            (el.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 24),
+          width: Math.round(b.width),
+          height: Math.round(b.height),
+        };
+      }),
+  );
+}
+
+/**
+ * THE LANDING AND THE LEGAL PAGES ARE IN THIS SWEEP TOO.
+ *
+ * They used to be outside it: the themed sweep covered the card and the event, and
+ * the landing (`/`) and the two legal pages were scanned only by a11y.spec.ts in
+ * the DEFAULT look, at whatever viewport that test happened to be using. So the
+ * four themes — four token sets over one markup, three of which the owner reviews
+ * on a phone — were never checked on the three surfaces that carry the most
+ * content, and neither was the 360px layout.
+ *
+ * What is asserted here per pass, for `visitor` (no cookie, no bar) plus each of
+ * the four themes, at 390px AND 360px:
+ *   · axe at EVERY impact level (the same `scan()` the card and the event use);
+ *   · horizontal overflow, in pixels;
+ *   · the 44px rule on every control-shaped element (see CONTROL_SELECTOR).
+ *
+ * What is NOT asserted here, on purpose: the bar's geometry against a primary
+ * action. Those pages have no single card whose bottom edge the bar must clear —
+ * the bar sits below the page's own footer, and the check that it does not cover
+ * the card's action belongs to the card and event tests above.
+ */
+test('design review: the landing and the legal pages hold in all four themes at 390 and 360', async ({ page }) => {
+  test.setTimeout(180_000);
+  const problems: string[] = [];
+  const surfaces = ['/', '/legal/privacy', '/legal/terms'] as const;
+
+  for (const theme of ['visitor', ...THEMES] as const) {
+    for (const surface of surfaces) {
+      for (const viewport of [MOBILE, NARROW]) {
+        await page.setViewportSize(viewport);
+        const url = theme === 'visitor' ? surface : `${surface}?theme=${theme}`;
+        const response = await page.goto(url);
+        expect(response?.status(), `${surface} ${theme}`).toBe(200);
+        await waitHydrated(page);
+
+        // The pass must BE the pass it claims: an un-themed page carries no
+        // attribute and no bar; a themed one carries both, and the bar says which.
+        if (theme === 'visitor') {
+          expect(await page.evaluate(() => document.documentElement.getAttribute('data-theme')), surface).toBeNull();
+          await expect(page.getByTestId('theme-bar')).toHaveCount(0);
+        } else {
+          await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+          await expect(page.getByTestId('theme-bar')).toBeVisible();
+        }
+
+        const axe = await scan(page);
+        const overflow = await overflowPx(page);
+        const measured = await controls(page);
+        const where = `${theme} ${surface} @${viewport.width}`;
+
+        if (overflow > 0) problems.push(`${where}: horizontal overflow of ${overflow}px`);
+        for (const finding of axe.violations) problems.push(`${where}: ${finding}`);
+        for (const control of measured) {
+          if (control.width < 44 || control.height < 44) {
+            problems.push(`${where}: control "${control.name}" is ${control.width}×${control.height}, below the 44px touch target`);
+          }
+        }
+        // A page with no controls at all would pass the loop above by having
+        // nothing to measure — so the chrome itself is the floor.
+        if (measured.length === 0) problems.push(`${where}: no controls were found to measure`);
+        console.log(
+          `[themes] ${where}: overflow=${overflow}px axe=${axe.violations.length} controls=${measured.length} smallest=${Math.min(...measured.map((c) => Math.min(c.width, c.height)))}px`,
+        );
+      }
+    }
+  }
+
+  expect(problems, `public-surface theme sweep findings:\n${problems.join('\n')}`).toEqual([]);
+});
+
 test('design review: card and event hold the bar in all four themes at 390 and 360', async ({ page }) => {
   test.setTimeout(180_000);
   const { cardPath } = await seed(page, {

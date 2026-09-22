@@ -54,6 +54,45 @@ function DemoQr({ label }: { label: string }) {
   );
 }
 
+/**
+ * The marketing landing.
+ *
+ * IT IS BUILT FOR A PHONE, AND IT IS MEASURED THERE. At 390px this page was
+ * 7853px tall — 9.3 screens of scrolling, against 1.2 for the event page and 1.8
+ * for the card. The cause was not the amount of copy, it was how the copy was
+ * packaged: 27 separate cards, each paying 48px of padding and a 16px grid gap
+ * for one sentence, plus the same promise made twice in the first screen. The
+ * four things that were changed, in the order they mattered:
+ *
+ *   1. THE PROMISE IS MADE ONCE. The hero carried both a paragraph and, directly
+ *      below it, three bullets saying the same three things. The paragraph is
+ *      gone (its dictionary key went with it) and the three bullets stayed,
+ *      moved up into the hero: a scannable list, one claim per line, including
+ *      "contacts open only by mutual consent" — which is the product's core claim
+ *      and is stated most strongly in that form. Nothing else in the first
+ *      screen repeated it.
+ *   2. ONE PANEL PER SECTION, ONE ROW PER CLAIM (`.panel` / `.claim`, defined in
+ *      globals.css). Same 18 claims, same words, ~64px of chrome each instead of
+ *      ~64px of chrome plus a card's own padding.
+ *   3. THE HONESTY NOTICE IS A LINE, NOT A BLOCK. `landing.demoBanner` is
+ *      unchanged, verbatim, and still a `role="status"` region — it just stopped
+ *      being a filled box with its own vertical rhythm above the fold.
+ *   4. THE FAQ KEEPS ITS ANSWERS AND LOSES ITS HEIGHT. It was already native
+ *      `<details>`/`<summary>`, so nothing had to be collapsed for the first
+ *      time; what changed is that the 22px-tall summary — the smallest tap target
+ *      on the page — now takes the full 44px row, which costs less than the
+ *      padding the closed row used to carry anyway.
+ *
+ * WHAT WAS NOT DONE, because the page's job is to explain the product: no
+ * section was removed, no claim was dropped, no traction, logo or benchmark was
+ * invented, and the two standing honesty guardrails (the organizer consent note
+ * and the no-scraping note) are still on the page in full — they are what the
+ * spec's §7 rules require and the e2e gate asserts them by text.
+ *
+ * The height is asserted, not assumed: tests/e2e/landing.spec.ts measures
+ * `documentElement.scrollHeight` at 390px in all three locales and fails if it
+ * creeps back over its bound.
+ */
 export default async function LandingPage() {
   const { locale, t } = await getT();
   const accountId = await getOptionalAccountId();
@@ -64,7 +103,18 @@ export default async function LandingPage() {
   // rendered at all (see src/lib/env.ts pilotMailto and SELF_HOSTING.md).
   const pilotMailtoHref = pilotMailto();
 
-  // One entry per bullet, so the markup stays a plain list of items.
+  /**
+   * The hero's three claims — the ONE statement of the promise on the first
+   * screen (see the note above). Kept as a list of items so the markup stays a
+   * plain list, and the glyphs stay decorative: each row also says its claim in
+   * words.
+   */
+  const heroClaims = [
+    { icon: '↗', label: t('landing.principle1') },
+    { icon: '↔', label: t('landing.principle2') },
+    { icon: '✓', label: t('landing.principle3') },
+  ];
+  // One entry per row, so each list below is a plain list of claims.
   const problemItems = [
     { title: t('landing.problem.item1Title'), text: t('landing.problem.item1Text') },
     { title: t('landing.problem.item2Title'), text: t('landing.problem.item2Text') },
@@ -109,6 +159,23 @@ export default async function LandingPage() {
     { q: t('landing.faq.q6'), a: t('landing.faq.a6'), link: true },
   ];
 
+  /**
+   * One claim list, rendered the same way in every section that has one: a
+   * single panel, a hairline between rows, and a heading per claim so the
+   * document outline keeps the levels the e2e gate checks (h2 section → h3
+   * claim, never a skipped level).
+   */
+  const claimList = (testId: string, items: { title: string; text: string }[]) => (
+    <ul className="panel panel-rows" data-testid={testId}>
+      {items.map((item) => (
+        <li key={item.title} className="claim">
+          <h3 className="claim-title">{item.title}</h3>
+          <p className="claim-text">{item.text}</p>
+        </li>
+      ))}
+    </ul>
+  );
+
   return (
     <>
       <a href="#main" className="skip-link">
@@ -129,16 +196,26 @@ export default async function LandingPage() {
 
       <main id="main">
         <div className="mx-auto w-full max-w-6xl px-5 sm:px-7">
-          {/* Demo status banner — honest P0 framing (spec guardrail). */}
-          <p className="mt-4 rounded-xl border border-line bg-mint px-4 py-2.5 text-xs font-semibold text-pine" role="status">
+          {/*
+            Demo status banner — honest P0 framing (spec guardrail). One line,
+            under the header where a status line belongs, instead of a filled
+            block above the fold: the text is unchanged and still announced
+            (`role="status"`), only its box is gone.
+          */}
+          <p
+            className="mt-2 flex items-start gap-2 border-b border-line pb-2 text-xs font-semibold text-pine"
+            data-testid="status-notice"
+            role="status"
+          >
+            <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-accent" />
             {t('landing.demoBanner')}
           </p>
 
-          {/* Hero */}
+          {/* Hero — H1 plus the ONE statement of the promise. */}
           <section
             aria-labelledby="hero-title"
             data-testid="hero"
-            className="grid items-center gap-10 py-12 md:grid-cols-[1.07fr_1fr] md:py-16"
+            className="grid items-start gap-6 py-5 md:grid-cols-[1.07fr_1fr] md:py-10"
           >
             <div>
               <p className="eyebrow">
@@ -146,7 +223,7 @@ export default async function LandingPage() {
               </p>
               <h1
                 id="hero-title"
-                className="mt-5 max-w-[21ch] text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl lg:text-6xl"
+                className="mt-4 max-w-[21ch] text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl lg:text-6xl"
               >
                 {t('landing.titleLine1')}
                 <br />
@@ -154,23 +231,34 @@ export default async function LandingPage() {
                 <br />
                 <em className="not-italic text-accent">{t('landing.titleEmphasis')}</em>
               </h1>
-              <p className="mt-6 max-w-md text-base leading-relaxed text-muted">{t('landing.subtitle')}</p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link href="/login" className="btn-accent" data-testid="cta-demo">
-                  {t('landing.heroCtaDemo')} <span aria-hidden="true">↗</span>
+              <ul className="mt-6 grid gap-2" data-testid="hero-claims">
+                {heroClaims.map((claim) => (
+                  <li key={claim.label} className="flex items-start gap-2.5 text-sm font-semibold">
+                    <span
+                      aria-hidden="true"
+                      className="mt-px grid size-4 shrink-0 place-items-center rounded border border-line bg-white text-[10px]"
+                    >
+                      {claim.icon}
+                    </span>
+                    {claim.label}
+                  </li>
+                ))}
+              </ul>
+              {/* One CTA row, one width rule, one arrow glyph (→) — see `.cta-row`. */}
+              <div className="cta-row mt-6">
+                <Link href="/login" className="btn-accent btn-cta" data-testid="cta-demo">
+                  {t('landing.heroCtaDemo')} <span aria-hidden="true">→</span>
                 </Link>
-                <Link href="/organizer" className="btn-outline" data-testid="cta-organizer">
+                <Link href="/organizer" className="btn-outline btn-cta" data-testid="cta-organizer">
                   {t('landing.heroCtaOrganizer')} <span aria-hidden="true">→</span>
                 </Link>
               </div>
-              <p className="mt-4 text-[11px] leading-relaxed text-muted">
-                {t('landing.micro1')}
-                <br />
-                {t('landing.micro2')}
+              <p className="mt-2.5 text-xs leading-snug text-muted" data-testid="hero-micro">
+                {t('landing.micro1')} · {t('landing.micro2')}
               </p>
             </div>
 
-            {/* Fictional phone card */}
+            {/* Fictional phone card. Its own note stays attached to it. */}
             <div className="relative hidden justify-center md:flex" aria-label={t('landing.fictionalNote')}>
               <div className="absolute inset-x-8 bottom-0 top-10 rounded-[48px] bg-[#e4eadf]" aria-hidden="true" />
               <div className="relative w-[300px] rotate-2 rounded-[36px] border-8 border-ink bg-white p-5 shadow-xl">
@@ -216,95 +304,71 @@ export default async function LandingPage() {
             </div>
           </section>
 
-          {/* Principles strip — the hero argument in one line */}
-          <div className="grid gap-4 border-y border-line py-5 sm:grid-cols-3">
-            {[
-              ['↗', t('landing.principle1')],
-              ['↔', t('landing.principle2')],
-              ['✓', t('landing.principle3')],
-            ].map(([icon, label]) => (
-              <p key={label} className="flex items-center gap-3 text-sm font-semibold">
-                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-white text-base">
-                  {icon}
-                </span>
-                {label}
-              </p>
-            ))}
-          </div>
-
           {/* The problem */}
-          <section id="problem" data-testid="section-problem" className="py-16" aria-labelledby="problem-title">
-            <div className="mb-8 max-w-2xl">
-              <p className="eyebrow">
-                <span className="eyebrow-dot" /> {t('landing.problem.eyebrow')}
-              </p>
-              <h2 id="problem-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          <section id="problem" data-testid="section-problem" className="pb-5" aria-labelledby="problem-title">
+            <div className="mb-2 max-w-2xl">
+              <h2 id="problem-title" className="text-xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                <span className="eyebrow mr-2 align-middle">
+                  <span className="eyebrow-dot" /> {t('landing.problem.eyebrow')}
+                </span>
                 {t('landing.problem.title')}
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.problem.subtitle')}</p>
+              <p className="mt-1 text-xs leading-snug text-muted">{t('landing.problem.subtitle')}</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
-              {problemItems.map((item) => (
-                <article key={item.title} className="card">
-                  <h3 className="text-lg font-bold leading-snug tracking-tight">{item.title}</h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{item.text}</p>
-                </article>
-              ))}
-            </div>
+            {claimList('problem-list', problemItems)}
           </section>
 
           {/* How it works */}
-          <section id="how" data-testid="section-how" className="pb-16" aria-labelledby="how-title">
-            <div className="mb-8 max-w-2xl">
-              <p className="eyebrow">
-                <span className="eyebrow-dot" /> {t('landing.howEyebrow')}
-              </p>
-              <h2 id="how-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          <section id="how" data-testid="section-how" className="pb-5" aria-labelledby="how-title">
+            <div className="mb-2 max-w-2xl">
+              <h2 id="how-title" className="text-xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                <span className="eyebrow mr-2 align-middle">
+                  <span className="eyebrow-dot" /> {t('landing.howEyebrow')}
+                </span>
                 {t('landing.howTitle')}
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.howSubtitle')}</p>
+              <p className="mt-1 text-xs leading-snug text-muted">{t('landing.howSubtitle')}</p>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <ul className="panel panel-rows" data-testid="how-steps">
               {howSteps.map((step) => (
-                <article key={step.num} className="card">
+                <li key={step.num} className="claim">
                   <p className="text-[11px] font-bold tracking-[0.15em] text-accent">{step.num}</p>
-                  <h3 className="mt-4 text-lg font-bold leading-snug tracking-tight">{step.title}</h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{step.text}</p>
-                </article>
+                  <h3 className="mt-0.5 claim-title">{step.title}</h3>
+                  <p className="claim-text">{step.text}</p>
+                </li>
               ))}
-            </div>
+            </ul>
 
             {/* Consent flow illustration — text and glyphs only, no external assets. */}
-            <div className="card mt-6" data-testid="how-example">
-              <h3 className="text-lg font-bold leading-snug tracking-tight">{t('landing.howExample.title')}</h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-muted">{t('landing.howExample.note')}</p>
-              <ol className="mt-5 border-t border-line">
+            <div className="panel mt-4" data-testid="how-example">
+              <div className="px-5 py-3">
+                <h3 className="claim-title">{t('landing.howExample.title')}</h3>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted">{t('landing.howExample.note')}</p>
+              </div>
+              <ol className="panel-rows border-t border-line">
                 {consentFlow.map((row) => (
-                  <li
-                    key={row.label}
-                    className="flex items-start gap-4 border-b border-line py-4 last:border-b-0"
-                  >
+                  <li key={row.label} className="flex items-start gap-3 px-5 py-2.5">
                     <span
                       aria-hidden="true"
-                      className="grid size-9 shrink-0 place-items-center rounded-lg border border-line bg-paper text-base"
+                      className="grid size-6 shrink-0 place-items-center rounded-md border border-line bg-paper text-[11px]"
                     >
                       {row.icon}
                     </span>
                     {/* Label and state share a line; the text keeps the full column. */}
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <span className="text-sm font-bold">{row.label}</span>
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="text-xs font-bold sm:text-sm">{row.label}</span>
                         <span
                           className={
                             row.open
-                              ? 'rounded-full bg-mint px-3 py-1 text-[11px] font-semibold text-pine'
-                              : 'rounded-full border border-line bg-white px-3 py-1 text-[11px] font-semibold text-muted'
+                              ? 'rounded-full bg-mint px-2 py-0.5 text-[10px] font-semibold text-pine'
+                              : 'rounded-full border border-line bg-white px-2 py-0.5 text-[10px] font-semibold text-muted'
                           }
                         >
                           {row.state}
                         </span>
                       </div>
-                      <p className="mt-1 text-[13px] leading-relaxed text-muted">{row.text}</p>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted">{row.text}</p>
                     </div>
                   </li>
                 ))}
@@ -316,120 +380,103 @@ export default async function LandingPage() {
           <section
             id="member"
             data-testid="section-member"
-            className="grid items-center gap-8 pb-16 md:grid-cols-2"
+            className="grid items-start gap-6 pb-5 md:grid-cols-2"
             aria-labelledby="member-title"
           >
-            {/* Decorative card mock; the section heading lives in the next column. */}
-            <div className="rounded-3xl bg-ink p-8 text-white sm:p-10">
-              <p className="text-2xl font-extrabold leading-snug tracking-tight">{t('landing.cardQrTitle')}</p>
-              <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-[#bbc8be]">
-                {t('landing.micro1')} {t('landing.micro2')}
-              </p>
-              <div className="mt-6 flex flex-wrap gap-2">
+            {/*
+              The dark mock, and the only one a phone sees (the hero's phone card
+              is `hidden md:flex`). Its note is `landing.fictionalNote` rather than
+              the micro pair it used to repeat: those two lines are already stated
+              in the hero, directly under the CTA they belong to, and this way the
+              "what you are looking at is an example" note — previously desktop
+              only — is on the page at every width.
+            */}
+            <div className="hidden rounded-2xl bg-ink p-5 text-white md:block" data-testid="member-mock">
+              <p className="text-lg font-extrabold leading-snug tracking-tight">{t('landing.cardQrTitle')}</p>
+              <p className="mt-1.5 text-xs leading-relaxed text-[#bbc8be]">{t('landing.fictionalNote')}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
                 {['LinkedIn', 'WhatsApp', 'Telegram', t('contacts.kind.phone')].map((s) => (
-                  <span key={s} className="rounded-lg border border-white/25 bg-white/5 px-2.5 py-1.5 text-[11px]">
+                  <span key={s} className="rounded-lg border border-white/25 bg-white/5 px-2.5 py-1 text-[11px]">
                     {s}
                   </span>
                 ))}
               </div>
-              <Link href="/login" className="btn-light mt-7" data-testid="member-cta">
-                {t('landing.ctaOpen')} <span aria-hidden="true">↗</span>
+              <Link href="/login" className="btn-light btn-cta mt-4" data-testid="member-cta">
+                {t('landing.ctaOpen')} <span aria-hidden="true">→</span>
               </Link>
             </div>
             <div>
-              <p className="eyebrow">
-                <span className="eyebrow-dot" /> {t('landing.forMember.eyebrow')}
-              </p>
-              <h2 id="member-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+              <h2 id="member-title" className="text-xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                <span className="eyebrow mr-2 align-middle">
+                  <span className="eyebrow-dot" /> {t('landing.forMember.eyebrow')}
+                </span>
                 {t('landing.forMember.title')}
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.forMember.subtitle')}</p>
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {memberItems.map((item) => (
-                  <article key={item.title} className="card-tight">
-                    <h3 className="text-sm font-bold leading-snug tracking-tight">{item.title}</h3>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-muted">{item.text}</p>
-                  </article>
-                ))}
-              </div>
+              <p className="mt-1 text-xs leading-snug text-muted">{t('landing.forMember.subtitle')}</p>
+              <div className="mt-3">{claimList('member-list', memberItems)}</div>
             </div>
           </section>
 
           {/* For organizers */}
-          <section id="organizer" data-testid="section-organizer" className="pb-16" aria-labelledby="organizer-title">
-            <div className="mb-8 max-w-2xl">
-              <p className="eyebrow">
-                <span className="eyebrow-dot" /> {t('landing.forOrganizer.eyebrow')}
-              </p>
-              <h2 id="organizer-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          <section id="organizer" data-testid="section-organizer" className="pb-5" aria-labelledby="organizer-title">
+            <div className="mb-2 max-w-2xl">
+              <h2 id="organizer-title" className="text-xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                <span className="eyebrow mr-2 align-middle">
+                  <span className="eyebrow-dot" /> {t('landing.forOrganizer.eyebrow')}
+                </span>
                 {t('landing.forOrganizer.title')}
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.forOrganizer.subtitle')}</p>
+              <p className="mt-1 text-xs leading-snug text-muted">{t('landing.forOrganizer.subtitle')}</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {organizerItems.map((item) => (
-                <article key={item.title} className="card">
-                  <h3 className="text-lg font-bold leading-snug tracking-tight">{item.title}</h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{item.text}</p>
-                </article>
-              ))}
-            </div>
+            {claimList('organizer-list', organizerItems)}
             {/* Consent guardrail: the organizer sells no reach the member did not grant. */}
-            <div className="mt-4 rounded-2xl border border-line bg-mint p-6" data-testid="organizer-consent-note">
-              <h3 className="text-lg font-bold leading-snug tracking-tight text-pine">
-                {t('landing.forOrganizer.consentNoteTitle')}
-              </h3>
-              <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-pine">
+            <div className="panel panel-tinted mt-3 px-5 py-3" data-testid="organizer-consent-note">
+              <h3 className="claim-title text-pine">{t('landing.forOrganizer.consentNoteTitle')}</h3>
+              <p className="mt-0.5 max-w-3xl text-xs leading-relaxed text-pine">
                 {t('landing.forOrganizer.consentNote')}
               </p>
             </div>
           </section>
 
           {/* Trust and privacy */}
-          <section id="trust" data-testid="section-trust" className="pb-16" aria-labelledby="trust-title">
-            <div className="mb-8 max-w-2xl">
-              <p className="eyebrow">
-                <span className="eyebrow-dot" /> {t('landing.trust.eyebrow')}
-              </p>
-              <h2 id="trust-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          <section id="trust" data-testid="section-trust" className="pb-5" aria-labelledby="trust-title">
+            <div className="mb-2 max-w-2xl">
+              <h2 id="trust-title" className="text-xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                <span className="eyebrow mr-2 align-middle">
+                  <span className="eyebrow-dot" /> {t('landing.trust.eyebrow')}
+                </span>
                 {t('landing.trust.title')}
               </h2>
-              <p className="mt-4 text-sm leading-relaxed text-muted">{t('landing.trust.subtitle')}</p>
+              <p className="mt-1 text-xs leading-snug text-muted">{t('landing.trust.subtitle')}</p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              {trustItems.map((item) => (
-                <article key={item.title} className="card">
-                  <h3 className="flex items-start gap-2 text-lg font-bold leading-snug tracking-tight">
-                    <span aria-hidden="true" className="font-bold text-pine">
-                      ✓
-                    </span>
-                    {item.title}
-                  </h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-muted">{item.text}</p>
-                </article>
-              ))}
-            </div>
-            <div className="mt-4 rounded-2xl border border-line bg-accent-pale p-6" data-testid="trust-no-scraping">
-              <h3 className="text-lg font-bold leading-snug tracking-tight">{t('landing.trust.noScrapingTitle')}</h3>
-              <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-muted">{t('landing.trust.noScraping')}</p>
+            {claimList('trust-list', trustItems)}
+            <div className="panel panel-pale mt-3 px-5 py-3" data-testid="trust-no-scraping">
+              <h3 className="claim-title">{t('landing.trust.noScrapingTitle')}</h3>
+              <p className="mt-0.5 max-w-3xl text-xs leading-relaxed text-muted">{t('landing.trust.noScraping')}</p>
             </div>
           </section>
 
-          {/* FAQ */}
-          <section id="faq" data-testid="section-faq" className="pb-16" aria-labelledby="faq-title">
-            <div className="mb-8 max-w-2xl">
-              <p className="eyebrow">
-                <span className="eyebrow-dot" /> {t('landing.faq.eyebrow')}
-              </p>
-              <h2 id="faq-title" className="mt-3 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+          {/*
+            FAQ. Native disclosures, closed on load — the answers are all still in
+            the document, and the row is the tap target. `min-h-11` on the summary
+            is what makes the target 44px: the padding moved from the closed box
+            onto the summary, so the row a thumb hits is the row that was already
+            there.
+          */}
+          <section id="faq" data-testid="section-faq" className="pb-5" aria-labelledby="faq-title">
+            <div className="mb-2 max-w-2xl">
+              <h2 id="faq-title" className="text-xl font-extrabold leading-tight tracking-tight sm:text-3xl">
+                <span className="eyebrow mr-2 align-middle">
+                  <span className="eyebrow-dot" /> {t('landing.faq.eyebrow')}
+                </span>
                 {t('landing.faq.title')}
               </h2>
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-1.5">
               {faqItems.map((item) => (
-                <details key={item.q} className="group rounded-2xl border border-line bg-white p-5" data-testid="faq-item">
-                  <summary className="flex cursor-pointer list-none items-start justify-between gap-4 [&::-webkit-details-marker]:hidden">
-                    <h3 className="text-base font-bold leading-snug tracking-tight">{item.q}</h3>
+                <details key={item.q} className="panel group" data-testid="faq-item">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-4 py-1 [&::-webkit-details-marker]:hidden">
+                    <h3 className="text-xs font-bold leading-snug tracking-tight sm:text-sm">{item.q}</h3>
                     <span
                       aria-hidden="true"
                       className="shrink-0 text-lg font-bold leading-none text-accent transition-transform group-open:rotate-45"
@@ -437,16 +484,18 @@ export default async function LandingPage() {
                       +
                     </span>
                   </summary>
-                  <p className="mt-3 text-[13px] leading-relaxed text-muted">{item.a}</p>
-                  {item.link && pilotMailtoHref ? (
-                    <a
-                      href={pilotMailtoHref}
-                      className="mt-3 inline-flex text-[13px] font-semibold text-ink underline underline-offset-2 hover:text-accent"
-                      data-testid="faq-pilot-link"
-                    >
-                      {t('landing.faq.a6Link')} <span aria-hidden="true">↗</span>
-                    </a>
-                  ) : null}
+                  <div className="px-4 pb-3">
+                    <p className="text-xs leading-relaxed text-muted">{item.a}</p>
+                    {item.link && pilotMailtoHref ? (
+                      <a
+                        href={pilotMailtoHref}
+                        className="mt-1.5 inline-flex text-xs font-semibold text-ink underline underline-offset-2 hover:text-accent"
+                        data-testid="faq-pilot-link"
+                      >
+                        {t('landing.faq.a6Link')} <span aria-hidden="true">→</span>
+                      </a>
+                    ) : null}
+                  </div>
                 </details>
               ))}
             </div>
@@ -456,21 +505,24 @@ export default async function LandingPage() {
           <section
             id="start"
             data-testid="section-final-cta"
-            className="mb-12 rounded-3xl bg-ink px-6 py-14 text-center text-white sm:px-8"
+            className="mb-6 rounded-3xl bg-ink px-6 py-7 text-center text-white sm:px-8"
             aria-labelledby="final-cta-title"
           >
-            <h2 id="final-cta-title" className="mx-auto max-w-xl text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
+            <h2
+              id="final-cta-title"
+              className="mx-auto max-w-xl text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl"
+            >
               {t('landing.finalCta.title')}
             </h2>
-            <p className="mt-4 text-sm text-[#becabd]">{t('landing.finalCta.text')}</p>
-            <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <Link href="/login" className="btn-accent" data-testid="final-cta-demo">
-                {t('landing.finalCta.ctaDemo')} <span aria-hidden="true">↗</span>
+            <p className="mt-2 text-xs leading-relaxed text-[#becabd] sm:text-sm">{t('landing.finalCta.text')}</p>
+            <div className={`mt-5 ${pilotMailtoHref ? 'cta-row' : 'cta-row-lone'}`}>
+              <Link href="/login" className="btn-accent btn-cta" data-testid="final-cta-demo">
+                {t('landing.finalCta.ctaDemo')} <span aria-hidden="true">→</span>
               </Link>
               {pilotMailtoHref ? (
                 <a
                   href={pilotMailtoHref}
-                  className="btn-outline !border-[#8a9a8a] !text-white hover:!bg-white/10"
+                  className="btn-outline btn-cta !border-[#8a9a8a] !text-white hover:!bg-white/10"
                   data-testid="final-cta-pilot"
                 >
                   {t('landing.finalCta.ctaPilot')} <span aria-hidden="true">→</span>
@@ -478,7 +530,7 @@ export default async function LandingPage() {
               ) : null}
             </div>
             {pilotMailtoHref ? (
-              <p className="mt-4 text-[11px] text-[#a9b6ab]">{t('landing.finalCta.pilotNote')}</p>
+              <p className="mt-2.5 text-xs text-[#a9b6ab]">{t('landing.finalCta.pilotNote')}</p>
             ) : null}
           </section>
         </div>
@@ -492,9 +544,8 @@ export default async function LandingPage() {
         termsHref="/legal/terms"
         repoLabel={t('landing.footerRepo')}
         repoHref={PROJECT_REPO_URL}
-        localeLinks={[]}
       />
-      <div className="mx-auto w-full max-w-6xl px-5 pb-6 sm:px-7">
+      <div className="mx-auto w-full max-w-6xl px-5 pb-4 sm:px-7">
         <FooterLocaleLinks
           current={locale}
           label={t('locale.switch')}

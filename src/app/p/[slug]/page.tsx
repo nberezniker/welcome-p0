@@ -216,8 +216,18 @@ export default async function PublicProfilePage({ params }: { params: Promise<{ 
           </h1>
           {profile.headline ? <p className="mt-2 text-lg text-muted">{profile.headline}</p> : null}
           {profile.company ? <p className="mt-1 text-sm font-semibold text-ink">{profile.company}</p> : null}
+          {/*
+            Languages. The list carries its own accessible NAME, for the same
+            reason the chip groups below are labelled: a list of bare values with
+            no name is announced as an unattached group of items, and a screen
+            reader moving by list has nothing to say about what it just landed on
+            ("Languages, list, 2 items" vs "list, 2 items"). There is no room for a
+            visible heading here — the block sits directly under the name — so the
+            name comes from `aria-label`, which `role="list"` supports, localized
+            through the same dictionary key the other locales already carry.
+          */}
           {profile.languages.length > 0 ? (
-            <ul className="mt-3 flex flex-wrap gap-1.5">
+            <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={t('pubcard.languages')} data-testid="pubcard-languages">
               {profile.languages.map((language: string) => (
                 <li key={language} className="chip !bg-paper !text-muted">
                   {language}

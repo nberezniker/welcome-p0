@@ -114,7 +114,6 @@ export default async function LegalTermsPage() {
         privacyHref="/legal/privacy"
         termsLabel={footer.termsLabel}
         termsHref="/legal/terms"
-        localeLinks={[]}
       />
     </>
   );

@@ -341,25 +341,75 @@ test('card: rows show the localized label, the value stays reachable, and the QR
   }
 });
 
-test('card: every label is the dictionary word of its language', async ({ page, browser }) => {
+/**
+ * EVERY LABEL ON THE CARD IS THE DICTIONARY WORD OF ITS LANGUAGE — including the
+ * one label that is not visible: the language list's accessible NAME.
+ *
+ * The languages were a bare `<ul>` with no name, which a screen reader announces
+ * as an unattached group of items ("list, 2 items") with nothing saying what the
+ * two items are; the chip groups below it (help offered, looking for, interests)
+ * have carried their own names since the premium-theme work. A name for this one
+ * has to come from `aria-label`, because the block sits directly under the
+ * person's name and there is no room for a visible heading there.
+ *
+ * The list is asked for BY NAME (`getByRole('list', { name })`), which resolves
+ * through the accessibility tree: an unnamed list is not findable that way at
+ * all, so the assertion cannot pass on markup that merely looks right. `en` is in
+ * the loop for it (the contact-row labels are asserted in `ru`/`es` only, where
+ * the fallback would show).
+ *
+ * It is asserted HERE and not in a test of its own because a fourth sign-in with
+ * this spec's account trips a real product guard first: `/api/auth/otp/request`
+ * allows 3 codes per account per 15 minutes, and this spec logs in once per test.
+ * Adding a test that signs in again fails with `429 rate_limited` — measured, not
+ * assumed — so the card's labelling belongs in the card's labelling test.
+ */
+test('card: every label, including the language list name, is the dictionary word of its language', async ({ page, browser }) => {
   const cardPath = await seedCard(page);
   const anon = await anonContext(browser);
   const visitor = await anon.newPage();
   try {
-    for (const locale of ['ru', 'es'] as const) {
+    // One dictionary per locale, chosen once: every expectation below is read
+    // from it rather than from a `locale === 'ru' ? … : …` chain, which is how
+    // this loop grew an English branch that silently used the SPANISH string
+    // (the chain had no `en` arm, so `en` fell through to `es`).
+    for (const [locale, dict] of [
+      ['en', en],
+      ['ru', ru],
+      ['es', es],
+    ] as const) {
       await visitor.goto(`${cardPath}?lang=${locale}`);
       await waitHydrated(visitor);
+
+      // 1. The contact rows: the visible label is this language's dictionary word.
       const labels = (await visitor.getByTestId('pubcard-contact-label').allTextContents()).map((l) => l.trim());
       expect(labels, `${locale}: the visible labels must be this language's dictionary strings`).toEqual(
         EXPECTED.map((row) => row.labels[locale]),
       );
       // The bug this replaced made the phone row read as the generic section
-      // word, so that word may not appear as a row label in any language either.
-      expect(labels).not.toContain(must(locale === 'ru' ? ru['pubcard.contacts'] : es['pubcard.contacts'], locale));
+      // word, so that word may not appear as a row label in any language. The
+      // labels above are already this locale's dictionary strings, which is what
+      // rules out an English fallback; this is the second, blunter form of the
+      // same statement, kept because it names the old bug's signature exactly.
+      expect(labels).not.toContain(must(dict['pubcard.contacts'], locale));
+
+      // 2. The QR toggle's visible label.
       const toggle = visitor.getByTestId('pubcard-qr');
-      const showLabel = must(locale === 'ru' ? ru['pubcard.qrShow'] : es['pubcard.qrShow'], locale);
+      const showLabel = must(dict['pubcard.qrShow'], `${locale}/pubcard.qrShow`);
       await expect(toggle).toHaveText(showLabel);
       expect(await visibleText(toggle)).toBe(showLabel);
+
+      // 3. The language list's accessible NAME — the label that is not visible.
+      const listName = must(dict['pubcard.languages'], `${locale}/pubcard.languages`);
+      const list = visitor.getByRole('list', { name: listName });
+      await expect(list, `no list is named "${listName}" on the ${locale} card`).toBeVisible();
+      await expect(list.getByRole('listitem')).toHaveCount(2);
+      if (locale !== 'en') {
+        expect(listName, `${locale} must use its own word for the list, not the English fallback`).not.toBe(
+          must(en['pubcard.languages'], 'en'),
+        );
+      }
+      console.log(`[card] ${locale}: rows, QR toggle and language list all read from its own dictionary`);
     }
   } finally {
     await anon.close();

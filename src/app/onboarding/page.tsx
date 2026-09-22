@@ -162,7 +162,6 @@ export default async function OnboardingPage() {
         privacyHref="/legal/privacy"
         termsLabel={t('landing.footerTerms')}
         termsHref="/legal/terms"
-        localeLinks={[]}
       />
     </>
   );

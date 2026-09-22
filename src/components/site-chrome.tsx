@@ -27,6 +27,21 @@ export function Brand({ compact = false }: { compact?: boolean }) {
 /**
  * Public site header with landmarks. Purely presentational (props come from
  * server parents so client bundles never ship dictionaries).
+ *
+ * TWO ROWS ON A PHONE, AND WHY THAT IS THE CHEAP OPTION. At 390px the brand, the
+ * three language controls and the account link do not fit on one line inside the
+ * 350px the padding leaves: one row needs about 340px of content and the brand
+ * wordmark alone is 166 of it. The choice is between a control that wraps by
+ * accident inside a fixed 80px box (which is what used to happen, and it is
+ * visible as a cramped two-line header) and a header that is two rows ON PURPOSE.
+ * The second one costs ~28px of height and buys every control the 44px target
+ * the rest of the app holds to, so that is the one taken. From `sm` the header
+ * goes back to a single 96px row, and the section links appear at `md`.
+ *
+ * THE CONTROLS DELIBERATELY DO NOT COMPETE WITH THE PRIMARY ACTION: the account
+ * link is `btn-nav` (outline) rather than the solid `btn-primary` pill it used to
+ * carry — which, next to the solid active-language pill, made two dark blocks
+ * heavier than the accent CTA they sit above (see globals.css).
  */
 export function SiteHeader({
   locale,
@@ -43,8 +58,11 @@ export function SiteHeader({
 }) {
   return (
     <header className="border-b border-line">
-      <div className="mx-auto flex h-20 w-full max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-5 sm:h-24 sm:px-7">
-        <Link href="/" aria-label="WELCOME — home" className="shrink-0">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-1.5 sm:h-24 sm:px-7 sm:py-0">
+        {/* min-h-11: the wordmark is also a link, and it is the one control in
+            the header that would otherwise be shorter than the 44px the rest of
+            the header holds to. */}
+        <Link href="/" aria-label="WELCOME — home" className="inline-flex min-h-11 shrink-0 items-center">
           <Brand />
         </Link>
         <nav aria-label="Main navigation" className="hidden gap-6 text-sm font-semibold md:flex">
@@ -54,9 +72,11 @@ export function SiteHeader({
             </a>
           ))}
         </nav>
-        <div className="flex items-center gap-3">
+        {/* `w-full` at base is what makes the second row deliberate rather than
+            accidental: the controls take a row of their own and spread across it. */}
+        <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:justify-end">
           <LocaleSwitcher current={locale} ariaLabel={switcherLabel} />
-          <Link href={authHref} className="btn-primary btn-small" data-testid="header-auth-link">
+          <Link href={authHref} className="btn-nav" data-testid="header-auth-link">
             {authLabel}
           </Link>
         </div>
@@ -65,7 +85,17 @@ export function SiteHeader({
   );
 }
 
-/** Public site footer: locale links, privacy + terms links, honest status line. */
+/**
+ * Public site footer: privacy + terms links, an optional repository link, and an
+ * honest status line.
+ *
+ * IT NO LONGER CARRIES A `localeLinks` PROP. Every call site passed `[]`, so the
+ * labelled nav it guarded was dead code — and the one page that DOES offer
+ * language links (the landing) renders `FooterLocaleLinks`, which switches
+ * in place over `POST /api/locale` instead of doing a full navigation. Two
+ * implementations of "the language links", one of them unreachable, is how the
+ * two drift apart; the reachable one stayed.
+ */
 export function SiteFooter({
   statusLine,
   privacyLabel,
@@ -74,7 +104,6 @@ export function SiteFooter({
   termsHref,
   repoLabel,
   repoHref,
-  localeLinks,
 }: {
   statusLine: string;
   privacyLabel: string;
@@ -83,16 +112,18 @@ export function SiteFooter({
   termsHref?: string;
   repoLabel?: string;
   repoHref?: string;
-  localeLinks: { locale: string; href: string; label: string }[];
 }) {
   return (
     <footer className="border-t border-line">
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 py-7 text-xs text-muted sm:flex-row sm:items-start sm:justify-between sm:px-7">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-3 px-5 py-4 text-xs text-muted sm:flex-row sm:items-start sm:justify-between sm:px-7">
         <div>
           <span className="text-base font-extrabold tracking-tight text-ink">WELCOME</span>
           <p className="mt-1">{statusLine}</p>
         </div>
-        <div className="flex flex-col gap-1">
+        {/* A wrapping ROW on a phone, a column from `sm`: three short links
+            stacked vertically cost the footer 76px on the device where the page
+            is longest, and all three fit on one line at 390px. */}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 sm:flex-col sm:gap-x-0">
           <Link href={privacyHref} className="underline underline-offset-2 hover:text-ink">
             {privacyLabel}
           </Link>
@@ -112,18 +143,6 @@ export function SiteFooter({
             >
               {repoLabel}
             </a>
-          ) : null}
-          {/* Only rendered when there IS something to navigate: an empty labelled
-              element is both meaningless and an axe aria-prohibited-attr finding
-              (aria-label is not permitted on a generic div). */}
-          {localeLinks.length > 0 ? (
-            <nav className="mt-1 flex gap-2" aria-label="Locale links">
-              {localeLinks.map((l) => (
-                <a key={l.locale} href={l.href} lang={l.locale} className="underline underline-offset-2 hover:text-ink">
-                  {l.label}
-                </a>
-              ))}
-            </nav>
           ) : null}
         </div>
       </div>
