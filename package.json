@@ -18,6 +18,7 @@
     "db:reset": "node --env-file-if-exists=.env.local scripts/db-reset.mjs",
     "db:seed": "node --env-file-if-exists=.env.local --import tsx scripts/seed-demo.mts",
     "demo:reset": "node --env-file-if-exists=.env.local --import tsx scripts/demo-reset.mts",
+    "key:rotate": "node --env-file-if-exists=.env.local --import tsx scripts/rotate-encryption-key.mts",
     "worker": "node --env-file-if-exists=.env.local --import tsx scripts/worker.mts",
     "scan:secrets": "node --env-file-if-exists=.env.local scripts/scan-secrets.mjs",
     "gates": "node scripts/run-gates.mjs",

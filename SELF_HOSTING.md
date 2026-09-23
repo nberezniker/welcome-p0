@@ -106,16 +106,29 @@ ENCRYPTION_KEY=<paste the 32-byte base64>
 HASH_PEPPER=<paste the random pepper>
 ```
 
-> **`ENCRYPTION_KEY` is not rotatable.** It is the AES-256-GCM key for contact
-> fields at rest. Lose it and existing contacts cannot be decrypted. Back it up
-> the way you back up the database. It is one key for everything the app
-> encrypts — contacts, imported emails, TOTP secrets, OAuth code verifiers and
-> Google grant tokens — and no rotation path exists: the *Known limitations*
-> entry in [SECURITY.md](SECURITY.md) says what a keyring would take, and
-> [docs-internal/security/KEY_ROTATION_ASSESSMENT.md](docs-internal/security/KEY_ROTATION_ASSESSMENT.md)
-> works it out in full (including the ordering a live rotation would need and why
-> the OAuth `state` is the part everyone forgets). Choose it as though it were
-> permanent, because today it is.
+> **`ENCRYPTION_KEY` is rotatable, but treat it as permanent anyway.** It is the
+> ACTIVE AES-256-GCM key for everything this app encrypts — contact values,
+> imported emails, TOTP secrets, OAuth code verifiers and Google grant tokens.
+> Lose it without another copy and the rows it sealed cannot be decrypted. Back it
+> up the way you back up the database.
+>
+> If you must rotate (a leak, an escrowed key, a handover), you do not have to
+> take the deployment down and no schema change is involved: every payload names
+> the key that sealed it, so two keys can be live at once — one ACTIVE, the rest
+> still readable. Put the key you are leaving into `ENCRYPTION_KEYS` under its own
+> id, point `ENCRYPTION_KEY` at the new one, and run `pnpm key:rotate` until its
+> dry run reports zero rows left on the old id; only then drop the old key from
+> `ENCRYPTION_KEYS`. The order matters, the command's dry-run output is the
+> verification, and both are written out in
+> [docs-internal/ops/RUNBOOK.md §5](docs-internal/ops/RUNBOOK.md). One caveat
+> belongs in the same breath: the OAuth `state` MAC is derived from
+> `ENCRYPTION_KEY` alone, so a flip invalidates any sign-in in flight — a ten
+> minute window the user fixes by starting again, not lost data. The six
+> ciphertext columns, that caveat and the risks are worked out in
+> [docs-internal/security/KEY_ROTATION_ASSESSMENT.md](docs-internal/security/KEY_ROTATION_ASSESSMENT.md).
+> (`ENCRYPTION_KEYS` and `ENCRYPTION_KEY_ID` are OPTIONAL: with neither set this
+> stays a one-key deployment and the values it writes are exactly the ones it
+> wrote before the keyring existed.)
 
 ### 3.4 Apply the migrations
 

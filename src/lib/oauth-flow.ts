@@ -25,8 +25,8 @@
 
 import type { Sql, TransactionSql } from 'postgres';
 import { randomBytes } from 'node:crypto';
-import { decryptValue, encryptValue } from './crypto';
-import { requireEncryptionKey } from './env';
+import { decryptStored, encryptStored } from './crypto';
+import { requireKeyring } from './env';
 import { safeNextPath } from './redirect';
 import type { GoogleOAuthProvider } from '../domain/google-oauth';
 
@@ -60,7 +60,7 @@ export async function startFlowState(
   },
 ): Promise<StartedFlow> {
   const jti = generateFlowId();
-  const verifier = encryptValue(opts.codeVerifier, requireEncryptionKey());
+  const verifier = encryptStored(opts.codeVerifier, requireKeyring());
   const redirectPath = safeNextPath(opts.redirectPath ?? null) ?? '/me/connections';
 
   await sql`
@@ -107,7 +107,7 @@ export async function consumeFlowState(sql: SqlLike, jti: string): Promise<Consu
 
   let codeVerifier: string;
   try {
-    codeVerifier = decryptValue(row.code_verifier_encrypted, requireEncryptionKey());
+    codeVerifier = decryptStored(row.code_verifier_encrypted, requireKeyring());
   } catch {
     return null;
   }

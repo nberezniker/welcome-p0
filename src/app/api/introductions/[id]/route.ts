@@ -2,8 +2,8 @@ import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
 import { withRequestContext, privateCacheHeaders, jsonError, jsonOk, internalError } from '../../../../lib/http';
-import { decryptValue } from '../../../../lib/crypto';
-import { requireEncryptionKey } from '../../../../lib/env';
+import { decryptStored } from '../../../../lib/crypto';
+import { requireKeyring } from '../../../../lib/env';
 import type { RevealField } from '../../../../domain/introductions';
 
 export const dynamic = 'force-dynamic';
@@ -82,8 +82,8 @@ async function get(
           SELECT kind, encrypted_value FROM contact_fields
           WHERE profile_id = ${otherProfileId} AND kind = ANY(${mutualFields})
         `;
-        const key = requireEncryptionKey();
-        revealed = contactRows.map((c) => ({ kind: c.kind, value: decryptValue(c.encrypted_value, key) }));
+        const keyring = requireKeyring();
+        revealed = contactRows.map((c) => ({ kind: c.kind, value: decryptStored(c.encrypted_value, keyring) }));
       }
     }
 

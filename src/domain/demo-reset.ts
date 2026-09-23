@@ -39,7 +39,18 @@
  */
 
 import { canonicalPair, eventContextKey } from './introductions';
+import { PRODUCTION_ACK_FLAG, looksProductionLike } from './production-guard';
 import { SERVICE_NOTICE_KINDS } from './service-notices';
+
+/**
+ * Re-exported, not redefined: the production acknowledgement flag and the
+ * "looks production-like" test moved to ./production-guard.ts so that
+ * `pnpm key:rotate` answers the same question the same way (see the note there).
+ * They stay exported from this module because every existing importer — this
+ * command's own script and its unit suite — reaches them here, and the point of
+ * the move is one definition, not a churn of call sites.
+ */
+export { PRODUCTION_ACK_FLAG, looksProductionLike };
 
 /**
  * The synthetic personas this repository seeds (scripts/seed-demo.mts,
@@ -82,9 +93,6 @@ export const DEFAULT_DEMO_EVENT_SLUG = 'welcome-demo-meetup';
  *  A = demo2, B = lucia.demo — the persona who arrives through the QR and JOINS
  *  the event, which is why the pair changed when the join step became live). */
 export const DEFAULT_DEMO_PAIR: readonly [string, string] = ['demo2@welcome.test', 'lucia.demo@welcome.test'];
-
-/** The explicit acknowledgement required when the target looks production-like. */
-export const PRODUCTION_ACK_FLAG = '--i-know-this-is-production';
 
 /** The flag that returns ONE persona to the non-member state of the named event. */
 export const UNJOIN_FLAG = '--unjoin';
@@ -177,26 +185,9 @@ export function parseDemoResetArgs(argv: readonly string[]): Parsed<DemoResetArg
 // ---------------------------------------------------------------------------
 // Target classification
 // ---------------------------------------------------------------------------
-
-const LOCAL_HOSTS = ['localhost', '127.0.0.1', '::1', '[::1]'];
-
-/**
- * Does this target look production-like? Deliberately fails CLOSED: an
- * unset/unparsable database URL or a non-local host counts as production-like,
- * so the acknowledgement flag is required rather than optional.
- */
-export function looksProductionLike(input: { appEnv?: string | undefined; databaseUrl?: string | undefined }): boolean {
-  if (input.appEnv === 'production') return true;
-  const url = input.databaseUrl;
-  if (!url || url.trim().length === 0) return true;
-  let host: string;
-  try {
-    host = new URL(url).hostname;
-  } catch {
-    return true; // a URL we cannot read is not one we will call local
-  }
-  return !LOCAL_HOSTS.includes(host.toLowerCase());
-}
+// `looksProductionLike` lives in ./production-guard.ts (shared with
+// `pnpm key:rotate`) and is re-exported above; the gate below is what is
+// specific to THIS command.
 
 // ---------------------------------------------------------------------------
 // The gate: may this run at all?

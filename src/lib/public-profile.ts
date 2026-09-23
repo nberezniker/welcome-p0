@@ -1,6 +1,6 @@
 import { getSql } from './db';
-import { decryptValue } from './crypto';
-import { requireEncryptionKey } from './env';
+import { decryptStored } from './crypto';
+import { requireKeyring } from './env';
 import type { ContactKind } from '../domain/profile';
 
 /**
@@ -71,10 +71,10 @@ export async function loadPublicProfile(slug: string): Promise<PublicProfile | n
 
   let contacts: PublicContact[] = [];
   if (contactRows.length > 0) {
-    const key = requireEncryptionKey();
+    const keyring = requireKeyring();
     contacts = contactRows.map((c) => ({
       kind: c.kind as ContactKind,
-      value: decryptValue(c.encrypted_value, key),
+      value: decryptStored(c.encrypted_value, keyring),
     }));
   }
 

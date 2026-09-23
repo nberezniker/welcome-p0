@@ -3237,19 +3237,26 @@ async function modeS(): Promise<void> {
     return { actual: '404 на отсутствующее событие, 409 + no_schedule без starts_at', evidence: `${ev(missing, 'code')} | ${ev(noDate, 'code')}` };
   });
 
-  await check('S5', 'S', 'страница /e/<slug>: кнопки календаря и диплинки шэринга', 'есть ссылка на .ics, Google Calendar и 4 сети с rel=noopener noreferrer', async () => {
+  await check('S5', 'S', 'страница /e/<slug>: календарь и шэринг свёрнуты в контролы', 'есть .ics, есть контролы календаря и шэринга, а сырых диплинков в первом ответе нет', async () => {
     const res = await anon.get(`/e/${S.icsSlug}`);
     equals(res.status, 200, 'event page status');
     must(res.text.includes(`href="/api/events/${S.icsSlug}/ics"`), 'the .ics link must be on the page');
-    must(res.text.includes('https://calendar.google.com/calendar/render?action=TEMPLATE'), 'Google template link');
-    for (const host of ['https://www.linkedin.com/', 'https://wa.me/', 'https://t.me/', 'https://x.com/']) {
-      must(res.text.includes(host), `share deeplink to ${host} missing`);
+    // The audit found eight competing controls on this page with the primary action
+    // last, and collapsed them into four: the action first, calendar and share behind
+    // disclosures. The deeplinks are therefore rendered on demand, and the e2e suite
+    // (event-actions.spec.ts, design-gate.spec.ts) opens each disclosure and asserts
+    // the four networks with rel="noopener noreferrer". This HTTP check pins the
+    // SERVED structure instead — the controls exist, and the raw share targets must
+    // NOT be in the first response, which is also what keeps it light.
+    for (const id of ['event-calendar', 'event-calendar-more', 'event-share']) {
+      must(res.text.includes(`data-testid="${id}"`), `the ${id} control must be on the page`);
     }
-    const relCount = (res.text.match(/rel="noopener noreferrer"/g) ?? []).length;
-    must(relCount >= 4, `share links must carry rel=noopener noreferrer (found ${relCount})`);
+    for (const host of ['https://www.linkedin.com/', 'https://wa.me/', 'https://t.me/', 'https://x.com/']) {
+      must(!res.text.includes(host), `share deeplink to ${host} must not leak into the first response`);
+    }
     assertNoSecrets(res.text, 'S5');
     must(!res.text.includes('matrix-room-'), 'the room link must not be on the public event page');
-    return { actual: `.ics + Google Calendar + 4 сети, ${relCount} ссылок с rel="noopener noreferrer"`, evidence: `HTTP ${res.status}, ${res.text.length} bytes` };
+    return { actual: '.ics + свёрнутые контролы календаря и шэринга, сырых диплинков нет', evidence: `HTTP ${res.status}, ${res.text.length} bytes; раскрытие проверяют tests/e2e/event-actions.spec.ts` };
   });
 
   // ── S6: goals are private ────────────────────────────────────────────────

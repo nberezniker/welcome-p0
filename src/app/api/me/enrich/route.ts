@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { decryptValue } from '../../../../lib/crypto';
-import { requireEncryptionKey } from '../../../../lib/env';
+import { decryptStored } from '../../../../lib/crypto';
+import { requireKeyring } from '../../../../lib/env';
 import { internalError, jsonError, jsonOk, privateCacheHeaders, withApi } from '../../../../lib/http';
 import { log } from '../../../../lib/logger';
 import { checkRateLimit } from '../../../../lib/ratelimit';
@@ -140,11 +140,11 @@ async function postRoute(req: NextRequest) {
     // restored backup) or otherwise corrupt must never fail the whole request —
     // it simply is not a link we can hand over, so enrichment proceeds with the
     // contacts that do decrypt. Same rule as GET /api/me/contacts.
-    const key = requireEncryptionKey();
+    const keyring = requireKeyring();
     const contacts: { kind: string; value: string }[] = [];
     for (const row of contactRows) {
       try {
-        contacts.push({ kind: row.kind, value: decryptValue(row.encrypted_value, key) });
+        contacts.push({ kind: row.kind, value: decryptStored(row.encrypted_value, keyring) });
       } catch {
         continue;
       }

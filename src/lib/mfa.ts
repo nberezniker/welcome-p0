@@ -1,6 +1,6 @@
 import type { Sql } from 'postgres';
-import { encryptValue, decryptValue } from './crypto';
-import { requireEncryptionKey } from './env';
+import { decryptStored, encryptStored } from './crypto';
+import { requireKeyring } from './env';
 import {
   RECOVERY_CODES_COUNT,
   generateRecoveryCodes,
@@ -72,13 +72,13 @@ export async function enrollTotp(
   sql: Sql,
   accountId: string,
 ): Promise<{ secretBase32: string; recoveryCodes: string[] }> {
-  const key = requireEncryptionKey();
+  const keyring = requireKeyring();
   const secretBase32 = generateTotpSecret();
   const codes = generateRecoveryCodes();
   await sql.begin(async (tx) => {
     await tx`
       INSERT INTO mfa_credentials (account_id, kind, secret_encrypted, confirmed_at)
-      VALUES (${accountId}, 'totp', ${encryptValue(secretBase32, key)}, NULL)
+      VALUES (${accountId}, 'totp', ${encryptStored(secretBase32, keyring)}, NULL)
       ON CONFLICT (account_id) DO UPDATE
         SET kind = 'totp', secret_encrypted = EXCLUDED.secret_encrypted,
             confirmed_at = NULL, created_at = now()
@@ -95,7 +95,7 @@ export async function enrollTotp(
 
 /** Decrypts the stored secret for verification / QR display. Throws on tampering. */
 export function decryptTotpSecret(row: MfaCredentialRow): string {
-  return decryptValue(row.secret_encrypted, requireEncryptionKey());
+  return decryptStored(row.secret_encrypted, requireKeyring());
 }
 
 // ---------------------------------------------------------------------------

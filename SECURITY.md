@@ -52,23 +52,30 @@ history does not un-leak it.
 - In-memory rate limiter (single process) — see `docs-internal/adr/0005-*`.
 - Serverless deployments drive the outbox via `/api/internal/worker-tick`
   (secret-protected) or the `pnpm worker` long-running process.
-- **`ENCRYPTION_KEY` cannot be rotated.** One AES-256-GCM key encrypts every
-  value at rest that has a key: contact values, the emails imported from a
-  registration CSV, the OAuth PKCE code verifier, and Google grant access /
-  refresh tokens. A rotation path would need a keyring — a key-id inside each
-  ciphertext, and a decryptor that selects the key by that id so old rows can be
-  read and re-encrypted under the new key. The format already carries a version
-  slot (`v1.<iv>.<ciphertext>.<tag>`, `VALUE_PREFIX` in `src/lib/crypto.ts`), so
-  the natural shape is a key-id in that slot (`v1:<key-id>.…`), but it is NOT
-  implemented: `decryptValue` reads the single env key, and a payload with any
-  other prefix is rejected. Consequence today: the key is a one-way door. It must
-  be backed up with the database, and a leaked or lost key has no remedy except
-  the data it decrypts. Not a P0 defect — but not a rotation story either.
-  **Assessed in full in
-  [docs-internal/security/KEY_ROTATION_ASSESSMENT.md](docs-internal/security/KEY_ROTATION_ASSESSMENT.md)**:
-  the six ciphertext columns, the key's OTHER role that a column-level audit
-  misses (an HKDF-derived MAC for the OAuth `state`), what a keyring would take,
-  the expand → flip → backfill → contract order for a live deployment, the risks,
-  and rough sizing. Deliberately not implemented in this pass.
+- **`ENCRYPTION_KEY` is rotatable — with a keyring, and by that route only.** One
+  AES-256-GCM key encrypts every value at rest that has a key: contact values, the
+  emails imported from a registration CSV, the TOTP shared secret, the OAuth PKCE
+  code verifier, and Google grant access / refresh tokens (the six columns are
+  `ENCRYPTED_COLUMNS` in `src/domain/key-rotation.ts`, checked against the schema
+  by `tests/integration/encrypted-columns.test.ts`). Each payload names the key id
+  that sealed it in the slot that used to be a hard-coded `v1`
+  (`<key-id>.<iv>.<ciphertext>.<tag>`, `src/lib/crypto.ts`), so a deployment can
+  hold several keys at once: exactly one ACTIVE (what new writes use) and any
+  number still readable. `ENCRYPTION_KEY` remains the ACTIVE key and its id
+  remains `v1` unless `ENCRYPTION_KEY_ID` says otherwise — a deployment that sets
+  neither of the rotation variables behaves exactly as it always has, and the
+  payloads it writes are byte-for-byte what it wrote before. Rotating is then
+  ordinary states rather than one atomic act: add the new key, flip the active id,
+  run `pnpm key:rotate` until its dry run reads zero rows on the old key, then
+  retire it — the order, the verification counts and the rollback are in
+  [docs-internal/ops/RUNBOOK.md §5](docs-internal/ops/RUNBOOK.md). Two limits
+  remain honest: a payload whose key is **not** in the keyring is unreadable until
+  the key is restored (the error names the id — there is no fallback to the active
+  key), and the OAuth `state` MAC still derives from `ENCRYPTION_KEY` **alone**,
+  so flipping that variable invalidates states issued in the previous ten minutes.
+  Moving it is a decision with that window attached, deliberately not taken yet —
+  [docs-internal/security/KEY_ROTATION_ASSESSMENT.md](docs-internal/security/KEY_ROTATION_ASSESSMENT.md)
+  states both options, the six ciphertext columns, the expand → flip → backfill →
+  contract order for a live deployment and the risks.
   (The single-operator note for self-hosters is in
   [SELF_HOSTING.md §3.3](SELF_HOSTING.md).)

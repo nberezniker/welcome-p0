@@ -1,8 +1,8 @@
 import { NextRequest } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
-import { requireEncryptionKey } from '../../../../lib/env';
-import { decryptValue, encryptValue } from '../../../../lib/crypto';
+import { requireKeyring } from '../../../../lib/env';
+import { decryptStored, encryptStored } from '../../../../lib/crypto';
 import { withApi, privateCacheHeaders, internalError, jsonError, jsonOk, readJsonBody } from '../../../../lib/http';
 import { validateContactInput, CONTACT_KINDS } from '../../../../domain/profile';
 
@@ -24,7 +24,7 @@ async function get(req: NextRequest) {
     const profile = profileRows[0];
     if (!profile) return jsonOk({ ok: true, contacts: [] }, { headers: privateCacheHeaders() });
 
-    const key = requireEncryptionKey();
+    const keyring = requireKeyring();
     const rows = await sql<{ kind: string; encrypted_value: string; public_enabled: boolean }[]>`
       SELECT kind, encrypted_value, public_enabled
       FROM contact_fields WHERE profile_id = ${profile.id}
@@ -33,7 +33,7 @@ async function get(req: NextRequest) {
     const contacts = rows.map((r) => {
       let value: string;
       try {
-        value = decryptValue(r.encrypted_value, key);
+        value = decryptStored(r.encrypted_value, keyring);
       } catch {
         value = ''; // undecryptable rows are never surfaced
       }
@@ -64,7 +64,7 @@ async function putRoute(req: NextRequest) {
     if (!input.ok) return jsonError(400, input.code, input.message);
 
     // Values are encrypted at rest (AES-256-GCM). Plaintext never reaches the DB.
-    const encrypted = encryptValue(input.value.value, requireEncryptionKey());
+    const encrypted = encryptStored(input.value.value, requireKeyring());
 
     await sql`
       INSERT INTO contact_fields (profile_id, kind, encrypted_value, public_enabled)

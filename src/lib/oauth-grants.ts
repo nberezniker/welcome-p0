@@ -21,8 +21,8 @@
  */
 
 import type { Sql, TransactionSql } from 'postgres';
-import { decryptValue, encryptValue } from './crypto';
-import { requireEncryptionKey } from './env';
+import { decryptStored, encryptStored } from './crypto';
+import { requireKeyring } from './env';
 import { GoogleApiError, refreshAccessToken } from './google-api';
 import {
   GOOGLE_SCOPES,
@@ -67,9 +67,9 @@ export async function upsertGrant(
   sql: SqlLike,
   opts: { accountId: string; provider: GoogleOAuthProvider; tokens: GoogleTokenSet },
 ): Promise<void> {
-  const key = requireEncryptionKey();
-  const accessToken = encryptValue(opts.tokens.accessToken, key);
-  const refreshToken = opts.tokens.refreshToken === null ? null : encryptValue(opts.tokens.refreshToken, key);
+  const keyring = requireKeyring();
+  const accessToken = encryptStored(opts.tokens.accessToken, keyring);
+  const refreshToken = opts.tokens.refreshToken === null ? null : encryptStored(opts.tokens.refreshToken, keyring);
   const scopes = opts.tokens.scopes.length > 0 ? [...opts.tokens.scopes] : [...GOOGLE_SCOPES[opts.provider]];
 
   await sql`
@@ -101,8 +101,8 @@ export async function recordGrantRefresh(
   sql: SqlLike,
   opts: { accountId: string; provider: GoogleOAuthProvider; tokens: GoogleTokenSet },
 ): Promise<void> {
-  const key = requireEncryptionKey();
-  const accessToken = encryptValue(opts.tokens.accessToken, key);
+  const keyring = requireKeyring();
+  const accessToken = encryptStored(opts.tokens.accessToken, keyring);
   await sql`
     UPDATE oauth_grants
     SET access_token_encrypted = ${accessToken},
@@ -167,7 +167,7 @@ async function loadRefreshToken(sql: SqlLike, accountId: string, provider: Googl
   const encrypted = rows[0]?.refresh_token_encrypted;
   if (!encrypted) return null;
   try {
-    return decryptValue(encrypted, requireEncryptionKey());
+    return decryptStored(encrypted, requireKeyring());
   } catch {
     // An undecryptable row (rotated ENCRYPTION_KEY) is treated as absent: the
     // honest answer is "reconnect", never a crash and never a wrong token.
@@ -271,7 +271,7 @@ export async function loadGoogleAccessToken(
 
 function decryptRowValue(encrypted: string): string | null {
   try {
-    return decryptValue(encrypted, requireEncryptionKey());
+    return decryptStored(encrypted, requireKeyring());
   } catch {
     return null;
   }

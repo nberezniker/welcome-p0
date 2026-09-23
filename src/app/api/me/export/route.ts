@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSql } from '../../../../lib/db';
 import { requireAccount } from '../../../../lib/auth';
 import { internalError, jsonError, withApi } from '../../../../lib/http';
-import { requireEncryptionKey } from '../../../../lib/env';
-import { decryptValue } from '../../../../lib/crypto';
+import { requireKeyring } from '../../../../lib/env';
+import { decryptStored } from '../../../../lib/crypto';
 import { POLICY_VERSION } from '../../../../i18n';
 
 /**
@@ -18,7 +18,7 @@ async function postRoute(req: NextRequest) {
     if (!auth) return jsonError(401, 'unauthorized', 'Sign in required');
 
     const sql = getSql();
-    const key = requireEncryptionKey();
+    const keyring = requireKeyring();
 
     const [profileRows, contactRows, consentRows, membershipRows, noteRows, blockRows, reportRows, introductionRows] = await Promise.all([
       sql`SELECT public_slug, display_name, headline, company, short_bio, languages, offer_tags, need_tags,
@@ -61,7 +61,7 @@ async function postRoute(req: NextRequest) {
       kind: c.kind,
       value: (() => {
         try {
-          return decryptValue(c.encrypted_value, key);
+          return decryptStored(c.encrypted_value, keyring);
         } catch {
           return '';
         }

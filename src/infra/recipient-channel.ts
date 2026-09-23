@@ -1,6 +1,6 @@
 import type { Sql, TransactionSql } from 'postgres';
-import { decryptValue } from '../lib/crypto';
-import { requireEncryptionKey } from '../lib/env';
+import { decryptStored } from '../lib/crypto';
+import { requireKeyring } from '../lib/env';
 import { log } from '../lib/logger';
 
 /**
@@ -111,7 +111,7 @@ export async function resolveAccountEmail(
   const encrypted = rows[0]?.encrypted_email;
   if (!encrypted) return null;
   try {
-    return decryptValue(encrypted, requireEncryptionKey());
+    return decryptStored(encrypted, requireKeyring());
   } catch {
     // Deliberately silent about the value: a decryptable-on-a-different-key row
     // is a data issue, not a reason to put an address (or its ciphertext) in a

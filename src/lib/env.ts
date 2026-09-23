@@ -1,7 +1,7 @@
 /** Env access. Values are validated lazily at use sites so the app can boot
  * (and print a clear error) even with an incomplete .env. */
 
-import { parseEmailAllowlist } from './crypto';
+import { parseEmailAllowlist, parseKeyring, type Keyring } from './crypto';
 import { log } from './logger';
 
 export type AppEnv = 'development' | 'test' | 'production';
@@ -43,6 +43,39 @@ export function requireEncryptionKey(): string {
     throw new Error('ENCRYPTION_KEY is not configured');
   }
   return key;
+}
+
+/**
+ * The keyring every stored secret is sealed and opened with — the active key
+ * plus any key this deployment must still be able to READ.
+ *
+ * THE SAME VARIABLE, WIDENED. `ENCRYPTION_KEY` stays REQUIRED and stays the
+ * material of the active key, so a deployment that sets nothing else gets a
+ * one-key keyring with id `v1`: the id every existing payload already carries,
+ * which is why this replaced no data and needed no migration. The two optional
+ * variables add the ability to read MORE than one key, which is what a rotation
+ * is made of (src/lib/crypto.ts carries the shapes and the refusals;
+ * docs-internal/ops/RUNBOOK.md §5 is the procedure).
+ *
+ * `requireEncryptionKey()` remains for the one consumer that must NOT follow the
+ * keyring: the OAuth `state` MAC derives its key from ENCRYPTION_KEY alone
+ * (src/lib/oauth-state.ts), and moving it is a decision with a user-visible
+ * 10-minute window, deliberately NOT taken yet — see
+ * docs-internal/security/KEY_ROTATION_ASSESSMENT.md § "The OAuth-state MAC".
+ *
+ * Read lazily at every use site like the other required config, so a
+ * misconfigured deployment fails where it is used, naming what is wrong.
+ */
+export function requireKeyring(): Keyring {
+  const parsed = parseKeyring({
+    encryptionKey: process.env.ENCRYPTION_KEY,
+    encryptionKeys: process.env.ENCRYPTION_KEYS,
+    activeKeyId: process.env.ENCRYPTION_KEY_ID,
+  });
+  if (!parsed.ok) {
+    throw new Error(parsed.message);
+  }
+  return parsed.keyring;
 }
 
 /**

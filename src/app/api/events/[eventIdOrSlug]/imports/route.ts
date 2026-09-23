@@ -13,8 +13,8 @@ import {
   type ImportMappingOverride,
   type ImportRecord,
 } from '../../../../../domain/import';
-import { emailLookupHash, encryptValue } from '../../../../../lib/crypto';
-import { requireHashPepper, requireEncryptionKey } from '../../../../../lib/env';
+import { emailLookupHash, encryptStored } from '../../../../../lib/crypto';
+import { requireHashPepper, requireKeyring } from '../../../../../lib/env';
 import { recordAudit } from '../../../../../lib/audit';
 
 /** POST /api/events/[eventIdOrSlug]/imports — organizer CSV import.
@@ -160,7 +160,7 @@ async function postRoute(
       return jsonError(400, 'no_valid_rows', 'No importable rows found in the CSV');
     }
 
-    const encKey = requireEncryptionKey();
+    const keyring = requireKeyring();
     let created = 0;
     let updated = 0;
     let skipped = 0;
@@ -188,7 +188,7 @@ async function postRoute(
               imported_data = ${tx.json(rec.importedData)},
               approval_status = ${rec.approvalStatus},
               email_lookup_hash = COALESCE(${emailHash}, email_lookup_hash),
-              encrypted_email = COALESCE(${emailHash ? encryptValue(rec.email!, encKey) : null}, encrypted_email),
+              encrypted_email = COALESCE(${emailHash ? encryptStored(rec.email!, keyring) : null}, encrypted_email),
               import_revision = import_revision + 1
             WHERE id = ${existing[0].id}
           `;
@@ -197,7 +197,7 @@ async function postRoute(
           await tx`
             INSERT INTO registrations (event_id, provider, external_guest_id, email_lookup_hash, encrypted_email,
                                        imported_name, imported_data, approval_status)
-            VALUES (${eventId}, 'csv', ${externalId}, ${emailHash}, ${emailHash ? encryptValue(rec.email!, encKey) : null},
+            VALUES (${eventId}, 'csv', ${externalId}, ${emailHash}, ${emailHash ? encryptStored(rec.email!, keyring) : null},
                     ${rec.name}, ${tx.json(rec.importedData)}, ${rec.approvalStatus})
           `;
           created++;
