@@ -1,10 +1,10 @@
 {
-  "generated_at": "2026-09-22T17:02:52.917Z",
-  "head_sha_at_gate_run": "3e2253df6c3ef8c2fc4bf815a56305c944877230",
+  "generated_at": "2026-09-23T22:19:19.460Z",
+  "head_sha_at_gate_run": "fcbea0907f4b6249dcf4d2cd40498652f93be554",
   "note": "The seven release gates run fresh and sequentially on the working tree; the combined output is evidence/final-gates.log.",
   "previous_run": {
-    "generated_at": "2026-09-22T14:17:00.633Z",
-    "head_sha_at_gate_run": "4bd435ef04e0fddf3e643f1d19700a5325afa924"
+    "generated_at": "2026-09-22T21:11:08.046Z",
+    "head_sha_at_gate_run": "fcbea0907f4b6249dcf4d2cd40498652f93be554"
   },
   "gates": [
     {
@@ -19,7 +19,7 @@
     {
       "command": "pnpm lint",
       "exit_code": 0,
-      "duration_s": 10,
+      "duration_s": 12,
       "summary_lines": [
         "> welcome-p0@0.1.0 lint /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> eslint ."
@@ -28,17 +28,17 @@
     {
       "command": "pnpm test:unit",
       "exit_code": 0,
-      "duration_s": 17,
+      "duration_s": 18,
       "summary_lines": [
         "ℹ skipped 0",
         "ℹ todo 0",
-        "ℹ duration_ms 16776.686167"
+        "ℹ duration_ms 17223.349042"
       ]
     },
     {
       "command": "pnpm test:integration",
       "exit_code": 0,
-      "duration_s": 35,
+      "duration_s": 34,
       "summary_lines": [
         "applied 013 013_oauth_grants.sql",
         "applied 014 014_account_locale.sql",
@@ -48,11 +48,11 @@
     {
       "command": "pnpm test:e2e",
       "exit_code": 0,
-      "duration_s": 196,
+      "duration_s": 194,
       "summary_lines": [
         "  70 passed (3.2m)",
-        "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript) (src/lib/logger.ts:197:34)",
-        "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript) (src/lib/logger.ts:197:34)",
+        "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
+        "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
         "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
         "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)"
       ]
@@ -60,14 +60,14 @@
     {
       "command": "pnpm build",
       "exit_code": 0,
-      "duration_s": 12,
+      "duration_s": 7,
       "summary_lines": [
-        "✓ Compiled successfully in 2.4s",
+        "✓ Compiled successfully in 1839ms",
         "  Generating static pages using 9 workers (0/39) ...",
         "  Generating static pages using 9 workers (9/39) \r",
         "  Generating static pages using 9 workers (19/39) \r",
         "  Generating static pages using 9 workers (29/39) \r",
-        "✓ Generating static pages using 9 workers (39/39) in 195ms",
+        "✓ Generating static pages using 9 workers (39/39) in 216ms",
         "Route (app)"
       ]
     },
