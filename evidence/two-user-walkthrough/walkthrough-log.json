@@ -1111,6 +1111,392 @@
         }
       ],
       "finished_at": "2026-09-22T14:18:34.984Z"
+    },
+    {
+      "target": "https://welcome-p0-crs4epa0l-nikiti4.vercel.app",
+      "started_at": "2026-09-24T10:13:37.160Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "personas": {
+        "a": "demo2@welcome.test",
+        "b": "lucia.demo@welcome.test",
+        "non_member_reset_target": "lucia.demo@welcome.test",
+        "event": "welcome-demo-meetup"
+      },
+      "steps": [],
+      "screenshots": [],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "blocked",
+          "text": "the walkthrough stopped: demo2@welcome.test: the deployment exposed no demo code (AUTH_EXPOSE_DEMO_OTP/is_demo off, or the 3-codes-per-15-minutes guard already spent for this account)"
+        }
+      ],
+      "finished_at": "2026-09-24T10:13:38.938Z",
+      "aborted": true
+    },
+    {
+      "target": "https://welcome-p0-hv5lyj1yy-nikiti4.vercel.app",
+      "started_at": "2026-09-24T22:29:39.272Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "personas": {
+        "a": "demo2@welcome.test",
+        "b": "lucia.demo@welcome.test",
+        "non_member_reset_target": "lucia.demo@welcome.test",
+        "event": "welcome-demo-meetup"
+      },
+      "steps": [],
+      "screenshots": [],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "blocked",
+          "text": "the walkthrough stopped: demo2@welcome.test: the deployment exposed no demo code (AUTH_EXPOSE_DEMO_OTP/is_demo off, or the 3-codes-per-15-minutes guard already spent for this account)"
+        }
+      ],
+      "finished_at": "2026-09-24T22:29:40.744Z",
+      "aborted": true
+    },
+    {
+      "target": "https://welcome-p0-rl08oqe2u-nikiti4.vercel.app",
+      "started_at": "2026-09-24T22:30:46.465Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "personas": {
+        "a": "demo2@welcome.test",
+        "b": "lucia.demo@welcome.test",
+        "non_member_reset_target": "lucia.demo@welcome.test",
+        "event": "welcome-demo-meetup"
+      },
+      "steps": [
+        {
+          "name": "A signs in and opens the demo event",
+          "started_at": "2026-09-24T22:30:46.972Z",
+          "shots": [
+            "01-a-event-member-state.png"
+          ],
+          "notes": [
+            "4 console/network error(s)"
+          ],
+          "action_ms": 2789,
+          "nav_to_usable_ms": 495,
+          "fcp_to_usable_ms": 279,
+          "document_fcp_ms": 216,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)",
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "B signs in and opens the card from the QR URL",
+          "started_at": "2026-09-24T22:30:50.077Z",
+          "shots": [
+            "02-b-card-from-qr-url.png"
+          ],
+          "notes": [
+            "QR read from /api/public/profiles/oLxrJ5F6UioRtOc5WdK2Lw/qr.svg (34 module rows)",
+            "the card opens as \"Дмитрий Ковалёв\"",
+            "card CTAs before the join: no-connection=true, sign-in=false, intro=false",
+            "4 console/network error(s)"
+          ],
+          "action_ms": 1623,
+          "nav_to_usable_ms": 441,
+          "fcp_to_usable_ms": 225,
+          "document_fcp_ms": 216,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)",
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "B opens the event and joins it for real",
+          "started_at": "2026-09-24T22:30:51.741Z",
+          "shots": [
+            "03-b-event-before-join-nonmember.png",
+            "04-b-event-after-join-member.png"
+          ],
+          "notes": [
+            "BEFORE the join: no member state, the join action is the page’s primary control",
+            "POST /api/events/0201aa7b-c520-4898-8b85-35b73d12ab32/join → 200, already_member=undefined",
+            "AFTER the join: member state \"You are a member of this event.\", join action rendered 0 time(s)",
+            "PATCH membership (directory_visible) → 200",
+            "4 console/network error(s)"
+          ],
+          "action_ms": 860,
+          "nav_to_usable_ms": 395,
+          "fcp_to_usable_ms": 167,
+          "document_fcp_ms": 228,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)",
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "the card now offers the introduction (the join turned it on)",
+          "started_at": "2026-09-24T22:30:52.644Z",
+          "shots": [
+            "05-b-card-intro-after-join.png"
+          ],
+          "notes": [
+            "the same URL that showed no affordance now offers the introduction; no-connection=0, sign-in=0",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 230,
+          "nav_to_usable_ms": 229,
+          "fcp_to_usable_ms": 25,
+          "document_fcp_ms": 204,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "A opens the directory and proposes the introduction",
+          "started_at": "2026-09-24T22:30:52.920Z",
+          "shots": [
+            "06-a-reveal-chooser.png",
+            "07-a-proposal-sent.png"
+          ],
+          "notes": [
+            "the member panel links to /me/events/0201aa7b-c520-4898-8b85-35b73d12ab32/directory",
+            "target profile fc533755-abfb-48f3-8ef8-06af91f2e3f8 (found in the directory — B joined in this run)",
+            "POST /api/introductions → 200, already_existed=false",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 1875,
+          "nav_to_usable_ms": 1873,
+          "fcp_to_usable_ms": 1765,
+          "document_fcp_ms": 108,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "B sees the request waiting and accepts it",
+          "started_at": "2026-09-24T22:30:54.863Z",
+          "shots": [
+            "08-b-proposal-pending.png",
+            "09-b-mutual-reveal.png"
+          ],
+          "notes": [
+            "the card reads \"Waiting for response\"",
+            "before consent: state=pending revealed=[] reveal blocks=0",
+            "POST /respond → 200",
+            "B after consent: state=mutual revealed=[{\"kind\":\"telegram_username\",\"value\":\"@dmitry_demo\"}]",
+            "B's revealed rows: 1",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 1283,
+          "nav_to_usable_ms": 1281,
+          "fcp_to_usable_ms": 1169,
+          "document_fcp_ms": 112,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "A sees the mutual state and the reveal",
+          "started_at": "2026-09-24T22:30:56.197Z",
+          "shots": [
+            "10-a-mutual-reveal.png"
+          ],
+          "notes": [
+            "A after consent: revealed=[{\"kind\":\"telegram_username\",\"value\":\"@lucia_demo\"}] revealed rows=1",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 524,
+          "nav_to_usable_ms": 523,
+          "fcp_to_usable_ms": 343,
+          "document_fcp_ms": 180,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "a stranger opens A’s public card at phone size",
+          "started_at": "2026-09-24T22:30:56.782Z",
+          "shots": [
+            "11-a-public-card-stranger.png"
+          ],
+          "notes": [
+            "the card renders as \"Дмитрий Ковалёв\" with 1 public contact row(s); anonymous sign-in CTA=true",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 488,
+          "nav_to_usable_ms": 486,
+          "fcp_to_usable_ms": 74,
+          "document_fcp_ms": 412,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "the directory at desktop size",
+          "started_at": "2026-09-24T22:30:57.407Z",
+          "shots": [
+            "12-directory-desktop-1280.png"
+          ],
+          "notes": [
+            "the same view at 1280px, narrowed by the same search (A’s session reused, no second sign-in)",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 826,
+          "nav_to_usable_ms": 824,
+          "fcp_to_usable_ms": 544,
+          "document_fcp_ms": 280,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        },
+        {
+          "name": "the directory at its slug URL (the deployed defect)",
+          "started_at": "2026-09-24T22:30:58.304Z",
+          "shots": [
+            "13-defect-directory-slug-url.png"
+          ],
+          "notes": [
+            "slug URL → main=1, directory controls=1",
+            "2 console/network error(s)"
+          ],
+          "action_ms": 3204,
+          "nav_to_usable_ms": 3203,
+          "fcp_to_usable_ms": 3027,
+          "document_fcp_ms": 176,
+          "console_errors": [
+            "Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked.",
+            "request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+          ]
+        }
+      ],
+      "screenshots": [
+        "01-a-event-member-state.png",
+        "02-b-card-from-qr-url.png",
+        "03-b-event-before-join-nonmember.png",
+        "04-b-event-after-join-member.png",
+        "05-b-card-intro-after-join.png",
+        "06-a-reveal-chooser.png",
+        "07-a-proposal-sent.png",
+        "08-b-proposal-pending.png",
+        "09-b-mutual-reveal.png",
+        "10-a-mutual-reveal.png",
+        "11-a-public-card-stranger.png",
+        "12-directory-desktop-1280.png",
+        "13-defect-directory-slug-url.png"
+      ],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "observed",
+          "text": "A signs in and opens the demo event: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "A signs in and opens the demo event: request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "A signs in and opens the demo event: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "B signs in and opens the card from the QR URL: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "B signs in and opens the card from the QR URL: request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "B signs in and opens the card from the QR URL: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "B opens the event and joins it for real: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "B opens the event and joins it for real: request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "B opens the event and joins it for real: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "the card now offers the introduction (the join turned it on): Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "the card now offers the introduction (the join turned it on): request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "A opens the directory and proposes the introduction: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "A opens the directory and proposes the introduction: request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "B sees the request waiting and accepts it: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "B sees the request waiting and accepts it: request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "A sees the mutual state and the reveal: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "A sees the mutual state and the reveal: request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "a stranger opens A’s public card at phone size: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "a stranger opens A’s public card at phone size: request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at desktop size: Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at desktop size: request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at its slug URL (the deployed defect): Loading the script 'https://vercel.live/_next-live/feedback/feedback.js' violates the following Content Security Policy directive: \"script-src 'self' 'unsafe-inline'\". Note that 'script-src-elem' was not explicitly set, so 'script-src' is used as a fallback. The action has been blocked."
+        },
+        {
+          "severity": "observed",
+          "text": "the directory at its slug URL (the deployed defect): request failed: https://vercel.live/_next-live/feedback/feedback.js (csp)"
+        }
+      ],
+      "finished_at": "2026-09-24T22:31:01.568Z"
     }
   ]
 }
