@@ -22,14 +22,37 @@ import postgres from 'postgres';
 import { performance } from 'node:perf_hooks';
 import { runMigrations } from './migrate.mjs';
 
+import { PRODUCTION_ACK_FLAG, looksProductionLike } from '../src/domain/production-guard.ts';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const EVIDENCE_DIR = path.join(ROOT, 'evidence');
 const PORT = Number(process.env.LOAD_SMOKE_PORT ?? 3177);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
+// The run RESETS the target schema (`DROP SCHEMA public CASCADE` at the line
+// marked below) — so the target must be a throwaway database, never a real one.
+// On 2026-09-25 an inherited production DATABASE_URL made this run wipe the
+// live database (it only ever regenerates demo data, but the real registrations,
+// the Google grant and the audit history were gone). Since then the target is
+// opt-in: a dedicated variable first, and a production-looking URL is refused
+// without an explicit acknowledgement.
 const databaseUrl =
   process.env.LOAD_SMOKE_DATABASE_URL ||
-  process.env.DATABASE_URL ||
-  'postgres://localhost:5432/welcome_test';
+  (() => {
+    const fallback = 'postgres://localhost:5432/welcome_test';
+    if (looksProductionLike({ databaseUrl: process.env.DATABASE_URL })) {
+      if (process.argv.includes(PRODUCTION_ACK_FLAG)) {
+        console.error('load:smoke — acknowledged: running against the production-looking DATABASE_URL');
+        return process.env.DATABASE_URL;
+      }
+      console.error(
+        'load:smoke — REFUSED: the inherited DATABASE_URL looks like a production ' +
+        'database and this run would DROP ITS SCHEMA. ' +
+        `Set LOAD_SMOKE_DATABASE_URL to a throwaway database${PRODUCTION_ACK_FLAG.slice(0, 0)}` +
+        `, or pass ${PRODUCTION_ACK_FLAG} to override.`
+      );
+      process.exit(2);
+    }
+    return fallback;
+  })();
 
 const HASH_PEPPER = process.env.HASH_PEPPER || 'load-smoke-pepper-0123456789abcdef';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || Buffer.alloc(32, 9).toString('base64');
