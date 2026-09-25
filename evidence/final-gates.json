@@ -1,16 +1,16 @@
 {
-  "generated_at": "2026-09-23T22:19:19.460Z",
-  "head_sha_at_gate_run": "fcbea0907f4b6249dcf4d2cd40498652f93be554",
+  "generated_at": "2026-09-25T21:21:18.749Z",
+  "head_sha_at_gate_run": "9277cb385dd8e29a4f6d1709ab02114f3d7b26da",
   "note": "The seven release gates run fresh and sequentially on the working tree; the combined output is evidence/final-gates.log.",
   "previous_run": {
-    "generated_at": "2026-09-22T21:11:08.046Z",
-    "head_sha_at_gate_run": "fcbea0907f4b6249dcf4d2cd40498652f93be554"
+    "generated_at": "2026-09-25T21:15:46.228Z",
+    "head_sha_at_gate_run": "9277cb385dd8e29a4f6d1709ab02114f3d7b26da"
   },
   "gates": [
     {
       "command": "pnpm typecheck",
       "exit_code": 0,
-      "duration_s": 2,
+      "duration_s": 6,
       "summary_lines": [
         "> welcome-p0@0.1.0 typecheck /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> tsc --noEmit"
@@ -19,7 +19,7 @@
     {
       "command": "pnpm lint",
       "exit_code": 0,
-      "duration_s": 12,
+      "duration_s": 9,
       "summary_lines": [
         "> welcome-p0@0.1.0 lint /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
         "> eslint ."
@@ -28,17 +28,17 @@
     {
       "command": "pnpm test:unit",
       "exit_code": 0,
-      "duration_s": 18,
+      "duration_s": 13,
       "summary_lines": [
         "ℹ skipped 0",
         "ℹ todo 0",
-        "ℹ duration_ms 17223.349042"
+        "ℹ duration_ms 12561.862292"
       ]
     },
     {
       "command": "pnpm test:integration",
       "exit_code": 0,
-      "duration_s": 34,
+      "duration_s": 30,
       "summary_lines": [
         "applied 013 013_oauth_grants.sql",
         "applied 014 014_account_locale.sql",
@@ -48,9 +48,9 @@
     {
       "command": "pnpm test:e2e",
       "exit_code": 0,
-      "duration_s": 194,
+      "duration_s": 155,
       "summary_lines": [
-        "  70 passed (3.2m)",
+        "  70 passed (2.6m)",
         "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
         "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
         "[WebServer] [browser] [client_error] segment render failed event=client_error code=no_digest ChunkLoadError: Failed to load chunk /_next/static/chunks/_07xlvo6._.js from module [project]/node_modules/.pnpm/next@16.3.4_@babel+core@7.29.7_@playwright+test@1.63.0_@types+node@22.20.1_react-dom@19.2.8_react@19.2.8__react@19.2.8/node_modules/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.browser.development.js [app-client] (ecmascript)",
@@ -60,24 +60,24 @@
     {
       "command": "pnpm build",
       "exit_code": 0,
-      "duration_s": 7,
+      "duration_s": 6,
       "summary_lines": [
-        "✓ Compiled successfully in 1839ms",
+        "✓ Compiled successfully in 1213ms",
         "  Generating static pages using 9 workers (0/39) ...",
         "  Generating static pages using 9 workers (9/39) \r",
         "  Generating static pages using 9 workers (19/39) \r",
         "  Generating static pages using 9 workers (29/39) \r",
-        "✓ Generating static pages using 9 workers (39/39) in 216ms",
+        "✓ Generating static pages using 9 workers (39/39) in 178ms",
         "Route (app)"
       ]
     },
     {
       "command": "pnpm scan:secrets",
       "exit_code": 0,
-      "duration_s": 14,
+      "duration_s": 10,
       "summary_lines": [
         "> welcome-p0@0.1.0 scan:secrets /Users/nikiti4/.openclaw-autoclaw/workspace/welcome",
-        "scan:secrets ok — no secrets found in tracked files (5 documented exemption(s), 0 stale)"
+        "scan:secrets ok — no secrets found in tracked files (6 documented exemption(s), 0 stale)"
       ]
     }
   ],

@@ -41,7 +41,7 @@ import {
 
 const KEY_A = Buffer.alloc(32, 21).toString('base64');
 const KEY_B = Buffer.alloc(32, 22).toString('base64');
-const SECRET = 'a-contact-value-that-must-never-be-printed';
+const SECRET = 'a-contact-value-that-must-never-be-printed'; // secret-scan:allow synthetic parser fixture, never a real credential
 
 function keyringOf(input: Parameters<typeof parseKeyring>[0]): Keyring {
   const parsed = parseKeyring(input);
