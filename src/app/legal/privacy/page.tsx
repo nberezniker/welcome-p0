@@ -29,7 +29,7 @@ export default async function LegalPrivacyPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">Legal · EN</p>
         <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Privacy Policy</h1>
         <p className="mt-2 text-sm text-muted">
-          Version 2026-09-p0 · This document is provided in English; localized versions are planned.
+          Version 2026-09-27-p0 · This document is provided in English; localized versions are planned.
         </p>
 
         <div className="mt-6 rounded-xl border border-line bg-[#f7f6f1] p-4 text-sm">
@@ -76,8 +76,20 @@ export default async function LegalPrivacyPage() {
               and provided columns), stored encrypted/quarantined until a guest claims their record.
             </li>
             <li>
+              <strong>Google integration (optional)</strong>: if you connect Google Contacts or
+              Calendar, we store the OAuth tokens encrypted at rest (AES-256-GCM) together with the
+              granted scopes and expiry; the tokens let the service read the contact list you chose to
+              match, and create calendar events you ask for. Disconnecting revokes and deletes them.
+            </li>
+            <li>
               <strong>Security records</strong>: audit trail of security-relevant actions; the actor is
               pseudonymized after account deletion.
+            </li>
+            <li>
+              <strong>Operational metadata</strong>: an opaque per-request correlation id attached to
+              queued deliveries (so a reported failure can be traced), your chosen interface language,
+              and — if you enable two-factor authentication — the encrypted TOTP factor and hashed
+              recovery codes.
             </li>
           </ul>
         </LegalSection>
@@ -159,11 +171,14 @@ export default async function LegalPrivacyPage() {
             <li><strong>Vercel Inc.</strong> — application hosting and edge network (deployment region: EU, Frankfurt).</li>
             <li><strong>Neon</strong> — managed PostgreSQL database (region: EU, Frankfurt).</li>
             <li><strong>Telegram</strong> — messaging channel, engaged only if YOU link your Telegram account; used to deliver notifications you consented to.</li>
+            <li><strong>Resend</strong> — email delivery provider, engaged to send one-time login codes and consented notifications; the recipient address is processed for delivery, and the message content is what the product generates for you.</li>
           </ul>
           <p>
             Subprocessors are kept to this minimum; the list may change with the product, and this
-            section will be updated accordingly. Data is stored in the EU; support access may involve
-            transfers protected by standard contractual clauses.
+            section will be updated accordingly. Data is stored in the EU (Frankfurt). Email delivery
+            and the Telegram network may involve processing outside the EU to deliver a message you
+            consented to; support access may involve transfers protected by standard contractual
+            clauses.
           </p>
         </LegalSection>
 

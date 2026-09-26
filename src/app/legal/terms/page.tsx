@@ -29,7 +29,7 @@ export default async function LegalTermsPage() {
         <p className="text-xs font-semibold uppercase tracking-wide text-muted">Legal · EN</p>
         <h1 className="mt-1 text-3xl font-extrabold tracking-tight">Terms of Use</h1>
         <p className="mt-2 text-sm text-muted">
-          Version 2026-09-p0 · This document is provided in English; localized versions are planned.
+          Version 2026-09-27-p0 · This document is provided in English; localized versions are planned.
         </p>
 
         <div className="mt-6 rounded-xl border border-line bg-[#f7f6f1] p-4 text-sm">
@@ -55,6 +55,7 @@ export default async function LegalTermsPage() {
             </li>
             <li>Do not attempt to access accounts, events or data that are not yours.</li>
             <li>Event organizers are responsible for having a lawful basis for the guest lists they import.</li>
+            <li>Do not publish, redistribute or sell contact details revealed to you through the service, even after an introduction.</li>
           </ul>
         </LegalSection>
 
