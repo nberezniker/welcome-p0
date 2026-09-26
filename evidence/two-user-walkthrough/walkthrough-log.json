@@ -1497,6 +1497,378 @@
         }
       ],
       "finished_at": "2026-09-24T22:31:01.568Z"
+    },
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-26T18:31:34.023Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "personas": {
+        "a": "demo2@welcome.test",
+        "b": "lucia.demo@welcome.test",
+        "non_member_reset_target": "lucia.demo@welcome.test",
+        "event": "welcome-demo-meetup"
+      },
+      "steps": [
+        {
+          "name": "A signs in and opens the demo event",
+          "started_at": "2026-09-26T18:31:35.031Z",
+          "shots": [
+            "01-a-event-member-state.png"
+          ],
+          "notes": [],
+          "action_ms": 5411,
+          "nav_to_usable_ms": 409,
+          "fcp_to_usable_ms": 185,
+          "document_fcp_ms": 224,
+          "console_errors": []
+        },
+        {
+          "name": "B signs in and opens the card from the QR URL",
+          "started_at": "2026-09-26T18:31:40.897Z",
+          "shots": [
+            "02-b-card-from-qr-url.png"
+          ],
+          "notes": [
+            "QR read from /api/public/profiles/fLfNapBq7P39Bb4j4zhjAQ/qr.svg (34 module rows)",
+            "the card opens as \"Дмитрий Ковалёв\"",
+            "card CTAs before the join: no-connection=true, sign-in=false, intro=false"
+          ],
+          "action_ms": 1914,
+          "nav_to_usable_ms": 462,
+          "fcp_to_usable_ms": 234,
+          "document_fcp_ms": 228,
+          "console_errors": []
+        },
+        {
+          "name": "B opens the event and joins it for real",
+          "started_at": "2026-09-26T18:31:42.867Z",
+          "shots": [
+            "03-b-event-before-join-nonmember.png",
+            "04-b-event-after-join-member.png"
+          ],
+          "notes": [
+            "BEFORE the join: no member state, the join action is the page’s primary control",
+            "POST /api/events/0bb48e98-c810-4636-ba3c-08db45078bb2/join → 200, already_member=undefined",
+            "AFTER the join: member state \"You are a member of this event.\", join action rendered 0 time(s)",
+            "PATCH membership (directory_visible) → 200"
+          ],
+          "action_ms": 1562,
+          "nav_to_usable_ms": 913,
+          "fcp_to_usable_ms": 793,
+          "document_fcp_ms": 120,
+          "console_errors": []
+        },
+        {
+          "name": "the card now offers the introduction (the join turned it on)",
+          "started_at": "2026-09-26T18:31:44.488Z",
+          "shots": [
+            "05-b-card-intro-after-join.png"
+          ],
+          "notes": [
+            "the same URL that showed no affordance now offers the introduction; no-connection=0, sign-in=0"
+          ],
+          "action_ms": 807,
+          "nav_to_usable_ms": 805,
+          "fcp_to_usable_ms": 29,
+          "document_fcp_ms": 776,
+          "console_errors": []
+        },
+        {
+          "name": "A opens the directory and proposes the introduction",
+          "started_at": "2026-09-26T18:31:45.352Z",
+          "shots": [
+            "06-a-reveal-chooser.png",
+            "07-a-proposal-sent.png"
+          ],
+          "notes": [
+            "the member panel links to /me/events/0bb48e98-c810-4636-ba3c-08db45078bb2/directory",
+            "target profile 1deb903e-1960-4a7f-955a-21ac6ed6f5a5 (found in the directory — B joined in this run)",
+            "POST /api/introductions → 200, already_existed=false"
+          ],
+          "action_ms": 2782,
+          "nav_to_usable_ms": 2779,
+          "fcp_to_usable_ms": 2115,
+          "document_fcp_ms": 664,
+          "console_errors": []
+        },
+        {
+          "name": "B sees the request waiting and accepts it",
+          "started_at": "2026-09-26T18:31:48.216Z",
+          "shots": [
+            "08-b-proposal-pending.png",
+            "09-b-mutual-reveal.png"
+          ],
+          "notes": [
+            "the card reads \"Waiting for response\"",
+            "before consent: state=pending revealed=[] reveal blocks=0",
+            "POST /respond → 200",
+            "B after consent: state=mutual revealed=[{\"kind\":\"telegram_username\",\"value\":\"@dmitry_demo\"}]",
+            "B's revealed rows: 1"
+          ],
+          "action_ms": 1590,
+          "nav_to_usable_ms": 1588,
+          "fcp_to_usable_ms": 1332,
+          "document_fcp_ms": 256,
+          "console_errors": []
+        },
+        {
+          "name": "A sees the mutual state and the reveal",
+          "started_at": "2026-09-26T18:31:49.860Z",
+          "shots": [
+            "10-a-mutual-reveal.png"
+          ],
+          "notes": [
+            "A after consent: revealed=[{\"kind\":\"telegram_username\",\"value\":\"@lucia_demo\"}] revealed rows=1"
+          ],
+          "action_ms": 1230,
+          "nav_to_usable_ms": 1228,
+          "fcp_to_usable_ms": 964,
+          "document_fcp_ms": 264,
+          "console_errors": []
+        },
+        {
+          "name": "a stranger opens A’s public card at phone size",
+          "started_at": "2026-09-26T18:31:51.152Z",
+          "shots": [
+            "11-a-public-card-stranger.png"
+          ],
+          "notes": [
+            "the card renders as \"Дмитрий Ковалёв\" with 1 public contact row(s); anonymous sign-in CTA=true"
+          ],
+          "action_ms": 588,
+          "nav_to_usable_ms": 585,
+          "fcp_to_usable_ms": 133,
+          "document_fcp_ms": 452,
+          "console_errors": []
+        },
+        {
+          "name": "the directory at desktop size",
+          "started_at": "2026-09-26T18:31:51.902Z",
+          "shots": [
+            "12-directory-desktop-1280.png"
+          ],
+          "notes": [
+            "the same view at 1280px, narrowed by the same search (A’s session reused, no second sign-in)"
+          ],
+          "action_ms": 1798,
+          "nav_to_usable_ms": 1796,
+          "fcp_to_usable_ms": 1536,
+          "document_fcp_ms": 260,
+          "console_errors": []
+        },
+        {
+          "name": "the directory at its slug URL (the deployed defect)",
+          "started_at": "2026-09-26T18:31:53.789Z",
+          "shots": [
+            "13-defect-directory-slug-url.png"
+          ],
+          "notes": [
+            "slug URL → main=1, directory controls=1"
+          ],
+          "action_ms": 3276,
+          "nav_to_usable_ms": 3274,
+          "fcp_to_usable_ms": 3030,
+          "document_fcp_ms": 244,
+          "console_errors": []
+        }
+      ],
+      "screenshots": [
+        "01-a-event-member-state.png",
+        "02-b-card-from-qr-url.png",
+        "03-b-event-before-join-nonmember.png",
+        "04-b-event-after-join-member.png",
+        "05-b-card-intro-after-join.png",
+        "06-a-reveal-chooser.png",
+        "07-a-proposal-sent.png",
+        "08-b-proposal-pending.png",
+        "09-b-mutual-reveal.png",
+        "10-a-mutual-reveal.png",
+        "11-a-public-card-stranger.png",
+        "12-directory-desktop-1280.png",
+        "13-defect-directory-slug-url.png"
+      ],
+      "skipped_screenshots": [],
+      "friction": [],
+      "finished_at": "2026-09-26T18:31:57.139Z"
+    },
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-26T18:33:18.219Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "personas": {
+        "a": "demo2@welcome.test",
+        "b": "lucia.demo@welcome.test",
+        "non_member_reset_target": "lucia.demo@welcome.test",
+        "event": "welcome-demo-meetup"
+      },
+      "steps": [
+        {
+          "name": "A signs in and opens the demo event",
+          "started_at": "2026-09-26T18:33:18.851Z",
+          "shots": [
+            "01-a-event-member-state.png"
+          ],
+          "notes": [],
+          "action_ms": 2251,
+          "nav_to_usable_ms": 701,
+          "fcp_to_usable_ms": 45,
+          "document_fcp_ms": 656,
+          "console_errors": []
+        },
+        {
+          "name": "B signs in and opens the card from the QR URL",
+          "started_at": "2026-09-26T18:33:21.449Z",
+          "shots": [
+            "02-b-card-from-qr-url.png"
+          ],
+          "notes": [
+            "QR read from /api/public/profiles/fLfNapBq7P39Bb4j4zhjAQ/qr.svg (34 module rows)",
+            "the card opens as \"Дмитрий Ковалёв\"",
+            "card CTAs before the join: no-connection=false, sign-in=false, intro=true"
+          ],
+          "action_ms": 1573,
+          "nav_to_usable_ms": 269,
+          "fcp_to_usable_ms": 93,
+          "document_fcp_ms": 176,
+          "console_errors": []
+        }
+      ],
+      "screenshots": [
+        "01-a-event-member-state.png",
+        "02-b-card-from-qr-url.png"
+      ],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "defect",
+          "text": "the card offered an introduction before B was a member of the event"
+        },
+        {
+          "severity": "blocked",
+          "text": "the walkthrough stopped: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('join-button') to be visible\n"
+        }
+      ],
+      "finished_at": "2026-09-26T18:33:53.326Z",
+      "aborted": true
+    },
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-26T18:35:16.101Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "personas": {
+        "a": "demo2@welcome.test",
+        "b": "lucia.demo@welcome.test",
+        "non_member_reset_target": "lucia.demo@welcome.test",
+        "event": "welcome-demo-meetup"
+      },
+      "steps": [
+        {
+          "name": "A signs in and opens the demo event",
+          "started_at": "2026-09-26T18:35:16.803Z",
+          "shots": [
+            "01-a-event-member-state.png"
+          ],
+          "notes": [],
+          "action_ms": 1757,
+          "nav_to_usable_ms": 222,
+          "fcp_to_usable_ms": 46,
+          "document_fcp_ms": 176,
+          "console_errors": []
+        },
+        {
+          "name": "B signs in and opens the card from the QR URL",
+          "started_at": "2026-09-26T18:35:18.859Z",
+          "shots": [
+            "02-b-card-from-qr-url.png"
+          ],
+          "notes": [
+            "QR read from /api/public/profiles/fLfNapBq7P39Bb4j4zhjAQ/qr.svg (34 module rows)",
+            "the card opens as \"Дмитрий Ковалёв\"",
+            "card CTAs before the join: no-connection=false, sign-in=false, intro=true"
+          ],
+          "action_ms": 2666,
+          "nav_to_usable_ms": 242,
+          "fcp_to_usable_ms": 86,
+          "document_fcp_ms": 156,
+          "console_errors": []
+        }
+      ],
+      "screenshots": [
+        "01-a-event-member-state.png",
+        "02-b-card-from-qr-url.png"
+      ],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "defect",
+          "text": "the card offered an introduction before B was a member of the event"
+        },
+        {
+          "severity": "blocked",
+          "text": "the walkthrough stopped: locator.waitFor: Timeout 30000ms exceeded.\nCall log:\n  - waiting for getByTestId('join-button') to be visible\n"
+        }
+      ],
+      "finished_at": "2026-09-26T18:35:51.966Z",
+      "aborted": true
+    },
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-26T18:36:12.990Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "personas": {
+        "a": "demo2@welcome.test",
+        "b": "lucia.demo@welcome.test",
+        "non_member_reset_target": "lucia.demo@welcome.test",
+        "event": "welcome-demo-meetup"
+      },
+      "steps": [],
+      "screenshots": [],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "blocked",
+          "text": "the walkthrough stopped: demo2@welcome.test: the deployment exposed no demo code (AUTH_EXPOSE_DEMO_OTP/is_demo off, or the 3-codes-per-15-minutes guard already spent for this account)"
+        }
+      ],
+      "finished_at": "2026-09-26T18:36:14.439Z",
+      "aborted": true
+    },
+    {
+      "target": "https://welcome.colmogravity.net",
+      "started_at": "2026-09-26T18:45:32.032Z",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "personas": {
+        "a": "demo2@welcome.test",
+        "b": "lucia.demo@welcome.test",
+        "non_member_reset_target": "lucia.demo@welcome.test",
+        "event": "welcome-demo-meetup"
+      },
+      "steps": [],
+      "screenshots": [],
+      "skipped_screenshots": [],
+      "friction": [
+        {
+          "severity": "blocked",
+          "text": "the walkthrough stopped: demo2@welcome.test: the deployment exposed no demo code (AUTH_EXPOSE_DEMO_OTP/is_demo off, or the 3-codes-per-15-minutes guard already spent for this account)"
+        }
+      ],
+      "finished_at": "2026-09-26T18:45:33.432Z",
+      "aborted": true
     }
   ]
 }
